@@ -108,7 +108,7 @@ class PoolWorker:
             except Exception:
                 log(f"pool: batch {batch_id} position {position} failed\n{traceback.format_exc()}")
                 return False
-            self.checks.check(result["id"])  # tee-shot check as it joins the pool (new holes pass)
+            self.checks.check(result["id"])  # playability check as it joins the pool (new holes pass)
             pool.add_hole(self.dsn, batch_id, position, result["id"])
             return True
         return False

@@ -123,6 +123,7 @@ Or snapshot the `course-trainer_db` volume with the stack stopped. `docker compo
 | `TRAINER_SESSION_DAYS` | `30` | |
 | `TRAINER_LAUNCH_NEAR_M`, `TRAINER_LAUNCH_NEAR_MAX_M` | `60`, `1.0` | a hole is unplayable when the ground rises more than 1.0 m above the tee shot within 60 m (see Playability) |
 | `TRAINER_LAUNCH_FAR_M`, `TRAINER_LAUNCH_FAR_MAX_M` | `100`, `2.5` | ... or more than 2.5 m within 100 m (the scanner's reach) |
+| `TRAINER_GREEN_PIN_MAX_SLOPE` | `0.06` | ... or the green is steeper than 6 % within 2 m of the pin |
 
 ## Hole pool
 
@@ -156,20 +157,29 @@ Everyone rates holes from one shared pool (`pool.py`, filled by `pool_worker.py`
 ### Playability (`hole_checks.py`)
 
 Packages are immutable, so holes from generator v3 and earlier can have ground rising into the tee shot
-(`mountain_25039489_bd20eb`: 5.3 m above the launch line 70 m out). Each pool or voted hole is judged once with
-course_gen's scanner (`scan_launch.launch_profile`, the generator's own 8° launch check over the first 100 m):
-**unplayable** when the ground rises more than `TRAINER_LAUNCH_NEAR_MAX_M` (1.0 m) above the launch line within
-`TRAINER_LAUNCH_NEAR_M` (60 m) of the tee, or more than `TRAINER_LAUNCH_FAR_MAX_M` (2.5 m) within 100 m. The verdict
-goes into `hole_checks` (migration `004_hole_checks.sql`: generator version, playable, reason, worst overshoot).
+(`mountain_25039489_bd20eb`: 5.3 m above the launch line 70 m out), and holes from v4 and earlier can have a green
+tilted 15 % by a pond bank (`lakes_189033389_fb40ac`: putts can't stop at the pin). Each pool or voted hole is judged
+with course_gen's scanner (`scan_playability.py`, the generator's own checks):
+
+- **Tee shot** (`launch_profile`, the 8° launch check over the first 100 m): **unplayable** when the ground rises more
+  than `TRAINER_LAUNCH_NEAR_MAX_M` (1.0 m) above the launch line within `TRAINER_LAUNCH_NEAR_M` (60 m) of the tee, or
+  more than `TRAINER_LAUNCH_FAR_MAX_M` (2.5 m) within 100 m.
+- **Green** (`green_profile`): **unplayable** when the green is steeper than `TRAINER_GREEN_PIN_MAX_SLOPE` (6 %)
+  within 2 m of the pin. The generator itself keeps it under 4 % (and the rest of the putting surface under 6 %).
+
+The verdict goes into `hole_checks` (migrations `004_hole_checks.sql`, `005_hole_check_version.sql`: generator
+version, playable, reason, worst overshoot, green slope at the pin and anywhere, and the `check_version` of the rules
+that judged it, `hole_checks.CHECK_VERSION`).
 
 - New pool holes are checked as they join the pool (they pass: the generator rejects such layouts now).
-- On startup a background thread backfills every unchecked hole (~50 ms each; requests never wait for it):
-  `hole checks: backfilled 408 hole(s), 4 unplayable: ...` in the log. The leaderboard and `/api/next` check
+- On startup a background thread backfills every unchecked hole, and every hole judged by older rules (a lower
+  `check_version`; ~60 ms each; requests never wait for it): `hole checks: backfilled 408 hole(s), 22 unplayable:
+  ...` in the log. The leaderboard and `/api/next` check
   an unchecked hole on the spot, so nothing slips through while the backfill runs.
 - Unplayable holes leave the Top holes ranking (`/api/top`, the Game API, `top`) and are never served by
   `/api/next` (nor counted toward a batch's refill). Their **votes stay** and still train the model.
 - `docker compose run --rm -T trainer check-holes` checks the unchecked holes and lists every unplayable one;
-  `--all` re-checks them all (needed after changing the `TRAINER_LAUNCH_*` limits).
+  `--all` re-checks them all (needed after changing the `TRAINER_LAUNCH_*` or `TRAINER_GREEN_PIN_MAX_SLOPE` limits).
 
 ### Leaderboard (Top holes)
 

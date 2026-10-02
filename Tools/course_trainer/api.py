@@ -67,7 +67,7 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         worker.start()  # first batch if there is none; resumes batches a restart interrupted
-        checks.start_backfill()  # tee-shot check of holes from before hole_checks, in the background
+        checks.start_backfill()  # playability check of holes unchecked or checked by older rules, in the background
         yield
         worker.stop()
 

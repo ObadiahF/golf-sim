@@ -17,13 +17,14 @@ from preview import render_preview
 from priors import load_priors
 from style import Style
 from terrain import Grid, sculpt
-from validate import launch_problems, problems
+from validate import green_problems, launch_problems, problems
 from vegetation import plant
 from vegetation_themes import tree_density_scale
 from water import carve_water
 
-GENERATOR_VERSION = 4   # 2: trees, shrubs and rocks planted here (objects.bin), not by Unity; 3: tee point always on the back tee box
+GENERATOR_VERSION = 5   # 2: trees, shrubs and rocks planted here (objects.bin), not by Unity; 3: tee point always on the back tee box
                         # 4: graded line of play + level tee boxes, tee shots checked for clearance (TH-5)
+                        # 5: pond banks never tilt a tee or the green, calm pin area, greens checked for slope (Q5-1)
 GEN_FORMAT = 2          # gen.json format (Docs/hole-format/gen.schema.json)
 GEN_FILE = "gen.json"
 MAX_ATTEMPTS = 40
@@ -62,15 +63,16 @@ def plan(style: Style, seed: int, priors: dict | None = None) -> tuple[Layout, i
 
 
 def plan_terrain(style: Style, seed: int, spacing: float = DEFAULT_SPACING, priors: dict | None = None):
-    """First layout whose 2D plan and sculpted terrain are both playable (the tee shot clears the ground).
-    Returns (layout, frame, heights, attempts used)."""
+    """First layout whose 2D plan and sculpted terrain are both playable (the tee shot clears the ground and the
+    green is puttable). Returns (layout, frame, heights, attempts used)."""
     issues: list[str] = []
     for layout, attempt, issues in _layouts(style, seed, priors):
         if issues:
             continue
         frame = HoleFrame(0, 0.0, 0.0, layout.size, pick_resolution(layout.size, spacing))
         heights = sculpt(layout, style, Grid(frame.size, frame.resolution), seed)
-        issues = launch_problems(layout.path, heights, layout.size)
+        issues = (launch_problems(layout.path, heights, layout.size)
+                  + green_problems(layout.green, layout.pin, heights, layout.size))
         if not issues:
             return layout, frame, heights, attempt
     _give_up(issues)

@@ -142,7 +142,9 @@ textarea:focus, select:focus { outline: 2px solid var(--green-bright); outline-o
 .click-hint span { font-size: 12px; opacity: 0.85; }
 .lock-hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); pointer-events: none;
   color: #fff; font-size: 12px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); white-space: nowrap; }
-.topbar { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; }
+/* Above the overlays' backdrop (z 40), so Log out / Top holes / Controls stay usable while one is open. */
+.topbar { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); display: flex; gap: 6px; align-items: center;
+  z-index: 45; }
 .topbar .btn { background: var(--paper) !important; }
 .topbar .who { font: 500 12px var(--mono); padding: 3px 9px; background: var(--paper); border: 1px solid var(--rule);
   border-radius: 4px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

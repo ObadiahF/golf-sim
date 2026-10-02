@@ -21,6 +21,12 @@ LAUNCH_RUN = 100.0        # meters of the line of play checked from the tee
 LAUNCH_SPREAD_DEG = 6.0   # also check straight lines this far left and right of the opening line
 LAUNCH_SLACK = 0.15       # meters of tolerance (grass, tee pad edge)
 
+# Putting surface (Q5-1): a putt must be able to stop near the pin.
+GREEN_PIN_SLOPE = 0.04    # steepest grade within GREEN_PIN_RADIUS of the pin
+GREEN_PIN_RADIUS = 2.0    # meters
+GREEN_MAX_SLOPE = 0.06    # steepest grade anywhere on the putting surface...
+GREEN_EDGE = 1.0          # ...more than this many meters (or a sample) inside its edge, which blends into the collar
+
 
 def problems(layout: Layout) -> list[str]:
     """Empty list = playable."""
@@ -95,3 +101,31 @@ def launch_issues(profile: dict[str, tuple[np.ndarray, np.ndarray]]) -> list[str
 def launch_problems(path: LineString, heights: np.ndarray, size: float) -> list[str]:
     """Empty list = a low tee shot clears the ground (see launch_overshoot)."""
     return launch_issues(launch_overshoot(path, heights, size))
+
+
+def green_slopes(green, pin: Point, heights: np.ndarray, size: float) -> tuple[float, float]:
+    """(steepest grade within GREEN_PIN_RADIUS of the pin, steepest grade on the green more than GREEN_EDGE m inside
+    its edge), as fractions (0.04 = 4 %). `heights` is the tile heightmap (row 0 south)."""
+    grid = Grid(size, heights.shape[0])
+    dz, dx = np.gradient(heights, grid.d)
+    grade = np.hypot(dx, dz)
+    near_pin = np.hypot(grid.x - pin.x, grid.z - pin.y) <= max(GREEN_PIN_RADIUS, grid.d)
+    inner = shapely.contains_xy(green.buffer(-max(GREEN_EDGE, grid.d)), grid.x, grid.z)  # exact: Grid.mask over-fills
+    inner |= near_pin
+    return float(grade[near_pin].max(initial=0.0)), float(grade[inner].max(initial=0.0))
+
+
+def green_issues(pin_slope: float, max_slope: float, pin_cap: float = GREEN_PIN_SLOPE,
+                 max_cap: float = GREEN_MAX_SLOPE) -> list[str]:
+    """green_slopes over the caps, as problems."""
+    issues = []
+    if pin_slope > pin_cap:
+        issues.append(f"green slopes {pin_slope:.1%} at the pin (limit {pin_cap:.0%})")
+    if max_slope > max_cap:
+        issues.append(f"green slopes {max_slope:.1%} on the putting surface (limit {max_cap:.0%})")
+    return issues
+
+
+def green_problems(green, pin: Point, heights: np.ndarray, size: float) -> list[str]:
+    """Empty list = the green is puttable (see green_slopes)."""
+    return green_issues(*green_slopes(green, pin, heights, size))

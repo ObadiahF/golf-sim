@@ -7,7 +7,7 @@
   python server.py passwd NAME [--password PW]
   python server.py export [--history] > votes.jsonl
   python server.py top [--limit 9] [--export DIR]   leaderboard; --export copies the top packages to DIR
-  python server.py check-holes [--all]        tee-shot check of unchecked (--all: every) hole; lists unplayable
+  python server.py check-holes [--all]        playability check of unchecked (--all: every) hole; lists unplayable
 
 Needs TRAINER_DATABASE_URL (Postgres); other settings come from TRAINER_* variables (see .env.example).
 Serves the JSON API under /api and the built web UI (web/dist) at /. For UI development run `npm run dev`
@@ -158,8 +158,10 @@ def main(argv: list[str] | None = None):
     t.add_argument("--limit", type=int, default=9)
     t.add_argument("--export", metavar="DIR", help="copy the top holes' package folders (contract files) here")
     t.set_defaults(func=cmd_top)
-    c = sub.add_parser("check-holes", help="tee-shot check of unchecked pool / voted holes; prints the unplayable")
-    c.add_argument("--all", action="store_true", help="re-check every hole (e.g. after changing TRAINER_LAUNCH_*)")
+    c = sub.add_parser("check-holes", help="playability check (tee shot, green) of unchecked pool / voted holes; "
+                                           "prints the unplayable")
+    c.add_argument("--all", action="store_true",
+                   help="re-check every hole (e.g. after changing TRAINER_LAUNCH_* or TRAINER_GREEN_PIN_MAX_SLOPE)")
     c.set_defaults(func=cmd_check_holes)
 
     args = p.parse_args(argv)

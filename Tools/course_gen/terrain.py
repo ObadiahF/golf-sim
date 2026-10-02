@@ -20,6 +20,10 @@ from style import Style
 BASE_ELEVATION = 100.0   # arbitrary datum so heights read like real meters above sea level
 GREEN_RAISE = 0.45
 TEE_RAISE = 0.5
+GREEN_TILT = 0.025       # back-to-front fall of a green
+GREEN_COLLAR = 1.0       # the green's pad reaches this far (+ a sample) past its edge: slopes start off the green
+GREEN_UNDULATION = 0.12  # meters of gentle roll on a green (2 octaves: no small steep bumps)
+PIN_CALM = (1.5, 12.0)   # ...none within 1.5 m of the pin, which sits on the plain tilt, full roll from 12 m
 BANK_WIDTH = 10.0        # meters of shore raised around ponds
 
 
@@ -76,16 +80,23 @@ def sculpt(layout: Layout, style: Style, grid: Grid, seed: int) -> np.ndarray:
     if style.hilliness > 0.6:  # links: small dune bumps survive in the rough
         h += Fbm(seed + 1, 28)(grid.x, grid.z) * 0.9 * (style.hilliness - 0.5) * (1 - 0.8 * fairway)
 
-    # TH-5: a playable line of play (grade-limited from the tee) and tee boxes that never form terraces.
+    # TH-5: a playable line of play (grade-limited from the tee).
     h = grade_corridor(h, grid, layout.path, rough_dist)
-    h = _pad(h, grid, layout.tees, TEE_RAISE, slope=0.0, transition=5.0,
-             levels=tee_levels(h, grid, layout.path, layout.tees, TEE_RAISE))
-    h = _pad(h, grid, [layout.green], GREEN_RAISE, slope=0.025, transition=7.0, layout=layout,
-             undulation=Fbm(seed + 2, 14))
-    for bunker in layout.bunkers:
-        h = _dig(h, grid, bunker, depth=0.55 + 0.35 * (bunker.area > 200))
+    # Ponds before the pads: their ~15% banks must never tilt a tee or the green (Q5-1), and the pads leave the
+    # water alone so each pond keeps its one level.
     for pond in layout.water:
         h = _pond_bed(h, grid, pond)
+    dry = ~grid.mask(layout.water) if layout.water else None
+    # Tee boxes that never form terraces, then a puttable green: calm around the pin, gentle elsewhere.
+    h = _pad(h, grid, layout.tees, TEE_RAISE, slope=0.0, transition=5.0, dry=dry,
+             levels=tee_levels(h, grid, layout.path, layout.tees, TEE_RAISE))
+    from_pin = np.hypot(grid.x - layout.pin.x, grid.z - layout.pin.y)
+    calm = smoothstep((from_pin - PIN_CALM[0]) / (PIN_CALM[1] - PIN_CALM[0]))
+    h = _pad(h, grid, [layout.green.buffer(GREEN_COLLAR + grid.d)], GREEN_RAISE, slope=GREEN_TILT, transition=7.0,
+             layout=layout, dry=dry, undulation=Fbm(seed + 2, 14, octaves=2)(grid.x, grid.z) * GREEN_UNDULATION * calm)
+    on_green = grid.mask([layout.green.buffer(grid.d)])  # bunkers sit 1.5 m off it, but a coarse grid reaches over
+    for bunker in layout.bunkers:
+        h = _dig(h, grid, bunker, depth=0.55 + 0.35 * (bunker.area > 200), keep=on_green)
     return h + BASE_ELEVATION
 
 
@@ -99,9 +110,11 @@ def _tilt(layout: Layout, style: Style, grid: Grid, relief: float) -> np.ndarray
 
 
 def _pad(h, grid: Grid, shapes, raise_m: float, slope: float, transition: float, layout: Layout | None = None,
-         undulation: Fbm | None = None, levels: list[float | None] | None = None):
+         undulation: np.ndarray | None = None, levels: list[float | None] | None = None,
+         dry: np.ndarray | None = None):
     """Flatten each shape into a plane (optionally tilted back-to-front) raised above its surroundings.
-    `levels`: a fixed pad height per shape instead of its own median ground + raise_m."""
+    `undulation`: meters added to the plane. `levels`: a fixed pad height per shape instead of its own median ground
+    + raise_m. `dry`: only these cells may change (keeps the transition out of ponds)."""
     for i, shape in enumerate(shapes):
         m = grid.mask([shape])
         if not m.any():
@@ -117,14 +130,17 @@ def _pad(h, grid: Grid, shapes, raise_m: float, slope: float, transition: float,
             c = shape.centroid
             surface += ((grid.x - c.x) * dx + (grid.z - c.y) * dz) / norm * slope
         if undulation is not None:
-            surface += undulation(grid.x, grid.z) * 0.18
+            surface += undulation
         w = smoothstep(1 - grid.dist_outside(m) / transition)
+        if dry is not None:
+            w = w * dry
         h = h + (surface - h) * w
     return h
 
 
-def _dig(h, grid: Grid, bunker, depth: float):
-    m = grid.mask([bunker])
+def _dig(h, grid: Grid, bunker, depth: float, keep: np.ndarray):
+    """Dig the bunker, leaving the `keep` cells alone."""
+    m = grid.mask([bunker]) & ~keep
     if not m.any():
         return h
     return h - depth * smoothstep(grid.dist_inside(m) / 2.0)

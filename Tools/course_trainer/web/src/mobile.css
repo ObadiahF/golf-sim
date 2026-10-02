@@ -81,5 +81,6 @@
   .topbar { right: calc(var(--side) + 10px); }
   .click-hint { left: calc((100% - var(--side)) / 2); }
   .waiting-card { left: 150px; right: calc(var(--side) + 84px); width: auto; }  /* between stick and ▲▼ */
-  .top-card { width: min(560px, 100vw); max-height: 100vh; align-self: center; border-radius: 14px; }
+  /* Below the top bar (2 rows, ~90px), which stays above the backdrop so Log out works with the leaderboard open. */
+  .top-card { width: min(560px, 100vw); max-height: calc(100vh - 96px); align-self: end; border-radius: 14px 14px 0 0; }
 }

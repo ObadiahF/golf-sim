@@ -35,6 +35,9 @@ export function TrainerView({ session, name }: { session: Session; name: string 
       } else if (e.code === 'KeyH' || e.code === 'F1') {
         e.preventDefault();
         setHelp(h => !h);
+      } else if (e.code === 'Escape') {  // closes an open overlay (the browser's own Esc releases the mouse)
+        setTop(false);
+        setHelp(false);
       } else if (e.code === 'KeyF') {
         e.preventDefault();
         document.exitPointerLock();

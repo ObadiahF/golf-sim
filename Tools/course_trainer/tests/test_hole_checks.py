@@ -1,4 +1,4 @@
-"""Tee-shot playability (hole_checks.py): unplayable holes leave Top holes, the game API and /api/next."""
+"""Playability (hole_checks.py, tee shot and green): unplayable holes leave Top holes, the game API and /api/next."""
 import json
 import math
 from pathlib import Path
@@ -14,7 +14,7 @@ import users
 from conftest import fill_pool, login, next_hole
 from dem_io import write_raw16
 from gen_hole import rate_package
-from hole_checks import Limits, assess
+from hole_checks import CHECK_VERSION, Limits, assess, assess_green
 from hole_package import read_heights, read_hole
 from pg_store import PostgresStore
 from terrain import Grid
@@ -24,20 +24,35 @@ KEY = "game-key-for-tests"
 VOTERS = ("u1", "u2", "u3")
 
 
-def raise_wall(folder: Path, at: float = 30.0, over: float = 6.0) -> None:
-    """Make a legacy-style package: ground `over` m above an 8 deg tee shot `at` m out on the hole line."""
+def edit_heights(folder: Path, edit) -> None:
+    """Rewrite a package's heightmap as edit(hole, heights, grid) (a legacy-style package, for the checks)."""
     hole = read_hole(folder)
     heights = read_heights(folder, hole)
-    grid = Grid(hole["sizeMeters"], heights.shape[0])
-    path = LineString(np.asarray(hole["holePath"]["points"], dtype=float).reshape(-1, 2))
-    tee, spot = path.coords[0], path.interpolate(at)
-    tee_height = heights.flat[np.argmin(np.hypot(grid.x - tee[0], grid.z - tee[1]))]
-    top = tee_height + math.tan(math.radians(8)) * at + over
-    disk = np.hypot(grid.x - spot.x, grid.z - spot.y) < 8.0
-    heights = np.where(disk, np.maximum(heights, top), heights)
+    heights = edit(hole, heights, Grid(hole["sizeMeters"], heights.shape[0]))
     lo, hi = write_raw16(heights, folder / hole["heightmap"]["file"])
     hole["heightmap"].update(minElevation=round(lo, 3), maxElevation=round(max(hi, lo + 0.001), 3))
     (folder / "hole.json").write_text(json.dumps(hole, indent=1))
+
+
+def raise_wall(folder: Path, at: float = 30.0, over: float = 6.0) -> None:
+    """Ground `over` m above an 8 deg tee shot `at` m out on the hole line."""
+    def edit(hole, heights, grid):
+        path = LineString(np.asarray(hole["holePath"]["points"], dtype=float).reshape(-1, 2))
+        tee, spot = path.coords[0], path.interpolate(at)
+        tee_height = heights.flat[np.argmin(np.hypot(grid.x - tee[0], grid.z - tee[1]))]
+        top = tee_height + math.tan(math.radians(8)) * at + over
+        disk = np.hypot(grid.x - spot.x, grid.z - spot.y) < 8.0
+        return np.where(disk, np.maximum(heights, top), heights)
+    edit_heights(folder, edit)
+
+
+def tilt_green(folder: Path, grade: float = 0.15) -> None:
+    """The green area tilted `grade` (the pond-bank tilt of Q5-1): a plane through the pin, 25 m around it."""
+    def edit(hole, heights, grid):
+        pin = hole["pin"]
+        near = np.hypot(grid.x - pin["x"], grid.z - pin["y"]) < 25.0
+        return np.where(near, heights + (grid.x - pin["x"]) * grade, heights)
+    edit_heights(folder, edit)
 
 
 @pytest.fixture
@@ -81,6 +96,7 @@ def test_new_pool_holes_are_checked_as_they_join(make_client, clean_db):
     recorded = checks(clean_db)
     assert sorted(recorded) == ids and all(r["playable"] and r["reason"] is None for r in recorded.values())
     assert all(r["generator_version"] and r["worst_overshoot_m"] <= 1.0 for r in recorded.values())
+    assert all(r["check_version"] == CHECK_VERSION and r["green_pin_slope"] <= 0.04 for r in recorded.values())
 
 
 def test_backfill_marks_the_bad_package_and_only_it(pooled, clean_db):
@@ -147,3 +163,44 @@ def test_cutoffs(at, over, playable):
     assert (reason is None) == playable and worst == max(over, 0.0)
     if not playable:
         assert f"{at} m out on the hole line" in reason
+
+
+@pytest.mark.parametrize("pin,playable", [(0.03, True), (0.06, True), (0.061, False), (0.15, False)])
+def test_green_cutoff(pin, playable):
+    reason = assess_green((pin, 0.2), Limits())  # a steep patch away from the pin never counts
+    assert (reason is None) == playable
+    if not playable:
+        assert reason == f"green slopes {pin:.1%} at the pin (limit 6%)"
+    assert assess_green((pin, 0.2), Limits(green_pin_max=0.2)) is None and assess_green(None, Limits()) is None
+
+
+def test_steep_green_leaves_top_holes_and_the_game(pooled, clean_db):
+    obi, settings, ids = pooled
+    tilt_green(Path(settings.holes_dir) / ids["c"])
+    assert top_ids(obi) == [ids["a"], ids["d"]] and game_top_ids(obi) == [ids["a"], ids["d"]]
+    bad = checks(clean_db)[ids["c"]]
+    assert not bad["playable"] and bad["reason"].startswith("green slopes 15") and bad["green_pin_slope"] > 0.14
+
+
+def test_older_checks_are_redone(pooled, clean_db, monkeypatch, capsys):
+    """A hole judged before the green check (check_version 1, 'playable') is re-checked: on startup, on the spot,
+    and by check-holes without --all."""
+    obi, settings, ids = pooled
+    obi.app.state.checks.backfill()
+    tilt_green(Path(settings.holes_dir) / ids["a"])
+    with hole_checks.connect(clean_db) as conn:
+        conn.execute("UPDATE hole_checks SET check_version = 1, playable = true, reason = NULL WHERE hole_id = %s",
+                     [ids["a"]])
+    assert hole_checks.candidates(clean_db) == [ids["a"]] and ids["a"] not in hole_checks.verdicts(clean_db)
+    assert top_ids(obi) == [ids["c"], ids["d"]]  # the outdated verdict is not trusted: checked on the spot
+    assert checks(clean_db)[ids["a"]]["check_version"] == CHECK_VERSION
+    with hole_checks.connect(clean_db) as conn:
+        conn.execute("UPDATE hole_checks SET check_version = 1, playable = true WHERE hole_id = %s", [ids["a"]])
+    monkeypatch.setenv("TRAINER_DATABASE_URL", settings.database_url)
+    monkeypatch.setenv("TRAINER_HOLES_DIR", str(settings.holes_dir))
+    server.main(["check-holes"])
+    out = capsys.readouterr().out
+    assert f"{ids['a']}  v" in out and "green slopes" in out and not hole_checks.candidates(clean_db)
+    monkeypatch.setenv("TRAINER_GREEN_PIN_MAX_SLOPE", "0.5")  # a looser cutoff: --all re-judges it playable
+    server.main(["check-holes", "--all"])
+    assert ids["a"] not in capsys.readouterr().out

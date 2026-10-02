@@ -3,7 +3,7 @@
 Score = the Wilson score lower bound (95%) of the like share up / (up + down): the like share the hole has at
 least, given how few votes it has. 1 like and 0 dislikes scores 0.21, 4 likes and 1 dislike 0.38, 9 and 1 0.60,
 so a hole needs several votes to beat a well-liked one, unlike the raw ratio (1/1 = 100%). No votes: 0.
-Holes whose tee shot is unplayable (hole_checks.py) are left out; their votes still count for training.
+Unplayable holes (tee shot or green, hole_checks.py) are left out; their votes still count for training.
 """
 from __future__ import annotations
 
