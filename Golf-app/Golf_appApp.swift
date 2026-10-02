@@ -1,17 +1,25 @@
-//
-//  Golf_appApp.swift
-//  Golf-app
-//
-//  Created by Obadiah Fusco on 10/2/26.
-//
-
 import SwiftUI
+import UIKit
 
 @main
 struct Golf_appApp: App {
+    @State private var session = SwingSession()
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView(session: session)
+                .preferredColorScheme(.dark)
+                .onChange(of: scenePhase, initial: true) { _, phase in
+                    let active = phase == .active
+                    // Keep the screen awake while the remote is in use.
+                    UIApplication.shared.isIdleTimerDisabled = active
+                    if active {
+                        session.connect()
+                    } else if phase == .background {
+                        session.disconnect()
+                    }
+                }
         }
     }
 }
