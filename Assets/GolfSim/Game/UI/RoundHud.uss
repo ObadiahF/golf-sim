@@ -1,0 +1,67 @@
+/* In-round HUD and scorecard; colors and buttons come from Menu.uss. */
+.hud-root { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+
+.hud {
+    position: absolute; left: 28px; top: 28px; padding: 18px 24px; border-radius: 18px;
+    background-color: var(--surface); border-width: 1px; border-color: var(--border);
+}
+.hud--hidden { display: none; }
+.hud__eyebrow { font-size: 18px; color: var(--accent); -unity-font-style: bold; letter-spacing: 3px; margin: 0; }
+.hud__player { font-size: 40px; -unity-font-style: bold; margin: 0 0 10px 0; }
+.hud__stats { flex-direction: row; }
+.hud__stat { margin: 0 26px 0 0; }
+.hud__caption { font-size: 14px; color: var(--muted); letter-spacing: 2px; margin: 0; }
+.hud__value { font-size: 24px; -unity-font-style: bold; margin: 2px 0 0 0; }
+
+.toast {
+    position: absolute; top: 34px; left: 30%; right: 30%; padding: 14px 24px; border-radius: 16px;
+    background-color: rgba(8, 12, 16, 0.78); border-width: 1px; border-color: var(--accent);
+    font-size: 30px; -unity-font-style: bold; -unity-text-align: middle-center; white-space: normal;
+    opacity: 0; transition: opacity 0.25s;
+}
+.toast--shown { opacity: 1; }
+
+.hud-hint {
+    position: absolute; bottom: 16px; left: 30%; right: 30%; padding: 6px 16px; border-radius: 10px;
+    background-color: rgba(8, 12, 16, 0.6); font-size: 18px; color: var(--muted); -unity-text-align: middle-center;
+}
+
+/* ---- Scorecard ---- */
+.scorecard {
+    position: absolute; left: 0; right: 0; top: 0; bottom: 0; justify-content: center; align-items: center;
+    background-color: rgba(5, 8, 12, 0.72); opacity: 0; visibility: hidden; transition: opacity 0.25s, visibility 0.25s;
+}
+.scorecard--open { opacity: 1; visibility: visible; }
+.scorecard__panel {
+    padding: 36px 40px; border-radius: 24px; background-color: var(--surface);
+    border-width: 1px; border-color: var(--border);
+}
+.scorecard__hint { font-size: 22px; color: var(--accent); -unity-font-style: bold; margin: 24px 0 0 0; }
+
+/* ---- Turn announcement (TurnBanner.cs): big in the middle, then it flies into the badge ---- */
+.turn-banner { position: absolute; left: 0; right: 0; top: 0; bottom: 0; justify-content: center; align-items: center; }
+.turn-banner__card {
+    padding: 28px 64px 34px 64px; border-radius: 28px; background-color: rgba(8, 12, 16, 0.84);
+    border-width: 3px; border-color: var(--accent); align-items: center;
+    opacity: 0; scale: 0.7;
+    transition: opacity 0.3s ease-out, scale 0.55s ease-in-out, translate 0.55s ease-in-out;
+}
+.turn-banner--center .turn-banner__card { opacity: 1; scale: 1; }
+.turn-banner__title { font-size: 112px; -unity-font-style: bold; letter-spacing: 4px; margin: 0; text-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); }
+.turn-banner__detail { font-size: 34px; color: #c9d4de; margin: 4px 0 0 0; }
+
+.turn-badge {
+    position: absolute; right: 28px; top: 28px; flex-direction: row; align-items: center;
+    padding: 14px 24px 14px 18px; border-radius: 18px; background-color: var(--surface);
+    border-width: 2px; border-color: var(--accent); opacity: 0; transition: opacity 0.25s;
+}
+.turn-badge--shown { opacity: 1; }
+.turn-badge__dot { width: 18px; height: 18px; border-radius: 9px; margin: 0 14px 0 0; background-color: var(--accent); }
+.turn-badge__name { font-size: 32px; -unity-font-style: bold; margin: 0; }
+.turn-badge__detail { font-size: 17px; color: var(--muted); margin: 0; }
+
+.confetti { position: absolute; left: 0; right: 0; top: 0; bottom: 0; overflow: hidden; }
+.confetti__piece {
+    position: absolute; top: -30px; width: 11px; height: 18px; border-radius: 2px;
+    transition-property: translate, rotate; transition-timing-function: ease-in;
+}

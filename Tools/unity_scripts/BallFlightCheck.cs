@@ -14,9 +14,9 @@ public static class BallFlightCheck
     {
         var p = BallPhysicsSettings.Defaults;
         var sb = new StringBuilder("club      carry yd  apex yd  land deg  hang s\n");
-        foreach (var (name, shot) in ShotData.Presets)
+        foreach (var club in Clubs.Bag)
         {
-            var s = BallPhysics.Launch(Vector3.zero, Vector3.forward, shot);
+            var (name, s) = (club.name, BallPhysics.Launch(Vector3.zero, Vector3.forward, club.shot));
             float apex = 0f, t = 0f;
             var prev = s;
             while (t < 20f)

@@ -1,0 +1,6 @@
+{
+    "name": "GolfSim.Net",
+    "rootNamespace": "GolfSim.Net",
+    "references": ["GolfSim.Ball"],
+    "autoReferenced": true
+}

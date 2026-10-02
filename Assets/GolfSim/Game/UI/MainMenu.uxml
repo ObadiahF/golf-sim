@@ -1,0 +1,45 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Menu.uss" />
+    <ui:VisualElement class="menu">
+        <ui:VisualElement name="backdrop-a" class="backdrop" picking-mode="Ignore" />
+        <ui:VisualElement name="backdrop-b" class="backdrop" picking-mode="Ignore" />
+        <ui:VisualElement name="shade" class="shade" picking-mode="Ignore" />
+        <ui:VisualElement class="topbar">
+            <ui:Label text="GOLF SIM" class="logo" />
+            <ui:VisualElement class="topbar__right">
+                <ui:Label name="date" class="date" />
+                <ui:Label name="clock" class="clock" />
+                <ui:Button name="quit" text="Quit" class="btn btn--ghost btn--small" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="hero">
+            <ui:Label text="GAME MODE" class="hero__eyebrow" />
+            <ui:Label name="title" class="hero__title" />
+            <ui:Label name="description" class="hero__description" />
+            <ui:VisualElement class="hero__actions">
+                <ui:Button name="play" text="Play" class="btn btn--primary" />
+                <ui:VisualElement name="holes" class="segmented segmented--hidden">
+                    <ui:Button name="holes-9" text="9 holes" class="tab" />
+                    <ui:Button name="holes-18" text="18 holes" class="tab" />
+                    <ui:Label text="Up/Down to change" class="segmented__hint" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="cards" class="cards" />
+        <ui:VisualElement name="scores" class="scores">
+            <ui:VisualElement class="scores__panel">
+                <ui:VisualElement class="scores__header">
+                    <ui:VisualElement>
+                        <ui:Label text="SCORES" class="hero__eyebrow" />
+                        <ui:Label text="Leaderboard" class="home__title" />
+                    </ui:VisualElement>
+                    <ui:Button name="scores-close" text="Close" class="btn btn--ghost btn--small" />
+                </ui:VisualElement>
+                <ui:VisualElement name="scores-tabs" class="scores__tabs" />
+                <ui:Label name="scores-status" class="scores__status" />
+                <ui:VisualElement name="scores-table" />
+                <ui:Label text="Left/Right: rank by  ·  Back: close" class="scores__hint" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

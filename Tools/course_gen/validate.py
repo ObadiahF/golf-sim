@@ -1,10 +1,10 @@
 """Playability checks: reject layouts no golfer would accept."""
 from __future__ import annotations
 
-from shapely.geometry import box
+from shapely.geometry import Point, box
 from shapely.ops import unary_union
 
-from layout import Layout
+from layout import TEE_MARGIN, Layout
 
 MAX_SHOT = 265.0          # longest shot asked of the player into the green (m)
 MAX_CARRY = 170.0         # longest continuous water carry along the line of play (m)
@@ -21,6 +21,9 @@ def problems(layout: Layout) -> list[str]:
 
     if not tile.contains(layout.green) or not tile.contains(layout.rough.buffer(-1)):
         issues.append("course leaves the terrain tile")
+    tee = Point(layout.path.coords[0])
+    if not any(t.buffer(-TEE_MARGIN * 0.5).contains(tee) for t in layout.tees):
+        issues.append("tee point is off the tee box")
     if water is not None:
         if water.intersects(layout.green):
             issues.append("water on the green")

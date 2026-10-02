@@ -1,0 +1,6 @@
+{
+    "name": "GolfSim.Game",
+    "rootNamespace": "GolfSim.Game",
+    "references": ["Unity.InputSystem", "GolfSim.Ball", "GolfSim.Net", "CourseBuilder.Runtime"],
+    "autoReferenced": true
+}

@@ -1,0 +1,41 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Menu.uss" />
+    <Style src="RoundHud.uss" />
+    <ui:VisualElement name="hud-root" class="hud-root" picking-mode="Ignore">
+        <ui:VisualElement name="hud-info" class="hud" picking-mode="Ignore">
+            <ui:Label name="hud-eyebrow" class="hud__eyebrow" picking-mode="Ignore" />
+            <ui:Label name="hud-player" class="hud__player" picking-mode="Ignore" />
+            <ui:VisualElement class="hud__stats" picking-mode="Ignore">
+                <ui:VisualElement class="hud__stat" picking-mode="Ignore"><ui:Label text="STROKE" class="hud__caption" /><ui:Label name="hud-strokes" class="hud__value" /></ui:VisualElement>
+                <ui:VisualElement class="hud__stat" picking-mode="Ignore"><ui:Label text="CLUB" class="hud__caption" /><ui:Label name="hud-club" class="hud__value" /></ui:VisualElement>
+                <ui:VisualElement class="hud__stat" picking-mode="Ignore"><ui:Label text="AIM" class="hud__caption" /><ui:Label name="hud-aim" class="hud__value" /></ui:VisualElement>
+                <ui:VisualElement class="hud__stat" picking-mode="Ignore"><ui:Label text="TO PIN" class="hud__caption" /><ui:Label name="hud-distance" class="hud__value" /></ui:VisualElement>
+                <ui:VisualElement class="hud__stat" picking-mode="Ignore"><ui:Label text="LIE" class="hud__caption" /><ui:Label name="hud-lie" class="hud__value" /></ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="turn-badge" class="turn-badge" picking-mode="Ignore">
+            <ui:VisualElement name="turn-badge-dot" class="turn-badge__dot" picking-mode="Ignore" />
+            <ui:VisualElement picking-mode="Ignore">
+                <ui:Label name="turn-badge-name" class="turn-badge__name" picking-mode="Ignore" />
+                <ui:Label name="turn-badge-detail" class="turn-badge__detail" picking-mode="Ignore" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:Label name="hud-toast" class="toast" picking-mode="Ignore" />
+        <ui:Label name="hud-hint" text="Left/Right: aim  ·  Up/Down: club  ·  Esc: menu" class="hud-hint" picking-mode="Ignore" />
+        <ui:VisualElement name="scorecard" class="scorecard" picking-mode="Ignore">
+            <ui:VisualElement class="scorecard__panel" picking-mode="Ignore">
+                <ui:Label name="scorecard-title" class="home__title" />
+                <ui:Label name="scorecard-subtitle" class="home__subtitle" />
+                <ui:VisualElement name="scorecard-table" class="sc-table" picking-mode="Ignore" />
+                <ui:Label name="scorecard-hint" class="scorecard__hint" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="turn-banner" class="turn-banner" picking-mode="Ignore">
+            <ui:VisualElement name="turn-banner-card" class="turn-banner__card" picking-mode="Ignore">
+                <ui:Label name="turn-banner-title" class="turn-banner__title" picking-mode="Ignore" />
+                <ui:Label name="turn-banner-detail" class="turn-banner__detail" picking-mode="Ignore" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="confetti" class="confetti" picking-mode="Ignore" />
+    </ui:VisualElement>
+</ui:UXML>

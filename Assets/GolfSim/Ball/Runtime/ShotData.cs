@@ -11,6 +11,7 @@ namespace GolfSim.Ball
     public struct ShotData
     {
         public const float MetersPerSecondPerMph = 0.44704f;
+        public const float YardsPerMeter = 1.0936f;
 
         [Tooltip("Ball speed in m/s.")] public float ballSpeed;
         [Tooltip("Vertical launch angle in degrees.")] public float launchAngle;
@@ -46,17 +47,5 @@ namespace GolfSim.Ball
                 sidespin = totalSpin * Mathf.Sin(axis),
             };
         }
-
-        /// <summary>TrackMan PGA Tour averages (ball speed, launch, spin), plus a putt.</summary>
-        public static readonly (string name, ShotData shot)[] Presets =
-        {
-            ("Driver", FromMph(167, 10.9f, 0, 2686, 0)),
-            ("3-wood", FromMph(158, 9.2f, 0, 3655, 0)),
-            ("5-iron", FromMph(132, 12.1f, 0, 5361, 0)),
-            ("7-iron", FromMph(120, 16.3f, 0, 7097, 0)),
-            ("9-iron", FromMph(109, 20.4f, 0, 8647, 0)),
-            ("PW", FromMph(102, 24.2f, 0, 9304, 0)),
-            ("Putt", FromMph(5, 1f, 0, 0, 0)),
-        };
     }
 }

@@ -75,3 +75,7 @@ __pycache__/
 
 # Playwright MCP scratch (screenshots, snapshots)
 /.playwright-mcp/
+
+# Course Trainer game key for the sim (secret)
+/Assets/GolfSim/Net/Resources/TrainerKey.txt
+/Assets/GolfSim/Net/Resources/TrainerKey.txt.meta

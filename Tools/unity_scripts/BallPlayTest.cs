@@ -16,8 +16,8 @@ public static class BallPlayTest
     const float Yards = 1.0936f;
 
     public static string Drive() => Shoot("Driver", 3f);
-    public static string Iron() => Shoot("7-iron", 3f);
-    public static string Wedge() => Shoot("PW", 3f);
+    public static string Iron() => Shoot("7 Iron", 3f);
+    public static string Wedge() => Shoot("Wedge", 3f);
 
     /// <summary>Wedge into the green from 100 m short of the pin: should hop and check.</summary>
     public static string Approach() =>
@@ -28,7 +28,7 @@ public static class BallPlayTest
         Shoot("Putt", 1.5f, ShotData.FromMph(5.6f, 1f, 0f, 0f, 0f), fromPin: 6f);
 
     static string Shoot(string preset, float captureAt) =>
-        Shoot(preset, captureAt, System.Array.Find(ShotData.Presets, p => p.name == preset).shot, 0f);
+        Shoot(preset, captureAt, Clubs.Find(preset).shot, 0f);
 
     static string Shoot(string preset, float captureAt, ShotData shot, float fromPin)
     {

@@ -22,7 +22,7 @@ from vegetation import plant
 from vegetation_themes import tree_density_scale
 from water import carve_water
 
-GENERATOR_VERSION = 2   # 2: trees, shrubs and rocks planted here (objects.bin), not by Unity
+GENERATOR_VERSION = 3   # 2: trees, shrubs and rocks planted here (objects.bin), not by Unity; 3: tee point always on the back tee box
 GEN_FORMAT = 2          # gen.json format (Docs/hole-format/gen.schema.json)
 GEN_FILE = "gen.json"
 MAX_ATTEMPTS = 40

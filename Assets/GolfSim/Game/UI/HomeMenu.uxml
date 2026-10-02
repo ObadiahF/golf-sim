@@ -1,0 +1,15 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Menu.uss" />
+    <ui:VisualElement picking-mode="Ignore" style="flex-grow: 1;">
+        <ui:Label text="Esc  Menu" class="home-hint" picking-mode="Ignore" />
+        <ui:VisualElement name="home" class="home">
+            <ui:VisualElement class="home__panel">
+                <ui:Label text="Paused" class="home__title" />
+                <ui:Label text="Esc or Back to resume · Up/Down and Select to choose" class="home__subtitle" />
+                <ui:Button name="home-resume" text="Resume" class="btn btn--primary" />
+                <ui:Button name="home-restart" text="Restart Hole" class="btn btn--ghost" />
+                <ui:Button name="home-menu" text="Main Menu" class="btn btn--ghost" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

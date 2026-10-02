@@ -20,6 +20,7 @@ from style import Style
 MAX_DOGLEG_DEG = 50.0
 FRAME_MARGIN = 45.0       # meters of terrain beyond the course area
 CELL = 12.0               # woods/scrub mask cell size (meters)
+TEE_MARGIN = 1.5          # min distance from the tee point (path start) to the back tee box edge (m)
 
 
 @dataclass
@@ -87,13 +88,19 @@ class LayoutBuilder:
 
     # ---- features ----------------------------------------------------------------------------
     def tees(self, path: LineString) -> list[Polygon]:
+        """Tee boxes from the back. The back box always holds the path start (the hole's `tee` point)
+        at least TEE_MARGIN inside its edges; the draws are unchanged, only the back box is nudged."""
         count = int(self.rng.integers(2, 5))
         step = 9 if self.s.par == 3 else 14
         out = []
         for i in range(count):
             s = 5 + i * step + self.rng.uniform(-2, 2)
-            centre = offset_point(path, s, self.rng.uniform(-3, 3))
-            out.append(rect(centre, self.rng.uniform(9, 15), self.rng.uniform(7, 10), heading_at(path, s)))
+            side = self.rng.uniform(-3, 3)
+            length, width = self.rng.uniform(9, 15), self.rng.uniform(7, 10)
+            if i == 0:
+                s = min(s, length / 2 - TEE_MARGIN)
+                side = float(np.clip(side, -(width / 2 - TEE_MARGIN), width / 2 - TEE_MARGIN))
+            out.append(rect(offset_point(path, s, side), length, width, heading_at(path, s)))
         return out
 
     def green(self, path: LineString) -> tuple[Polygon, Point]:

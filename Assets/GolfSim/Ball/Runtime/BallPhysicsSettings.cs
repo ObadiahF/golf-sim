@@ -37,6 +37,17 @@ namespace GolfSim.Ball
         [Tooltip("Used for surfaces not in the list.")]
         public SurfaceResponse fallback = new SurfaceResponse { surface = "rough", restitution = 0.6f, friction = 0.6f, rolling = 0.35f, compliance = 1.4f };
 
+        [Header("Lie (how the surface the ball is hit from changes the launch)")]
+        [Tooltip("Surfaces not listed (tee, fairway, green) are clean lies.")]
+        public List<LieResponse> lies = DefaultLies();
+        [Tooltip("Ball speed (m/s) from which a shot counts as full (driver to mid iron); lie speed loss is LieResponse.speed.")]
+        public float fullShotSpeed = 60f;
+        [Tooltip("Ball speed (m/s) up to which a shot counts as short (wedge, chip, putt); lie speed loss is LieResponse.shortSpeed.")]
+        public float shortShotSpeed = 40f;
+
+        [Header("Trees, shrubs and rocks")]
+        public ObstacleSettings obstacles = new ObstacleSettings();
+
         [Serializable]
         public class SurfaceResponse
         {
@@ -46,6 +57,35 @@ namespace GolfSim.Ball
             [Tooltip("Rolling resistance as a fraction of g. Green 0.05 is about Stimp 11.")] public float rolling = 0.06f;
             [Tooltip("How much the turf gives under impact (crater tilt), 1 = green.")] public float compliance = 1f;
             [Tooltip("Ball stops here immediately (water).")] public bool hazard;
+        }
+
+        /// <summary>Launch change for a lie; speed loss blends from shortSpeed to speed as the shot gets fuller.</summary>
+        [Serializable]
+        public class LieResponse
+        {
+            public string surface;
+            [Tooltip("Ball speed kept on a full shot.")] public float speed = 1f;
+            [Tooltip("Ball speed kept on a short shot (wedge, chip, putt).")] public float shortSpeed = 1f;
+            [Tooltip("Spin kept: grass between the face and the ball gives a flyer.")] public float spin = 1f;
+            [Tooltip("Degrees added to the launch angle.")] public float launch;
+        }
+
+        public static List<LieResponse> DefaultLies() => new List<LieResponse>
+        {
+            new LieResponse { surface = "rough",  speed = 0.88f, shortSpeed = 0.93f, spin = 0.70f, launch = 1.5f },
+            new LieResponse { surface = "native", speed = 0.86f, shortSpeed = 0.91f, spin = 0.65f, launch = 2.0f },
+            new LieResponse { surface = "scrub",  speed = 0.85f, shortSpeed = 0.90f, spin = 0.60f, launch = 2.0f },
+            new LieResponse { surface = "woods",  speed = 0.85f, shortSpeed = 0.90f, spin = 0.60f, launch = 2.0f },
+            new LieResponse { surface = "bunker", speed = 0.75f, shortSpeed = 0.90f, spin = 0.75f, launch = 2.0f },
+        };
+
+        /// <summary>How hitting from this surface changes a shot of this ball speed (m/s).</summary>
+        public LieEffect LieFor(string surface, float ballSpeed)
+        {
+            var lie = lies.Find(l => l.surface == surface);
+            if (lie == null) return LieEffect.Clean(surface);
+            float full = Mathf.InverseLerp(shortShotSpeed, fullShotSpeed, ballSpeed);
+            return new LieEffect(surface, Mathf.Lerp(lie.shortSpeed, lie.speed, full), lie.spin, lie.launch);
         }
 
         public static List<SurfaceResponse> DefaultSurfaces() => new List<SurfaceResponse>

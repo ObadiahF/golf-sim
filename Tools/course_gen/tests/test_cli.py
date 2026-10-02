@@ -2,6 +2,8 @@ import json
 import os
 import time
 
+import pytest
+
 from gen_hole import parse_overrides, prune_unrated
 
 
@@ -23,9 +25,34 @@ def test_prune_keeps_newest_unrated(tmp_path):
     assert not (tmp_path / "h0.meta").exists()
 
 
+def test_prune_rejects_keep_below_one(tmp_path):
+    holes = [make_hole(tmp_path, f"h{i}", age=100 - i) for i in range(3)]
+    for keep in (0, -1):
+        with pytest.raises(ValueError):
+            prune_unrated(tmp_path, keep=keep, protect=holes[-1], rated=set())
+    assert len([d for d in tmp_path.iterdir() if d.is_dir()]) == 3
+
+
 def test_parse_overrides():
     assert parse_overrides(["tree_density=0.9", "water = 0"]) == {"tree_density": 0.9, "water": 0.0}
+    assert parse_overrides(["water=1.5", "scrub=-2"]) == {"water": 1.0, "scrub": 0.0}  # clamped like the sliders
     assert parse_overrides(None) == {}
+
+
+@pytest.mark.parametrize("argv", [
+    ["--seed", "-5"], ["--seed", "x"], ["--keep-unrated", "0"], ["--keep-unrated", "-1"],
+    ["--set", "water=nan"], ["--set", "water=inf"], ["--set", "tree_density=abc"], ["--set", "water"],
+    ["--set", "water="], ["--set", "bogus=0.5"],
+])
+def test_cli_rejects_bad_generate_args_cleanly(argv, tmp_path, monkeypatch, capsys):
+    import gen_hole
+
+    monkeypatch.setattr("sys.argv", ["gen_hole.py", "generate", "--no-model", "--out", str(tmp_path), *argv])
+    with pytest.raises(SystemExit) as exc:
+        gen_hole.main()
+    assert exc.value.code == 2  # argparse usage error, not a traceback
+    assert "error:" in capsys.readouterr().err
+    assert not any(tmp_path.iterdir())
 
 
 def test_cli_generate_then_rate_with_comment_and_tags(isolated_data, monkeypatch, capsys):

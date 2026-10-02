@@ -5,6 +5,7 @@ Turning a parameter into meters/degrees happens in layout.py / terrain.py.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -101,12 +102,27 @@ def get_preset(name: str) -> Preset:
     raise SystemExit(f"Unknown preset '{name}'. Available: {', '.join(PRESETS)}")
 
 
+def override_value(name: str, value) -> float:
+    """A pinned parameter value, clamped to 0..1. ValueError for an unknown name or a non-finite /
+    non-numeric value (NaN would otherwise pass np.clip and crash the layout)."""
+    if name not in PARAMS:
+        raise ValueError(f"Unknown parameter '{name}'. Available: {', '.join(PARAM_NAMES)}")
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"Parameter '{name}' needs a number in 0..1, got '{value}'") from None
+    if not math.isfinite(number):
+        raise ValueError(f"Parameter '{name}' needs a finite number in 0..1, got '{value}'")
+    return float(np.clip(number, 0.0, 1.0))
+
+
 def apply_overrides(style: Style, overrides: dict[str, float], par: int | None = None) -> Style:
     """Pin parameters chosen by the user (sliders) on top of a sampled style."""
     for name, value in overrides.items():
-        if name not in PARAMS:
-            raise SystemExit(f"Unknown parameter '{name}'. Available: {', '.join(PARAM_NAMES)}")
-        style.values[name] = float(np.clip(value, 0.0, 1.0))
+        try:
+            style.values[name] = override_value(name, value)
+        except ValueError as e:
+            raise SystemExit(str(e)) from None
     if par is not None:
         style.par = par
     return style

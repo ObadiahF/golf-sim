@@ -23,7 +23,10 @@ namespace GolfSim.Course
         public static void Clear()
         {
             foreach (var hole in Object.FindObjectsByType<HoleInfo>(FindObjectsInactive.Include))
+            {
+                hole.gameObject.SetActive(false); // Destroy is deferred: hide it now so lookups find the new hole
                 Destroy(hole.gameObject);
+            }
             foreach (var data in Built) if (data) Destroy(data); // only what we built: scene holes use saved assets
             Built.Clear();
         }

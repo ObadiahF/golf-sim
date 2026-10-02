@@ -101,6 +101,13 @@ namespace GolfSim.Course
             info.holePath = Enumerable.Range(0, pkg.holePath.Count).Select(i => pkg.ToLocal(pkg.holePath[i], terrain)).ToArray();
             info.sourcePackage = pkg.assetPath;
             info.terrainLayerSurfaces = layers.SurfaceNames();
+            info.obstacles = pkg.LoadObjects().Select(o => new Obstacle
+            {
+                position = pkg.ToLocal(o.position, terrain),
+                radius = o.radius,
+                height = o.height,
+                kind = (byte)o.kind,
+            }).ToArray();
             return root;
         }
     }

@@ -28,25 +28,49 @@ from generate import DEFAULT_SPACING, GEN_FILE, read_generator_info, write_packa
 from feedback import TAGS
 from preference import MODEL_PATH, PreferenceModel, choose_style, summary, train
 from rating_store import RatingStore, configured_store
-from style import PARAMS, PRESETS, apply_overrides
+from style import PARAMS, PRESETS, apply_overrides, override_value
 
 DEFAULT_OUT = PROJECT_ROOT / "Assets" / "CourseData" / "generated"
 KEEP_UNRATED = 12
 
 
-def parse_overrides(items: list[str]) -> dict[str, float]:
-    out = {}
-    for item in items or []:
-        name, _, value = item.partition("=")
-        out[name.strip()] = float(value)
-    return out
+def parse_override(item: str) -> tuple[str, float]:
+    """One `--set NAME=VALUE` item (an argparse type: bad input becomes a clean usage error)."""
+    name, sep, value = item.partition("=")
+    if not sep or not value.strip():
+        raise argparse.ArgumentTypeError(f"'{item}' should be PARAM=VALUE (VALUE in 0..1)")
+    try:
+        return name.strip(), override_value(name.strip(), value.strip())
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e)) from None
+
+
+def parse_overrides(items: list) -> dict[str, float]:
+    """`--set` items (raw strings, or pairs already parsed by argparse) -> {param: value}."""
+    return dict(item if isinstance(item, tuple) else parse_override(item) for item in items or [])
+
+
+def int_at_least(minimum: int):
+    """argparse type: an int >= minimum."""
+    def parse(text: str) -> int:
+        try:
+            value = int(text)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"'{text}' is not an integer") from None
+        if value < minimum:
+            raise argparse.ArgumentTypeError(f"must be >= {minimum}, got {value}")
+        return value
+    return parse
 
 
 def prune_unrated(out_root: Path, keep: int, protect: Path, rated: set[str] | None = None,
                   grace_seconds: float = 0.0) -> list[str]:
     """Delete the oldest unrated generated holes beyond `keep` (rated ones are kept as training history).
+    `keep` counts the new hole (`protect`) and must be >= 1: 0 or less would wipe the folder, so it is rejected.
     `rated`: ids never to delete (default: every hole with a vote in the configured store). Holes created within
     `grace_seconds` are kept too, so a shared server never deletes a hole someone has only just opened."""
+    if keep < 1:
+        raise ValueError(f"keep must be >= 1 (got {keep}); it counts the hole just generated")
     rated = configured_store().rated_ids() if rated is None else rated
     fresh = time.time() - grace_seconds
     unrated = [d for d in out_root.iterdir() if (d / GEN_FILE).exists() and d.name not in rated and d != protect]
@@ -83,6 +107,8 @@ def generate_hole(preset: str | None, par: int | None = None, seed: int | None =
     the caller prunes). `preset=None` lets the model choose among all presets (preference.choose_style).
     Returns (result, pruned ids); `result` is the JSON line the CLI prints for Unity."""
     seed = seed if seed is not None else random.randrange(1_000_000)
+    if seed < 0:
+        raise ValueError(f"seed must be >= 0 (got {seed})")
     rng = np.random.default_rng(seed)
     model = PreferenceModel.load() if use_model else None
     style, liked = choose_style(preset, rng, model, lambda s: apply_overrides(s, overrides or {}, par))
@@ -163,13 +189,15 @@ def main():
 
     g = sub.add_parser("generate", help="Generate a hole package")
     g.add_argument("--preset", default="parkland", choices=list(PRESETS))
-    g.add_argument("--seed", type=int)
+    g.add_argument("--seed", type=int_at_least(0))
     g.add_argument("--par", type=int, choices=[3, 4, 5])
-    g.add_argument("--set", nargs="*", metavar="PARAM=0..1", help=f"pin parameters: {', '.join(PARAMS)}")
+    g.add_argument("--set", nargs="*", type=parse_override, metavar="PARAM=0..1",
+                   help=f"pin parameters (clamped to 0..1): {', '.join(PARAMS)}")
     g.add_argument("--no-model", action="store_true", help="ignore learned preferences")
     g.add_argument("--out", default=str(DEFAULT_OUT))
     g.add_argument("--spacing", type=float, default=DEFAULT_SPACING, help="max meters per heightmap sample")
-    g.add_argument("--keep-unrated", type=int, default=KEEP_UNRATED)
+    g.add_argument("--keep-unrated", type=int_at_least(1), default=KEEP_UNRATED,
+                   help="unrated holes kept in --out, counting the new one (>= 1)")
     g.set_defaults(func=cmd_generate)
 
     r = sub.add_parser("rate", help="Thumbs up / down for a generated hole")

@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10c64b268c61c4e2eb677a6fde703b2f, type: 3}
+  m_Name: CourseRound
+  m_EditorClassIdentifier: GolfSim.Game::GolfSim.Game.CourseRound
+  themes: {fileID: 11400000, guid: c7c29829653524024a78ae9f385aede0, type: 2}
+  holeScenes:
+  - HoleSimulator
+  holes: 9
+  turnOrder: 0
+  maxOverPar: 5
+  defaultPar: 4
+  turnDelay: 2.5
+  soloPlayer: Player 1
+  menuScene: MainMenu
+  panelSettings: {fileID: 11400000, guid: 4c14054d234b34a30a3829cac468f0b9, type: 2}
+  hudLayout: {fileID: 9197481963319205126, guid: 4638975f3976e4c8ba37399e29c9c95d, type: 3}

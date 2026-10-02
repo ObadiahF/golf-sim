@@ -1,11 +1,12 @@
 import numpy as np
 import pytest
-from shapely.geometry import box
+from shapely import affinity
+from shapely.geometry import Point, box
 
 from generate import plan, write_package
 from hole_package import read_hole, read_objects, validate
 from objects_bin import KIND_CODE
-from layout import Layout
+from layout import TEE_MARGIN, Layout
 from priors import DEFAULT_PRIORS, lerp_range
 from style import PRESETS, Style, apply_overrides
 from terrain import Grid
@@ -30,6 +31,24 @@ def test_every_preset_plans_playable_holes(preset):
         tile = box(0, 0, layout.size, layout.size)
         assert tile.contains(layout.green)
         assert layout.green.distance(layout.pin) < 15
+
+
+def test_tee_point_is_inside_a_tee_box():
+    """U-6: the hole's `tee` (path start) must sit on a tee box, TEE_MARGIN from its edges."""
+    for i in range(42):
+        preset = list(PRESETS)[i % len(PRESETS)]
+        seed = 300 + i
+        style = PRESETS[preset].sample(np.random.default_rng(seed))
+        layout, _ = plan(style, seed, DEFAULT_PRIORS)
+        tee = Point(layout.path.coords[0])
+        assert any(t.buffer(-TEE_MARGIN + 0.01).contains(tee) for t in layout.tees), f"{preset} seed {seed}"
+
+
+def test_validation_catches_tee_off_the_box():
+    style = PRESETS["parkland"].sample(np.random.default_rng(1))
+    layout, _ = plan(style, 1, DEFAULT_PRIORS)
+    moved = Layout(**{**layout.__dict__, "tees": [affinity.translate(t, 30, 30) for t in layout.tees]})
+    assert "tee point is off the tee box" in problems(moved)
 
 
 def test_plan_is_deterministic():

@@ -1,0 +1,124 @@
+# Multiplayer rounds
+
+Friends play a 9- or 18-hole round on the sim with **one iPhone** (the SwingRemote app) passed around.
+The game server keeps the scores in Postgres.
+
+```
+ iPhone (SwingRemote)                 Game server (Spring Boot + Postgres)         PC (Unity sim)
+ ───────────────────                  ────────────────────────────────────         ──────────────
+ Players, Start Game ── REST ───────▶ POST /api/games ── gameStarted ──── WS ────▶ RoundDirector: loads hole 1
+ D-pad (nav), club, aim, shot ─ WS ─▶ relays remote -> sim ───────────── WS ────▶ NavInput / Shots / aim / club
+ gameplay or remote mode  ◀──── WS ── relays sim -> remotes ◀─────────── WS ───── state, turn, shotResult
+ scorecard, leaderboard ◀─ REST/WS ── stores holeScore, broadcasts scorecard ◀─── holeScore (per player per hole)
+ swing shot (fallback) ─────────────────────────── UDP 4242 ───────────────────▶ UdpShotReceiver (LAN only)
+```
+
+The wire contract is `Game-server/docs/PROTOCOL.md` (source of truth: `WsMessage.java`).
+
+## Where to find the code (Unity)
+
+| | |
+|---|---|
+| `GolfSim/Net/Runtime/ServerConfig.cs` | server URL + token. Asset: `GolfSim/Net/Resources/GolfServer.asset` |
+| `GolfSim/Net/Runtime/SimConnection.cs` | `ClientWebSocket` as `role=sim`: background receive, main-thread events, ping, reconnect with backoff, reliable `holeScore` queue |
+| `GolfSim/Net/Runtime/SimMessages.cs` | every WebSocket message class (phone shots reuse `Ball/RemoteShotMessage`) |
+| `GolfSim/Net/Runtime/GameApi.cs` | REST GETs (stats for the Scores screen) |
+| `GolfSim/Ball/Runtime/Shots.cs` | the one shot path for UDP, WebSocket and the on-screen panel: game gate, retry de-duplication, hit |
+| `GolfSim/Ball/Runtime/Clubs.cs` | the club table (same names as the app), carries, club suggestion |
+| `GolfSim/Ball/Runtime/AimLine.cs` | the aim arrow on the ground; `GolfBall.aimOffset` turns the shot |
+| `GolfSim/Game/Runtime/NavInput.cs` | one input path for keyboard, gamepad and the phone's D-pad |
+| `GolfSim/Game/Runtime/RoundDirector*.cs` | the session across scenes: connection wiring, rounds, holes, turns, scoring, `state` |
+| `GolfSim/Game/Runtime/Round.cs` | the scorecard and turn rules (no scene code) |
+| `GolfSim/Game/Runtime/RoundHud.cs`, `TurnBanner.cs`, `ScoreTable.cs` | HUD, turn announcement and badge, scorecard |
+| `GolfSim/Game/Runtime/ScoresScreen.cs` | the main menu's Scores leaderboard |
+| `GolfSim/Game/Resources/CourseRound.asset` | hole scenes, holes, turn order, max over par, HUD assets |
+
+`RoundDirector` creates itself when Play starts (`RuntimeInitializeOnLoadMethod`) and lives across scenes
+with the connection and the HUD. Any scene with a `HoleInfo` and a `GolfBall` works as a hole.
+
+## Rules
+
+- **Turn order: whole hole per player** (Wii Sports style, the default). Player 1 plays the hole until it is
+  holed or picked up, then player 2, and so on, with one ball on the course. `CourseRound.turnOrder` can be
+  set to `FarthestFirst` (everyone tees off, then farthest from the pin plays).
+- Strokes count when the ball stops. **Water or out of bounds**: one penalty stroke, and the shot is
+  replayed from where it was hit (stroke and distance).
+- **Pick-up**: at par + 5 (`maxOverPar`) without holing out, the player scores par + 5. The phone's
+  **Pick up** (`skip`) does the same at any time.
+- **Mulligan**: takes back the last shot (ball, strokes and score), and that player hits again.
+- A player's `holeScore` goes to the server as soon as they finish the hole. Scores are sent reliably:
+  if the connection is down they wait for the next connection. The server upserts them, so resending is safe.
+- Par comes from the hole scene's `HoleInfo.par` (3 to 6), else `CourseRound.defaultPar`.
+- **Holes:** `CourseRound.holeScenes` repeats to fill 9 or 18 holes. Add more hole scenes (in the build
+  settings) to the list and rounds use them in order.
+
+## Flows
+
+1. **Menu:** the D-pad's Left/Right picks a card and Select plays it. The cards are **Play a Round**,
+   Hole Simulator and **Scores**. On Play a Round, Up/Down picks 9 or 18 holes for a solo round. If the
+   server has a game in progress, the card resumes it at the first unfinished hole instead.
+   Scores shows a ranked table from `GET /api/players`, ranked by handicap, average, best, wins, birdies
+   or aces (use Left/Right to change). Back closes it.
+2. **Start:** the app's Start Game calls `POST /api/games`, the server sends `gameStarted`, and the sim
+   loads hole 1 for the first player.
+3. **Turn:** "OBI'S TURN" shows big in the centre, then shrinks into the player badge in the top right.
+   This is driven by the same event that sends `turn`. The sim sends `state` (screen `game`, player, hole,
+   par, strokes, club, aim, distance, lie). The app shows its gameplay mode with the club wheel, aim
+   buttons and swing. `club` and `aim` change the HUD, the aim arrow and the on-screen panel, and a `shot`
+   is hit with the aim applied.
+4. **After each shot:** the sim sends `shotResult`, then after 2.5 s the next shot or player.
+5. **Hole complete:** the scorecard appears (screen `holeComplete`), and Select loads the next hole.
+6. **End:** a winner banner with confetti, then the final scorecard (screen `results`). Select returns to
+   the menu, ready for the next game.
+7. **Pause:** Back (or Esc) opens the pause menu (screen `paused`, shots refused). Restart Hole replays the
+   hole. Main Menu leaves the round, which can be resumed from Play a Round.
+
+Keyboard and gamepad do the same: arrows (Left/Right aim and Up/Down club in game), Enter (or A) for
+Select, Esc (or B) for Back. Space hits with the on-screen panel (Tab shows it).
+
+## Running it
+
+1. **Server.** The sim uses the hosted server by default, `wss://golf-server.obadiahfusco.xyz`
+   (REST on `https://golf-server.obadiahfusco.xyz/api`), with the token `golf-sim-dev-token`.
+   For a local server: `cd Game-server && docker compose up --build -d` (port 8080).
+2. **Sim.** Open `Assets/Scenes/MainMenu.unity` and press Play. The console shows
+   `[SimConnection] Connected to ...`. To use a local server, select `GolfSim/Net/Resources/GolfServer.asset`,
+   tick **Use Local Server** and set **Local Server Url** (`ws://localhost:8080` on the same PC). Server
+   errors appear in the console as `[SimConnection] Server error: ...`.
+3. **App.** The app talks to the game server on the PC its UDP discovery finds (port 8080), or the address
+   typed in Settings › Game server. To use the hosted server, type `https://golf-server.obadiahfusco.xyz`
+   there. The app and the sim must use the same server. See `Golf-app/README.md`. The direct UDP swing link
+   (port 4242) is still used on the LAN when the WebSocket is down.
+4. **Firewall** (local server only): allow inbound TCP 8080 for Docker, and inbound UDP 4242 for Unity (the
+   LAN fallback).
+
+## Testing without a phone
+
+With the sim in Play mode, run these dev scripts with the Unity CLI (`~/.unity/bin/unity`):
+
+```
+unity command run_script --file Tools/unity_scripts/RoundPlayTest.cs --entry RoundPlayTest.Status
+```
+
+| Entry | Does |
+|---|---|
+| `Status` | the connection, the scene, the `state` the phones get, and the round's scores |
+| `Solo` | starts a solo round, as Play a Round on the menu does |
+| `Shot` / `ShotWild` | the current player hits the suggested club (a computed putt on the green) / a 60° slice |
+| `Settle` | delivers queued server messages (a phone's shot), runs the ball to rest, then the next turn |
+| `PlayHole` | shots until the hole is complete |
+| `Continue`, `NavSelect`, `NavBack`, `NavLeft`, `NavRight`, `NavUp`, `NavDown` | Select on the scorecard, remote keys |
+
+These scripts don't need the Editor to tick: they call `GolfBall.Advance` and `RoundDirector.RunPending`.
+A fake phone can drive the sim through the real server:
+
+```
+cd Game-server
+docker compose run --rm wsclient --role remote --send "nav select" --send "club 7I" --send "aim -2" \
+  --send "shot 50 16 0 7000 0 7I" --wait 2
+curl -X POST -H "Authorization: Bearer golf-sim-dev-token" -H "Content-Type: application/json" \
+  -d '{"players":["Obi","Sam"],"holes":9}' http://localhost:8080/api/games
+```
+
+`Tools/unity_scripts/SetupRound.cs` recreates the assets and menu cards. `UdpShotReceiverCheck.cs` tests the
+UDP link.

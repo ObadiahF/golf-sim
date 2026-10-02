@@ -42,19 +42,30 @@ namespace GolfSim.Ball
             line.colorGradient = Fade(); // vertex colours are 8-bit, so the HDR tint lives on the material
             line.positionCount = 0;
             ball.ShotStarted += OnShotStarted;
+            ball.Placed += Clear; // reset to the tee, a drop, the next turn: the old trace goes
         }
 
         void OnDestroy()
         {
-            if (ball) ball.ShotStarted -= OnShotStarted;
+            if (ball)
+            {
+                ball.ShotStarted -= OnShotStarted;
+                ball.Placed -= Clear;
+            }
             if (line) Destroy(line.gameObject);
         }
 
         void OnShotStarted(GolfBall b)
         {
+            Clear(b);
+            Add(b.LaunchPoint);
+        }
+
+        void Clear(GolfBall b)
+        {
             points.Clear();
             distances.Clear();
-            Add(b.LaunchPoint);
+            if (line) line.positionCount = 0;
         }
 
         void LateUpdate()
@@ -103,7 +114,8 @@ namespace GolfSim.Ball
             return g;
         }
 
-        static Material DefaultMaterial(Color hdrColor)
+        /// <summary>Unlit, alpha-blended material for lines on the course (also used by AimLine).</summary>
+        internal static Material DefaultMaterial(Color hdrColor)
         {
             // Alpha-blended (not additive: yellow added onto a bright sky turns white), slightly HDR so bloom glows.
             var mat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));

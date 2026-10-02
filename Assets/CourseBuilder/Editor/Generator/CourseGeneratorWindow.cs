@@ -103,7 +103,7 @@ namespace GolfSim.CourseEditor
             {
                 randomSeed = EditorGUILayout.ToggleLeft("Random seed", randomSeed, GUILayout.Width(110));
                 using (new EditorGUI.DisabledScope(randomSeed))
-                    seed = EditorGUILayout.IntField(seed);
+                    seed = Mathf.Max(0, EditorGUILayout.IntField(seed));
             }
             customize = EditorGUILayout.Foldout(customize, "Customize (pin individual knobs)", true);
             if (customize)
