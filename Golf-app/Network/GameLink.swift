@@ -60,6 +60,8 @@ final class GameLink {
     /// A sim is listening: commands reach it, and shots go over the WebSocket rather than UDP.
     var simReady: Bool { isConnected && simConnected }
     var screen: String { state?.screen ?? "menu" }
+    /// Why the sim can't take a swing right now (between shots, screen still "game"); nil when it can, or no sim.
+    var shotWait: String? { simReady ? state?.shotWait : nil }
     /// Between holes and after the last one, the sim shows the scorecard (Select continues).
     var showsScorecard: Bool { state?.showsScorecard == true }
     /// Why the server link is down, for the "Disconnected" banner; nil while connected.
@@ -208,7 +210,7 @@ final class GameLink {
             scoresRevision += 1
         case .error(let message):
             lastError = message
-        case .pong, .other:
+        case .shotRejected, .pong, .other: // the swing session handles rejected shots
             break
         }
         onMessage?(message)

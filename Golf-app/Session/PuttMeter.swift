@@ -62,6 +62,12 @@ nonisolated struct PuttMeter: Equatable, Sendable {
         result = Result(rolled: holed ? distance : (shot.total ?? 0) * PuttModel.metersPerYard, distance: distance, holed: holed)
     }
 
+    /// The sim didn't take the putt: stop waiting for its result and let the meter follow the next stroke.
+    mutating func cancel() {
+        pendingDistance = nil
+        struck = nil
+    }
+
     /// The top of the meter for this target and distance (metres): room above both, at least 3 m.
     static func range(target: Double?, distance: Double?) -> Double {
         max(3, (target ?? 0) * 1.5, (distance ?? 0) * 1.5)

@@ -46,4 +46,9 @@ extension View {
     func usable(_ usable: Bool) -> some View {
         disabled(!usable).opacity(usable ? 1 : 0.4)
     }
+
+    /// Dimmed (still usable, e.g. to pick the next club) while the sim can't take a swing; the instruction says why.
+    func waiting(_ wait: String?) -> some View {
+        opacity(wait == nil ? 1 : 0.45).animation(.default, value: wait)
+    }
 }

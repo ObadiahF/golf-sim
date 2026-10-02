@@ -78,18 +78,23 @@ name on the game server (Spring Boot + Postgres in `../Game-server`).
    **End game** abandons it.
 5. **Play tab, remote mode** (any sim screen except a hole): a TV-remote D-pad. Arrows move,
    **OK** selects, **Back** goes back. Between holes the scorecard shows on the phone too; press OK
-   to go on.
+   to go on. During an instant replay (`screen: "replay"`) OK or Back skips it.
 6. **Play tab, gameplay mode** (switches automatically while the sim plays a hole): the header
    names the player up, with hole, par, strokes, distance and lie.
    - **Club wheel:** tap a club, or touch the ring and drag round to it. The sim suggests a club
      each turn and the wheel follows it.
    - **Aim:** hold the rotate buttons to turn the aim 1° per tick; tap the middle to aim at the pin.
    - **Swing:** the Address button in the middle of the wheel works as in practice. Shots go to the
-     sim through the server; if the server is down they fall back to direct UDP.
+     sim through the server; if the server is down they fall back to direct UDP. Between shots the
+     sim says it can't take a swing (`state.canShoot: false`): the swing area dims, the reason
+     (`state.waitReason`) replaces the instruction and swings aren't sent. If a shot still arrives too
+     early, the sim's `shotRejected` reason shows in the Last shot strip.
    - **Menu** pauses the sim, **Mulligan** retakes the last shot, **Pick up** ends the hole for the
      player at the maximum score.
 7. **Scores tab:** the live or last scorecard (front 9 / OUT, back 9 / IN, total) and the
-   leaderboard (handicap, average to par, best round, wins, birdies, aces).
+   leaderboard (handicap, average to par per 18 holes, wins, birdies, aces; Best 9 / Avg 9 /
+   Best 18 / Avg 18). Scores come from complete 9- and 18-hole rounds only; shorter games still
+   count as rounds and wins.
 
 **Practice tab:** the single-player swing screen, as before.
 
@@ -102,7 +107,7 @@ REST under `/api` with `Authorization: Bearer golf-sim-dev-token` (the token is 
 WebSocket `ws(s)://<server>/ws?token=…&role=remote&name=<device>` (query values percent-encoded, `+` as `%2B`), JSON text frames. The phone sends
 `nav {key}`, `club {club}`, `aim {delta}`, `aimReset`, `mulligan`, `skip`, `shot` (the UDP shot
 fields) and `ping` every 20 s. It shows `hello`, `simStatus`, `state` (its `screen` picks remote or
-gameplay mode), `shotResult`, `turn`, `scorecard`, `gameFinished` and `error`. It reconnects after
+gameplay mode), `shotResult`, `shotRejected`, `turn`, `scorecard`, `gameFinished` and `error`. It reconnects after
 1, 2, then every 5 s. The full contract is `Game-server/docs/PROTOCOL.md`.
 
 ## Protocol (v2)

@@ -52,6 +52,7 @@ struct RemoteView: View {
         case "menu": "Main menu"
         case "loading": "Loading…"
         case "paused": "Paused"
+        case "replay": "Instant replay"
         case "holeComplete": "Hole complete"
         case "results": "Final scores"
         case "game": "Playing"
@@ -66,6 +67,7 @@ struct RemoteView: View {
         case "holeComplete": "Press OK for the next hole."
         case "results": "Press OK to go back to the menu."
         case "paused": "Up/down to choose, OK to select, Back to resume."
+        case "replay": "Press OK to skip it."
         default: "Left/right to choose, OK to play. Add players and start a round in Players."
         }
     }

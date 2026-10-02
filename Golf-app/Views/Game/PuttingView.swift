@@ -23,6 +23,7 @@ struct PuttingView: View {
                     .frame(maxWidth: .infinity)
             }
             .frame(height: fit.size(240, 176))
+            .waiting(game.shotWait)
             GameAim(game: game)
             PuttResultStrip(result: meter.result, delivery: session.delivery)
             GameActions(game: game)

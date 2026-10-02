@@ -7,7 +7,11 @@ struct LeaderboardView: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            if !players.isEmpty { PlayerTable(players: Self.ranked(players)).card(padding: 14) }
+            if !players.isEmpty {
+                let ranked = Self.ranked(players)
+                PlayerTable(title: "Players · average to par per 18 holes", players: ranked, columns: PlayerTable.form).card(padding: 14)
+                PlayerTable(title: "Rounds · 9 and 18 holes", players: ranked, columns: PlayerTable.rounds).card(padding: 14)
+            }
             if let handicaps = board.lowestHandicap, !handicaps.isEmpty {
                 LeaderSection(title: "Lowest handicap", rows: handicaps.map {
                     ($0.player, String(format: "%.1f", $0.handicap), "\($0.finishedRounds) rounds")
@@ -18,7 +22,7 @@ struct LeaderboardView: View {
                     ($0.player, "\($0.birdiesOrBetter)", "in \($0.holesPlayed) holes")
                 })
             }
-            LeaderSection(title: "Best rounds", rows: board.bestRounds.map {
+            LeaderSection(title: "Best rounds · per 18 holes", rows: board.bestRounds.map {
                 ($0.player, "\($0.total) (\(formatToPar($0.toPar)))", "\($0.holesCount) holes · game #\($0.gameId)")
             })
             LeaderSection(title: "Most wins", rows: board.mostWins.map {
@@ -37,22 +41,43 @@ struct LeaderboardView: View {
     }
 }
 
-/// One row per player: handicap, average, best, wins, birdies, aces. The stat columns have fixed widths and
-/// the name takes what's left, truncated, so a long name can't push the stats off screen.
+/// One row per player, one fixed-width column per stat; the name takes what's left, truncated, so a long name
+/// can't push the stats off screen.
 private struct PlayerTable: View {
-    let players: [Stats.Player]
+    struct Column {
+        var title: String
+        var width: CGFloat
+        var value: (Stats.Player) -> String
+    }
 
-    private static let columns: [(title: String, width: CGFloat)] = [
-        ("HCP", 40), ("Avg", 42), ("Best", 32), ("Wins", 34), ("Bird", 30), ("Aces", 34),
+    let title: String
+    let players: [Stats.Player]
+    let columns: [Column]
+
+    /// Handicap, average to par per 18, wins, birdies, aces.
+    static let form: [Column] = [
+        Column(title: "HCP", width: 40) { $0.handicap.map { String(format: "%.1f", $0) } ?? "–" },
+        Column(title: "Avg", width: 42) { $0.averageToPar.map(formatToPar) ?? "–" },
+        Column(title: "Wins", width: 34) { "\($0.wins)" },
+        Column(title: "Bird", width: 34) { $0.holes.map { "\($0.birdies)" } ?? "–" },
+        Column(title: "Aces", width: 34) { $0.holes.map { "\($0.holesInOne)" } ?? "–" },
+    ]
+
+    /// Best and average totals of complete 9- and 18-hole rounds.
+    static let rounds: [Column] = [
+        Column(title: "Best 9", width: 44) { $0.best9.map(String.init) ?? "–" },
+        Column(title: "Avg 9", width: 44) { $0.avg9.map { String(format: "%.1f", $0) } ?? "–" },
+        Column(title: "Best 18", width: 50) { $0.best18.map(String.init) ?? "–" },
+        Column(title: "Avg 18", width: 50) { $0.avg18.map { String(format: "%.1f", $0) } ?? "–" },
     ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Players").caption()
+            Text(title).caption()
             Grid(horizontalSpacing: 6, verticalSpacing: 8) {
                 GridRow {
                     Text("").gridColumnAlignment(.leading)
-                    ForEach(Self.columns, id: \.title) { stat(Text($0.title).font(Theme.label).foregroundStyle(Theme.muted), width: $0.width) }
+                    ForEach(columns, id: \.title) { stat(Text($0.title).font(Theme.label).foregroundStyle(Theme.muted), width: $0.width) }
                 }
                 ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
                     GridRow {
@@ -61,9 +86,7 @@ private struct PlayerTable: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        ForEach(Array(Self.values(player).enumerated()), id: \.offset) { column, value in
-                            stat(Text(value), width: Self.columns[column].width)
-                        }
+                        ForEach(columns, id: \.title) { stat(Text($0.value(player)), width: $0.width) }
                     }
                 }
             }
@@ -74,18 +97,6 @@ private struct PlayerTable: View {
 
     private func stat(_ text: Text, width: CGFloat) -> some View {
         text.lineLimit(1).minimumScaleFactor(0.7).frame(width: width)
-    }
-
-    /// The row's values, in `columns` order.
-    private static func values(_ player: Stats.Player) -> [String] {
-        [
-            player.handicap.map { String(format: "%.1f", $0) } ?? "–",
-            player.averageToPar.map(formatToPar) ?? "–",
-            player.bestTotal.map(String.init) ?? "–",
-            "\(player.wins)",
-            player.holes.map { "\($0.birdies)" } ?? "–",
-            player.holes.map { "\($0.holesInOne)" } ?? "–",
-        ]
     }
 }
 

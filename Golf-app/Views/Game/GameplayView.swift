@@ -16,6 +16,7 @@ struct GameplayView: View {
             ClubWheel(selected: session.settings.clubIndex, size: fit.size(320, 220), onSelect: session.selectClub) {
                 AddressButton(stage: session.stage, size: fit.size(168, 116), action: session.address)
             }
+            .waiting(game.shotWait)
             GameAim(game: game)
             LastShotStrip(result: game.lastShotResult, delivery: session.delivery)
             GameActions(game: game)

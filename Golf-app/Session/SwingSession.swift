@@ -168,13 +168,19 @@ final class SwingSession {
     private var stimp: Double { PuttModel.stimp(of: game.state) }
 
     private func fire(_ impact: Impact) {
+        stage = .returning
+        if let wait = game.shotWait { // the sim can't take a swing now: send nothing, say why
+            meter.cancel()
+            delivery = .rejected(wait)
+            Haptics.problem()
+            return
+        }
         let shot = Shot.from(impact, club: club, scale: settings.scale(for: club), faceSign: settings.faceSign)
         if club.isPutter {
             meter.strike(distance: PuttModel.rollDistance(ballSpeed: shot.ballSpeed, stimp: stimp), toHole: game.state.flatMap { $0.isPutting ? $0.puttDistance : nil })
         }
         lastShot = shot
         result = nil
-        stage = .returning
         Haptics.shotSent()
         let id = link.makeShotID()
         if game.sendShot(shot, id: id) {
@@ -194,9 +200,19 @@ final class SwingSession {
             meter.finish(shot)
             guard let id = lastShotID, lastShot != nil, result == nil else { return }
             result = SimResult(id: id, shot)
+        case .shotRejected(let rejection):
+            reject(rejection)
         default:
             break
         }
+    }
+
+    /// The sim didn't hit our last shot: say why and stop waiting for its result. Without an id it is ours only
+    /// while we are waiting for a result (another phone may have swung).
+    private func reject(_ rejection: GameProtocol.ShotRejected) {
+        guard let id = lastShotID, lastShot != nil, rejection.id.map({ $0 == id }) ?? (result == nil) else { return }
+        meter.cancel()
+        update(id: id, delivery: .rejected(rejection.reason))
     }
 
     private func update(id: Int, delivery: Delivery) {
@@ -219,9 +235,10 @@ final class SwingSession {
 
     // MARK: Display
 
-    /// One line telling the golfer what to do next.
+    /// One line telling the golfer what to do next (or why the sim can't take a swing yet).
     var instruction: String {
-        switch stage {
+        if let wait = game.shotWait, stage != .settling, !isUnavailable { return wait }
+        return switch stage {
         case .idle: "Tap Address, take your grip and hold still"
         case .settling: "Take your grip… hold still"
         case .ready: club.isPutter ? "Ready. Make your stroke" : "Ready. Swing away"

@@ -44,8 +44,8 @@ nonisolated enum GameProtocol {
 
     // MARK: Sim -> remotes
 
-    /// What the sim is showing. `screen`: menu, loading, game, paused, holeComplete (scorecard between
-    /// holes) or results (final scorecard).
+    /// What the sim is showing. `screen`: menu, loading, game, paused, replay (instant replay on the TV),
+    /// holeComplete (scorecard between holes) or results (final scorecard). Unknown screens show the remote.
     struct SimState: Codable, Equatable, Sendable {
         var screen: String
         /// 0 or absent in practice (no server game).
@@ -77,7 +77,20 @@ nonisolated enum GameProtocol {
         /// full, partial or off: how much of the break line the sim draws.
         var puttingAssist: String?
 
+        // Shot readiness (optional: older sims leave them out, meaning a swing is always hit).
+        /// A swing would be hit now; false between shots (ball moving, next player's turn), screen still "game".
+        var canShoot: Bool?
+        /// Why not, e.g. "Wait for the next turn"; empty while `canShoot`.
+        var waitReason: String?
+
         var isGame: Bool { screen == "game" }
+        /// The sim is playing a hole and would hit a swing now.
+        var acceptsShots: Bool { isGame && canShoot != false }
+        /// What to tell the player while the sim is in a game but can't take a swing; nil when it can.
+        var shotWait: String? {
+            guard isGame, canShoot == false else { return nil }
+            return waitReason.flatMap { $0.isEmpty ? nil : $0 } ?? "Wait for the next shot"
+        }
         var isPutting: Bool { isGame && putting == true }
         var showsScorecard: Bool { screen == "holeComplete" || screen == "results" }
         var player: String? { currentPlayer.flatMap { $0.isEmpty ? nil : $0 } }
@@ -115,6 +128,12 @@ nonisolated enum GameProtocol {
         var strokes: Int?
     }
 
+    /// The sim got a `shot` it couldn't hit; `id` echoes the shot's id when it had one.
+    struct ShotRejected: Codable, Equatable, Sendable {
+        var reason: String
+        var id: Int?
+    }
+
     // MARK: Server -> clients
 
     struct Hello: Codable, Equatable, Sendable {
@@ -133,6 +152,7 @@ nonisolated enum GameProtocol {
         case state(SimState)
         case shotResult(ShotResult)
         case turn(Turn)
+        case shotRejected(ShotRejected)
         case gameStarted(GameView)
         case scorecard(GameView)
         case gameFinished(GameView)
@@ -159,6 +179,7 @@ nonisolated enum GameProtocol {
         case "state": return body(SimState.self).map(Incoming.state)
         case "shotResult": return body(ShotResult.self).map(Incoming.shotResult)
         case "turn": return body(Turn.self).map(Incoming.turn)
+        case "shotRejected": return body(ShotRejected.self).map(Incoming.shotRejected)
         case "gameStarted": return body(GameEnvelope.self).map { .gameStarted($0.game) }
         case "scorecard": return body(GameEnvelope.self).map { .scorecard($0.game) }
         case "gameFinished": return body(GameEnvelope.self).map { .gameFinished($0.game) }
@@ -211,12 +232,18 @@ nonisolated enum Stats {
         var gamesPlayed: Int
         var finishedRounds: Int
         var wins: Int
-        var bestTotal: Int?
-        var averageTotal: Double?
+        // Scores count only complete 9- and 18-hole rounds (shorter games still count as rounds and wins).
+        /// Lowest 9-hole / 18-hole total; nil without one.
+        var best9: Int?
+        var best18: Int?
+        /// Average 9-hole / 18-hole total, one decimal; nil without one.
+        var avg9: Double?
+        var avg18: Double?
+        /// Average to par per 18 holes (a 9-hole round's is doubled).
         var averageToPar: Double?
-        /// Over the last 5 finished rounds.
+        /// Per 18 holes, over the last 5 9- or 18-hole rounds.
         var recentAverageToPar: Double?
-        /// World-Handicap-style index; nil until 3 finished rounds (and from older servers).
+        /// World-Handicap-style index; nil until 3 9- or 18-hole rounds (and from older servers).
         var handicap: Double?
         var holes: HoleTallies?
         var lastPlayedAt: String?
@@ -257,6 +284,7 @@ nonisolated enum Stats {
     struct AverageToPar: Codable, Equatable, Sendable {
         var player: String
         var finishedRounds: Int
+        /// Per 18 holes.
         var averageToPar: Double
     }
 

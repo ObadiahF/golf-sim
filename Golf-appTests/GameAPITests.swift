@@ -81,13 +81,21 @@ struct GameAPITests {
         #expect(board.bestRounds.first?.total == 38)
         #expect(board.mostWins.first?.wins == 1)
         #expect(board.lowestHandicap == nil && board.mostBirdies == nil) // older server
-        // Older server: no handicap or hole tallies.
+        // Older server: no handicap, hole tallies or 9/18-hole bests (its mixed-length bestTotal is ignored).
         Stub.reply = (200, #"[{"name":"Ann","gamesPlayed":2,"finishedRounds":1,"wins":1,"bestTotal":38,"averageTotal":38.0,"averageToPar":2.0,"lastPlayedAt":null}]"#)
-        #expect(try await api.players().first?.bestTotal == 38)
+        let old = try #require(try await api.players().first)
+        #expect(old.finishedRounds == 1 && old.best9 == nil && old.best18 == nil && old.avg9 == nil && old.avg18 == nil)
         // Newer server: handicap, recent average and hole tallies.
-        Stub.reply = (200, #"[{"name":"Ann","gamesPlayed":4,"finishedRounds":3,"wins":2,"bestTotal":36,"averageTotal":37.0,"averageToPar":1.0,"recentAverageToPar":0.7,"handicap":4.2,"holes":{"played":27,"holesInOne":1,"eagles":0,"birdies":3,"pars":14,"bogeys":7,"doubleBogeysOrWorse":2},"lastPlayedAt":"2026-10-02T07:43:47.309802Z"}]"#)
+        Stub.reply = (200, #"[{"name":"Ann","gamesPlayed":4,"finishedRounds":3,"wins":2,"best9":36,"best18":null,"avg9":37.0,"avg18":null,"averageToPar":2.0,"recentAverageToPar":1.4,"handicap":4.2,"holes":{"played":27,"holesInOne":1,"eagles":0,"birdies":3,"pars":14,"bogeys":7,"doubleBogeysOrWorse":2},"lastPlayedAt":"2026-10-02T07:43:47.309802Z"}]"#)
         let ann = try #require(try await api.players().first)
         #expect(ann.handicap == 4.2 && ann.holes?.birdies == 3 && ann.holes?.holesInOne == 1)
+        #expect(ann.best9 == 36 && ann.best18 == nil && ann.avg9 == 37.0 && ann.avg18 == nil)
+        #expect(ann.averageToPar == 2.0 && ann.recentAverageToPar == 1.4)
+        // Players with only 18-hole rounds, or only short games (no scores at all).
+        Stub.reply = (200, #"[{"name":"Bo","gamesPlayed":1,"finishedRounds":1,"wins":1,"best9":null,"best18":74,"avg9":null,"avg18":74.0,"averageToPar":2.0,"recentAverageToPar":2.0,"handicap":null,"lastPlayedAt":null},{"name":"Cy","gamesPlayed":2,"finishedRounds":2,"wins":2,"best9":null,"best18":null,"avg9":null,"avg18":null,"averageToPar":null,"recentAverageToPar":null,"handicap":null,"lastPlayedAt":null}]"#)
+        let both = try await api.players()
+        #expect(both[0].best18 == 74 && both[0].avg18 == 74.0 && both[0].best9 == nil)
+        #expect(both[1].finishedRounds == 2 && both[1].averageToPar == nil && both[1].best18 == nil)
         Stub.reply = (200, #"{"bestRounds":[],"mostWins":[],"bestAverageToPar":[],"lowestHandicap":[{"player":"Ann","finishedRounds":3,"handicap":4.2}],"mostBirdies":[{"player":"Ann","birdiesOrBetter":4,"holesPlayed":27}]}"#)
         let newer = try await api.leaderboard()
         #expect(newer.lowestHandicap?.first?.handicap == 4.2 && newer.mostBirdies?.first?.birdiesOrBetter == 4)
