@@ -1,0 +1,2 @@
+Ground 093 A by ambientCG (https://ambientcg.com/a/Ground093A), CC0 1.0 public domain.
+MaskMap packed from AmbientOcclusion (G) and inverted Roughness (A).
