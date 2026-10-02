@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isTyping, Player } from './controls/player';
+import { devHandle, isInteractive, isTyping, Player } from './controls/player';
 import { Hud } from './hud/Hud';
 import { HoleScene } from './scene/HoleScene';
 import { useTrainer } from './useTrainer';
@@ -9,8 +9,7 @@ import type { Session } from './useSession';
 export function TrainerView({ session, name }: { session: Session; name: string }) {
   const trainer = useTrainer();
   const player = useRef(new Player()).current;
-  // Console / automation handle (e.g. `courseTrainer.player.position`); pointer lock can't be scripted.
-  (window as unknown as { courseTrainer: object }).courseTrainer = { player };
+  devHandle().player = player;  // pointer lock can't be scripted: automation moves the player directly
   const [locked, setLocked] = useState(false);
   const [help, setHelp] = useState(false);
   const [top, setTop] = useState(false);
@@ -26,7 +25,7 @@ export function TrainerView({ session, name }: { session: Session; name: string 
       if (e.code in rate) {
         const rating = rate[e.code as keyof typeof rate];
         setDraft(d => ({ ...d, rating: d.rating === rating ? null : rating }));
-      } else if (e.code === 'Enter' && !busy && (e.target as HTMLElement).tagName !== 'BUTTON') {
+      } else if (e.code === 'Enter' && !busy && !isInteractive(e.target)) {
         submit();
       } else if (e.code === 'KeyN' && !busy) {
         next();

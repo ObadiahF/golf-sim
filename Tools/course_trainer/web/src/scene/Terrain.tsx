@@ -43,6 +43,7 @@ export function Terrain({ hole }: { hole: HoleData }) {
     return g;
   }, [field, surfaces]);
 
+  // The surface map and the detail noise are per hole: both are disposed with the material on hole change.
   const material = useMemo(() => {
     const map = new THREE.CanvasTexture(surfaces.canvas);
     map.colorSpace = THREE.SRGBColorSpace;
@@ -50,6 +51,7 @@ export function Terrain({ hole }: { hole: HoleData }) {
     const detail = new THREE.CanvasTexture(noiseCanvas(128, 99, 1.6, 3, 8));
     detail.wrapS = detail.wrapT = THREE.RepeatWrapping;
     const m = new THREE.MeshStandardMaterial({ map, roughness: 0.95, metalness: 0 });
+    m.userData.detail = detail;
     m.onBeforeCompile = shader => {
       shader.uniforms.detailMap = { value: detail };
       shader.uniforms.detailRepeat = { value: surfaces.span / DETAIL_METRES };
@@ -64,7 +66,11 @@ export function Terrain({ hole }: { hole: HoleData }) {
   }, [surfaces, gl]);
 
   useEffect(() => () => { geometry.dispose(); }, [geometry]);
-  useEffect(() => () => { material.map?.dispose(); material.dispose(); }, [material]);
+  useEffect(() => () => {
+    material.map?.dispose();
+    (material.userData.detail as THREE.Texture).dispose();
+    material.dispose();
+  }, [material]);
 
   const centre = field.size / 2;
   // Ring starts where every direction is already flat, so it never pokes through the hole's valleys.

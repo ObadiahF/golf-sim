@@ -3,7 +3,8 @@
 export type Rating = 'up' | 'down';
 
 export interface Preset { name: string; label: string; theme: string }
-export interface FeedbackTag { id: string; label: string; knobs: Record<string, number> }
+/** `excludes`: the opposite chips (too long / too short ...); picking one drops those. */
+export interface FeedbackTag { id: string; label: string; knobs: Record<string, number>; excludes: string[] }
 export interface Catalog {
   presets: Preset[];
   params: Record<string, string>;
@@ -33,10 +34,15 @@ export interface Status {
   dislikes: string[];
   /** How many of `ratings` are the logged-in user's. */
   yours: number;
+  /** Everyone's likes / dislikes on `preset` only (all presets when it is null). */
+  presetVotes: { up: number; down: number };
 }
 
-/** The newest pool batch: `ready` holes generated of `size`, `seen` of them by you. */
-export interface PoolProgress { batch: number; size: number; status: 'generating' | 'ready'; ready: number; seen: number }
+/** The newest pool batch: `ready` holes generated of `size`, `seen` of them by you. `capped`: no new batch starts
+ *  until someone rates more holes (too many nobody has voted on). */
+export interface PoolProgress {
+  batch: number; size: number; status: 'generating' | 'ready'; ready: number; seen: number; capped: boolean;
+}
 /** /api/next: your next unseen pool hole, or `generating` (poll) while none is ready. */
 export interface NextHole { state: 'ready' | 'generating'; hole: HoleSummary | null; pool: PoolProgress | null }
 /** A leaderboard row: the summary (with your own vote) plus everyone's tallies; score = Wilson lower bound. */
@@ -69,8 +75,15 @@ export interface HolePackage {
   objects: { file: string; count: number };
 }
 
+/** Aborts every request of the current session (logout, 401): a late response can never act for an old session. */
+let sessionRequests = new AbortController();
+export function endSessionRequests() {
+  sessionRequests.abort();
+  sessionRequests = new AbortController();
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
+  const res = await fetch(url, { ...init, signal: sessionRequests.signal });
   if (res.status === 401 && url !== '/api/login') window.dispatchEvent(new Event(UNAUTHORIZED));
   if (!res.ok) {
     let detail = res.statusText;
@@ -104,7 +117,7 @@ export const api = {
     request<HolePackage>(holeFileUrl(id, 'hole.json') + (peek ? '?peek=true' : '')),
   /** A binary package file (heightmap.raw, objects.bin). */
   binary: async (id: string, name: string) => {
-    const res = await fetch(holeFileUrl(id, name));
+    const res = await fetch(holeFileUrl(id, name), { signal: sessionRequests.signal });
     if (!res.ok) throw new Error(`${name}: ${res.status}`);
     return res.arrayBuffer();
   },

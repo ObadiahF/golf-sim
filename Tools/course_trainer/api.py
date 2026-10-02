@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 import _paths
 import db
+import inputs
 import pool
 from auth import auth_router
 from config import Settings
@@ -23,6 +24,7 @@ from feedback import catalog
 from game import game_router
 from gen_hole import generate_hole, presets_info, prune_unrated, rate_package, status
 from holes import HoleNotFound, HoleStore
+from inputs import FiniteFloat, HoleId, Text
 from pg_store import PostgresStore
 from pool_worker import PoolWorker, train_and_log
 from ranking import FORMULA, top_holes
@@ -32,18 +34,18 @@ from users import User
 
 
 class GenerateRequest(BaseModel):
-    preset: str = "parkland"
+    preset: Text = "parkland"
     par: int | None = None
-    seed: int | None = Field(default=None, ge=0)
-    overrides: dict[str, float] = Field(default_factory=dict)
+    seed: int | None = Field(default=None, ge=0, le=2 ** 63 - 1)  # votes.seed is a bigint
+    overrides: dict[Text, FiniteFloat] = Field(default_factory=dict)  # NaN / Infinity: 422
     useModel: bool = True
 
 
 class RateRequest(BaseModel):
-    id: str
+    id: HoleId
     rating: Literal["up", "down"]
-    comment: str | None = Field(default=None, max_length=4000)
-    tags: list[str] = Field(default_factory=list)
+    comment: Text | None = Field(default=None, max_length=4000)
+    tags: list[Text] = Field(default_factory=list, max_length=50)
 
 
 def holes_file_url(hole_id: str, name: str) -> str:
@@ -66,8 +68,12 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
         yield
         worker.stop()
 
-    app = FastAPI(title="Course Trainer", lifespan=lifespan)
+    docs = settings.api_docs  # /docs, /redoc, /openapi.json: development only (TRAINER_API_DOCS)
+    app = FastAPI(title="Course Trainer", lifespan=lifespan, default_response_class=inputs.AsciiJSONResponse,
+                  docs_url="/docs" if docs else None, redoc_url="/redoc" if docs else None,
+                  openapi_url="/openapi.json" if docs else None)
     app.state.pool = worker
+    inputs.install(app)  # malformed input: 4xx, never 500
 
     login_routes, current_user = auth_router(settings)
     app.include_router(login_routes)
@@ -84,7 +90,16 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
         return {e["id"]: e for e in store.load(user.name)}
 
     def my_status(user: User, preset: str | None) -> dict:
-        return {**status(preset, store), "yours": len(store.load(user.name))}
+        """`presetVotes`: everyone's likes / dislikes on `preset` (all presets when None), the taste card's tally."""
+        votes = [e for e in store.load() if preset is None or e["style"]["preset"] == preset]
+        up = sum(e["rating"] > 0 for e in votes)
+        return {**status(preset, store), "yours": len(store.load(user.name)),
+                "presetVotes": {"up": up, "down": len(votes) - up}}
+
+    def refill() -> None:
+        """Start the next pool batch if it is due (pool.refill_due)."""
+        if pool.maybe_refill(dsn, settings.pool_batch_size, settings.pool_refill_at, settings.pool_max_unrated):
+            worker.kick()
 
     def prune(package: Path) -> list[str]:
         """Old unrated holes go, except pool holes and ones anyone voted on or opened / generated within the grace
@@ -117,9 +132,8 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
 
     @api.get("/holes/{hole_id}")
     def describe(hole_id: str, user: User = Depends(current_user)):
-        summary = hole_or_404(holes.describe, hole_id, my_votes(user))
-        db.touch_view(dsn, user.id, hole_id)
-        return summary
+        """Never marks the hole seen: only opening its hole.json without `peek` (or rating it) does."""
+        return hole_or_404(holes.describe, hole_id, my_votes(user))
 
     @api.get("/holes/{hole_id}/{name}")
     def package_file(hole_id: str, name: str, peek: bool = False, user: User = Depends(current_user)):
@@ -144,6 +158,8 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
                                           settings.gen_spacing, keep_unrated=None, use_model=req.useModel)
             except RuntimeError as e:  # no playable layout for these pinned knobs
                 raise HTTPException(422, str(e)) from None
+            except SystemExit as e:  # course_gen's CLI-style rejection of a bad preset / override
+                raise HTTPException(400, str(e.code)) from None
         db.touch_view(dsn, user.id, result["id"])
         pruned = prune(Path(result["package"]))
         return {**holes.describe(result["id"], my_votes(user)), "attempts": result["attempts"], "pruned": pruned}
@@ -156,6 +172,7 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
         db.touch_view(dsn, user.id, req.id)  # rated = seen (e.g. a peeked leaderboard hole)
+        refill()  # ratings are what start the next batch
         return {"entry": entry, "status": my_status(user, entry["style"]["preset"])}
 
     @api.post("/train")
@@ -169,7 +186,7 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
     @api.get("/next")
     def next_hole(user: User = Depends(current_user)):
         """The next pool hole you have not seen (recorded as seen), newest batch first in your own shuffled order;
-        `state: "generating"` while none is ready yet (poll). Starts the next batch at the refill point."""
+        `state: "generating"` while none is ready yet (poll). Starts the next batch when it is due."""
         while (hole_id := pool.serve_next(dsn, user.id)) is not None:
             try:
                 hole = holes.describe(hole_id, my_votes(user))
@@ -178,9 +195,9 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
                 continue
         else:
             hole = None
-        if pool.maybe_refill(dsn, settings.pool_batch_size, settings.pool_refill_at):
-            worker.kick()
-        return {"state": "ready" if hole else "generating", "hole": hole, "pool": pool.progress(dsn, user.id)}
+        refill()
+        return {"state": "ready" if hole else "generating", "hole": hole,
+                "pool": pool.progress(dsn, user.id, settings.pool_max_unrated)}
 
     @api.get("/top")
     def leaderboard(limit: int = 20, user: User = Depends(current_user)):

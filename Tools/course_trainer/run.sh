@@ -14,6 +14,7 @@ if [ ! -x "$PY" ]; then
 fi
 "$PY" -c "import fastapi, uvicorn, psycopg" 2>/dev/null || "$PY" -m pip install -q -r "$HERE/requirements.txt"
 export TRAINER_DATABASE_URL="${TRAINER_DATABASE_URL:-postgresql://trainer:trainer@127.0.0.1:5433/trainer}"
+export TRAINER_API_DOCS="${TRAINER_API_DOCS:-true}"   # /docs locally; off in the container unless set
 
 if [ ! -d "$WEB/node_modules" ]; then
   (cd "$WEB" && npm install --no-fund --no-audit)

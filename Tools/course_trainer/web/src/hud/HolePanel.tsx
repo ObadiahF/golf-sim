@@ -5,7 +5,7 @@ const knobLabel = (name: string) => name.replace(/_/g, ' ');
 
 /** Scorecard header: what this hole is, skip to the next pool hole, and (advanced) ad-hoc generation. */
 export function HolePanel({ trainer }: { trainer: Trainer }) {
-  const { hole, catalog, preset, setPreset, par, setPar, generate, next, busy, recent, open, pool } = trainer;
+  const { hole, catalog, preset, setPreset, par, setPar, generate, next, busy, recent, pool } = trainer;
   const s = hole?.summary;
   const presetLabel = (name: string) => catalog?.presets.find(p => p.name === name)?.label ?? name;
   const score = s?.modelScore;
@@ -67,19 +67,26 @@ export function HolePanel({ trainer }: { trainer: Trainer }) {
           <button className="btn" disabled={!!busy} onClick={() => generate()}>Generate</button>
         </div>
       </details>
-      {recent.length > 1 && (
-        <select className="history" value="" aria-label="Recent holes" onChange={e => {
-          const h = recent.find(r => r.id === e.target.value);
-          if (h) open(h);
-        }}>
-          <option value="">Revisit a recent hole…</option>
-          {recent.map(h => (
-            <option key={h.id} value={h.id}>
-              {h.rating === 'up' ? '👍' : h.rating === 'down' ? '👎' : '·'} {presetLabel(h.preset)} par {h.par}, {yards(h.lengthMeters)} yd ({h.seed})
-            </option>
-          ))}
-        </select>
-      )}
+      {recent.length > 1 && <RecentHoles trainer={trainer} />}
     </section>
+  );
+}
+
+/** "Revisit a recent hole…": your holes, most recently opened first (also offered by the waiting card). */
+export function RecentHoles({ trainer }: { trainer: Trainer }) {
+  const { recent, open, catalog } = trainer;
+  const presetLabel = (name: string) => catalog?.presets.find(p => p.name === name)?.label ?? name;
+  return (
+    <select className="history" value="" aria-label="Recent holes" onChange={e => {
+      const h = recent.find(r => r.id === e.target.value);
+      if (h) open(h);
+    }}>
+      <option value="">Revisit a recent hole…</option>
+      {recent.map(h => (
+        <option key={h.id} value={h.id}>
+          {h.rating === 'up' ? '👍' : h.rating === 'down' ? '👎' : '·'} {presetLabel(h.preset)} par {h.par}, {yards(h.lengthMeters)} yd ({h.seed})
+        </option>
+      ))}
+    </select>
   );
 }

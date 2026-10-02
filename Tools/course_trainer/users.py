@@ -1,5 +1,5 @@
-"""Accounts: scrypt password hashes (stdlib, no extra deps), create / change password, and the startup seed
-(users from TRAINER_SEED_USERS, plus the old ratings.jsonl imported as the `legacy` user's votes)."""
+"""Accounts: scrypt password hashes (stdlib, no extra deps), create / change password, server-side sessions, and
+the startup seed (users from TRAINER_SEED_USERS, plus the old ratings.jsonl imported as the `legacy` user's votes)."""
 from __future__ import annotations
 
 import base64
@@ -78,10 +78,35 @@ def create_user(dsn: str, name: str, password: str | None) -> User:
 
 
 def set_password(dsn: str, name: str, password: str) -> None:
+    """Also ends every session of that user (logged out everywhere)."""
     with connect(dsn) as conn:
-        if conn.execute("UPDATE users SET password_hash = %s WHERE lower(name) = lower(%s)",
-                        [hash_password(password), name]).rowcount == 0:
+        row = conn.execute("UPDATE users SET password_hash = %s WHERE lower(name) = lower(%s) RETURNING id",
+                           [hash_password(password), name]).fetchone()
+        if row is None:
             raise ValueError(f"No user '{name}'")
+        conn.execute("DELETE FROM sessions WHERE user_id = %s", [row["id"]])
+
+
+def create_session(dsn: str, user_id: int, seconds: int) -> str:
+    """A new session id for this user (expired sessions are cleared on the way)."""
+    sid = secrets.token_urlsafe(24)
+    with connect(dsn) as conn:
+        conn.execute("DELETE FROM sessions WHERE expires_at < now()")
+        conn.execute("INSERT INTO sessions (id, user_id, expires_at) VALUES (%s, %s, now() + make_interval(secs => %s))",
+                     [sid, user_id, seconds])
+    return sid
+
+
+def session_user(dsn: str, sid: str) -> User | None:
+    with connect(dsn) as conn:
+        row = conn.execute("""SELECT u.id, u.name, u.password_hash FROM sessions s JOIN users u ON u.id = s.user_id
+                              WHERE s.id = %s AND s.expires_at > now()""", [sid]).fetchone()
+    return None if row is None else User(**row)
+
+
+def end_session(dsn: str, sid: str) -> None:
+    with connect(dsn) as conn:
+        conn.execute("DELETE FROM sessions WHERE id = %s", [sid])
 
 
 def mark_login(dsn: str, user_id: int) -> None:

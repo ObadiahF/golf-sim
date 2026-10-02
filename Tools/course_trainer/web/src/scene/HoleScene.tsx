@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { PlayerController } from '../controls/PlayerController';
-import type { Player } from '../controls/player';
+import { devHandle, type Player } from '../controls/player';
 import { worldZ } from '../hole/heightField';
 import type { HoleData } from '../hole/loadHole';
 import { FOV } from '../hole/views';
@@ -70,7 +70,10 @@ export function HoleScene({ hole, player, onLockChange }: Props) {
       dpr={[1, 1.5]}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       camera={{ fov: FOV, near: 0.1, far: 50000 }}
-      onCreated={({ gl }) => { gl.toneMappingExposure = 0.82; }}
+      onCreated={({ gl }) => {
+        gl.toneMappingExposure = 0.82;
+        devHandle().renderer = gl;
+      }}
     >
       <fog attach="fog" args={[sky.fog, fogFar * 0.12, fogFar]} />
       <Sky {...skyProps} />

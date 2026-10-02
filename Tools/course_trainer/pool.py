@@ -1,11 +1,18 @@
 """The shared hole pool in Postgres: batches, their holes, and serving each user the next hole they have not seen.
 
 - A batch is `size` holes generated in the background (pool_worker.py). Holes join `pool_holes` as they finish.
-- Seen = a row in `hole_views` (shown by /api/next, opened by link, generated ad hoc, or rated).
+- Seen = a row in `hole_views` (shown by /api/next, opened from your recent holes, generated ad hoc, or rated).
 - Serving: unseen pool holes, newest batch first, in a per-user shuffled order (md5 of hole id + user id), so
   friends rate different holes first and the ranking gets broad coverage.
-- Refill: once anyone has seen `refill_at` of the newest batch, the next batch starts. Batch creation runs under
-  an advisory lock and only ever compares against the newest batch, so it is idempotent and fires once per batch.
+- Refill (`refill_due`): the next batch starts when all of these hold:
+  1. the newest batch has finished generating (so at most one batch generates at a time);
+  2. someone has *rated* `refill_at` of it, or has seen all of it. Skips count only once the batch is used up,
+     so skip-spamming makes at most one batch per finished batch, never one per half-batch;
+  3. fewer than `max_unrated` pool holes have no vote from anyone (the hard cap: skip-spam can't fill the disk).
+  A finished batch with no holes at all (every generation failed) counts as used up after EMPTY_RETRY, so it
+  can't wedge the refill, nor spin a broken generator in a loop.
+  Batch creation runs under an advisory lock and only ever compares against the newest batch, so it is
+  idempotent and fires once per batch.
 """
 from __future__ import annotations
 
@@ -18,6 +25,7 @@ from db import connect
 
 _LOCK = 7_406_222  # pg_advisory_xact_lock key for batch creation (db._LOCK + 1)
 MAX_SEED = 1_000_000_000
+EMPTY_RETRY_MINUTES = 10  # a finished batch with no holes: wait this long before trying another
 
 
 @dataclass(frozen=True)
@@ -53,21 +61,40 @@ def ensure_batch(dsn: str, size: int) -> tuple[Batch, bool]:
         return (newest, False) if newest else (_create(conn, size), True)
 
 
-def maybe_refill(dsn: str, size: int, refill_at: float) -> Batch | None:
-    """Start the next batch if anyone has seen `refill_at` of the newest one. Returns the new batch, else None."""
+def unrated_count(conn) -> int:
+    """Pool holes nobody has voted on (skips leave holes unrated)."""
+    return conn.execute("""SELECT count(*) AS n FROM pool_holes p
+                           WHERE NOT EXISTS (SELECT 1 FROM votes v WHERE v.hole_id = p.hole_id)""").fetchone()["n"]
+
+
+def _used_up(conn, batch: Batch, refill_at: float) -> bool:
+    """Someone rated `refill_at` of this finished batch, or has seen all of it (see the module docstring)."""
+    ready = conn.execute("SELECT count(*) AS n FROM pool_holes WHERE batch_id = %s", [batch.id]).fetchone()["n"]
+    if ready == 0:
+        return conn.execute("SELECT created_at < now() - make_interval(mins => %s) AS stale FROM batches WHERE id = %s",
+                            [EMPTY_RETRY_MINUTES, batch.id]).fetchone()["stale"]
+    need_rated = max(1, math.ceil(batch.size * refill_at))
+    best = conn.execute("""
+        SELECT coalesce(max(rated), 0) AS rated, coalesce(max(seen), 0) AS seen FROM (
+            SELECT v.user_id, count(*) AS seen,
+                   count(*) FILTER (WHERE EXISTS (SELECT 1 FROM votes r
+                                                  WHERE r.user_id = v.user_id AND r.hole_id = v.hole_id)) AS rated
+            FROM hole_views v JOIN pool_holes p USING (hole_id)
+            WHERE p.batch_id = %s GROUP BY v.user_id) per_user""", [batch.id]).fetchone()
+    return best["rated"] >= min(need_rated, ready) or best["seen"] >= ready
+
+
+def refill_due(conn, refill_at: float, max_unrated: int) -> bool:
+    newest = _newest(conn)
+    return newest is None or (newest.status == "ready" and _used_up(conn, newest, refill_at)
+                              and unrated_count(conn) < max_unrated)
+
+
+def maybe_refill(dsn: str, size: int, refill_at: float, max_unrated: int) -> Batch | None:
+    """Start the next batch if `refill_due`. Returns the new batch, else None."""
     with connect(dsn) as conn:
         conn.execute("SELECT pg_advisory_xact_lock(%s)", [_LOCK])
-        newest = _newest(conn)
-        if newest is None:
-            return _create(conn, size)
-        ready = conn.execute("SELECT count(*) AS n FROM pool_holes WHERE batch_id = %s", [newest.id]).fetchone()["n"]
-        need = max(1, math.ceil(newest.size * refill_at))
-        if newest.status == "ready":  # some positions may have failed: seeing everything there is counts
-            need = max(1, min(need, ready))
-        seen = conn.execute("""SELECT coalesce(max(n), 0) AS n FROM (
-                                   SELECT count(*) AS n FROM hole_views v JOIN pool_holes p USING (hole_id)
-                                   WHERE p.batch_id = %s GROUP BY v.user_id) per_user""", [newest.id]).fetchone()["n"]
-        return _create(conn, size) if seen >= need else None
+        return _create(conn, size) if refill_due(conn, refill_at, max_unrated) else None
 
 
 def serve_next(dsn: str, user_id: int) -> str | None:
@@ -87,8 +114,9 @@ def serve_next(dsn: str, user_id: int) -> str | None:
     return None
 
 
-def progress(dsn: str, user_id: int) -> dict | None:
-    """The newest batch as the UI shows it: {batch, size, status, ready, seen (by this user)}."""
+def progress(dsn: str, user_id: int, max_unrated: int) -> dict | None:
+    """The newest batch as the UI shows it: {batch, size, status, ready, seen (by this user), capped (no new batch
+    until someone votes: the unrated cap is reached)}."""
     with connect(dsn) as conn:
         newest = _newest(conn)
         if newest is None:
@@ -96,8 +124,9 @@ def progress(dsn: str, user_id: int) -> dict | None:
         row = conn.execute("""SELECT count(*) AS ready, count(v.user_id) AS seen
                               FROM pool_holes p LEFT JOIN hole_views v ON v.hole_id = p.hole_id AND v.user_id = %s
                               WHERE p.batch_id = %s""", [user_id, newest.id]).fetchone()
+        capped = newest.status == "ready" and unrated_count(conn) >= max_unrated
     return {"batch": newest.id, "size": newest.size, "status": newest.status, "ready": row["ready"],
-            "seen": row["seen"]}
+            "seen": row["seen"], "capped": capped}
 
 
 def hole_ids(dsn: str) -> set[str]:

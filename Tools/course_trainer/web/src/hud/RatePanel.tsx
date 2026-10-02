@@ -10,8 +10,12 @@ const THUMBS: { rating: Rating; icon: string; label: string; key: string }[] = [
 /** Thumbs, quick-feedback chips, free text, submit (which also generates the next hole). */
 export function RatePanel({ trainer, commentRef }: { trainer: Trainer; commentRef: RefObject<HTMLTextAreaElement | null> }) {
   const { draft, setDraft, catalog, submit, busy, hole } = trainer;
-  const toggleTag = (id: string) =>
-    setDraft(d => ({ ...d, tags: d.tags.includes(id) ? d.tags.filter(t => t !== id) : [...d.tags, id] }));
+  /** Opposite chips are exclusive, like the thumbs: picking Too long drops Too short. */
+  const toggleTag = (id: string) => setDraft(d => {
+    if (d.tags.includes(id)) return { ...d, tags: d.tags.filter(t => t !== id) };
+    const excludes = catalog?.feedback.find(t => t.id === id)?.excludes ?? [];
+    return { ...d, tags: [...d.tags.filter(t => !excludes.includes(t)), id] };
+  });
 
   return (
     <section className="panel card rate-card">

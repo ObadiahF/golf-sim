@@ -8,6 +8,7 @@ from pathlib import Path
 
 import _paths  # noqa: F401
 from generate import GEN_FILE, read_generator_info
+from inputs import MAX_ID
 
 PACKAGE_FILES = {"hole.json", "heightmap.raw", "objects.bin", "gen.json", "preview.png"}
 _ID = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -28,15 +29,17 @@ class HoleStore:
         self.root = Path(root)
 
     def folder(self, hole_id: str) -> Path:
+        if len(hole_id) > MAX_ID or not _ID.match(hole_id) or hole_id.startswith("."):
+            raise HoleNotFound(hole_id[:MAX_ID])
         folder = self.root / hole_id
-        if not _ID.match(hole_id) or hole_id.startswith(".") or not (folder / GEN_FILE).is_file():
+        if not (folder / GEN_FILE).is_file():
             raise HoleNotFound(hole_id)
         return folder
 
     def file(self, hole_id: str, name: str) -> Path:
         path = self.folder(hole_id) / name
         if name not in PACKAGE_FILES or not path.is_file():
-            raise HoleNotFound(f"{hole_id}/{name}")
+            raise HoleNotFound(f"{hole_id}/{name[:40]}")
         return path
 
     def describe(self, hole_id: str, votes: dict[str, dict] | None = None) -> dict:

@@ -31,8 +31,18 @@ export class Player {
   }
 }
 
+/** `window.courseTrainer`: console / automation handle (`.player.position`, `.renderer.info.memory`). */
+export const devHandle = () =>
+  ((window as unknown as { courseTrainer?: Record<string, unknown> }).courseTrainer ??= {});
+
 /** Phones and tablets: no pointer lock, touch controls instead. */
 export const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches;
+
+/** True when Enter would activate the focused element (a button, a details summary, a link ...), so Enter must not
+ *  also submit the vote. */
+export function isInteractive(target: EventTarget | null) {
+  return target instanceof Element && !!target.closest('button, summary, a[href], [role="button"], input, select, textarea');
+}
 
 /** True when keystrokes belong to a form field (so movement / rating hotkeys must ignore them). */
 export function isTyping(target: EventTarget | null = document.activeElement) {

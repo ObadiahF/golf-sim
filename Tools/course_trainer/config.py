@@ -38,9 +38,11 @@ class Settings:
     legacy_ratings: Path | None = None  # ratings.jsonl imported as the `legacy` user (default: course_gen's)
     gen_spacing: float = DEFAULT_SPACING  # meters per heightmap sample (tests use a coarse one: fast)
     pool_batch_size: int = 100       # holes per shared pool batch
-    pool_refill_at: float = 0.5      # next batch starts once someone has seen this share of the newest one
+    pool_refill_at: float = 0.5      # next batch starts once someone has rated this share of the newest one
+    pool_max_unrated: int = 300      # no new batch while this many pool holes have no vote from anyone
     pool_autorun: bool = True        # background thread + worker processes fill batches (tests: pool.run_pending())
     game_key: str = ""               # bearer key for the read-only /api/game routes (empty: disabled)
+    api_docs: bool = False           # serve /docs, /redoc, /openapi.json (development only)
 
     @classmethod
     def from_env(cls, **overrides) -> "Settings":
@@ -57,7 +59,9 @@ class Settings:
             "gen_spacing": float(_env("TRAINER_GEN_SPACING", str(DEFAULT_SPACING))),
             "pool_batch_size": int(_env("TRAINER_POOL_BATCH_SIZE", "100")),
             "pool_refill_at": float(_env("TRAINER_POOL_REFILL_AT", "0.5")),
+            "pool_max_unrated": int(_env("TRAINER_POOL_MAX_UNRATED", "300")),
             "game_key": _env("TRAINER_GAME_KEY"),
+            "api_docs": _env("TRAINER_API_DOCS").lower() in TRUE,
         }
         if _env("TRAINER_SESSION_SECRET"):
             values["session_secret"] = _env("TRAINER_SESSION_SECRET")

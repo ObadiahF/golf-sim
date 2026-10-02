@@ -47,11 +47,22 @@ NUDGE = 0.2          # how far (normalised units) the imagined better hole sits 
 TAG_WEIGHT = 0.5     # a tag counts as half a rating: it is a hint, the thumbs are the verdict
 
 
+def opposites(tag: str) -> list[str]:
+    """Tags that pull one of `tag`'s knobs the other way (too_long / too_short, boring / too_hilly ...): picking
+    both would be two training pairs that cancel, so they are mutually exclusive. Derived from TAGS."""
+    mine = TAGS[tag].knobs
+    return [other for other, t in TAGS.items()
+            if any(mine.get(knob, 0) * direction < 0 for knob, direction in t.knobs.items())]
+
+
 def validate_tags(tags) -> list[str]:
     tags = list(dict.fromkeys(tags or []))  # de-duplicate, keep order
     unknown = [t for t in tags if t not in TAGS]
     if unknown:
         raise ValueError(f"Unknown feedback tag(s) {', '.join(unknown)}. Available: {', '.join(TAGS)}")
+    clashes = sorted({tuple(sorted((t, o))) for t in tags for o in opposites(t) if o in tags})
+    if clashes:
+        raise ValueError("Contradictory feedback tags: " + ", ".join(f"{a} / {b}" for a, b in clashes))
     return tags
 
 
@@ -75,4 +86,4 @@ def comparisons(style: Style, tags) -> list[tuple[Style, Style]]:
 
 def catalog() -> list[dict]:
     """Tag table for UIs."""
-    return [{"id": tid, "label": t.label, "knobs": t.knobs} for tid, t in TAGS.items()]
+    return [{"id": tid, "label": t.label, "knobs": t.knobs, "excludes": opposites(tid)} for tid, t in TAGS.items()]

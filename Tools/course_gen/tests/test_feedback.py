@@ -3,7 +3,7 @@ import json
 import numpy as np
 import pytest
 
-from feedback import TAGS, comparisons, nudged, validate_tags
+from feedback import TAGS, catalog, comparisons, nudged, opposites, validate_tags
 from preference import load_ratings, observations, record_rating, summary, train
 from style import PARAM_NAMES, PRESETS
 
@@ -23,6 +23,18 @@ def test_validate_tags_dedupes_and_rejects_unknown():
     assert validate_tags(None) == []
     with pytest.raises(ValueError):
         validate_tags(["more_lava"])
+
+
+def test_opposite_tags_are_exclusive():
+    assert opposites("too_long") == ["too_short"] and opposites("more_trees") == ["fewer_trees"]
+    assert set(opposites("boring")) == {"too_hilly", "too_bendy"}
+    for tag in TAGS:  # symmetric
+        assert all(tag in opposites(o) for o in opposites(tag))
+    assert next(t for t in catalog() if t["id"] == "more_water")["excludes"] == ["less_water"]
+    for pair in (["too_long", "too_short"], ["fewer_trees", "more_trees"], ["boring", "too_hilly"]):
+        with pytest.raises(ValueError, match="Contradictory"):
+            validate_tags(pair)
+    assert validate_tags(["too_long", "more_trees", "boring"]) == ["too_long", "more_trees", "boring"]
 
 
 def test_nudge_moves_only_the_tagged_knob_and_clips():

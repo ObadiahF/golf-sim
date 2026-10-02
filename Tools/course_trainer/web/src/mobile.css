@@ -1,16 +1,18 @@
-/* Phones and small tablets: compact top bar, bottom rating sheet, touch controls in between.
+/* Phones and small tablets: compact top bar, rating sheet, touch controls in between. Portrait (narrow): the sheet
+   is at the bottom. Landscape (short): it is a scrolling side panel on the right, so Submit is always reachable.
    Overrides styles.css only inside these media queries. */
 
 .touch-controls { position: absolute; inset: 0; pointer-events: none; }
 .touch-controls > * { pointer-events: auto; }
-.touch-views { position: absolute; top: calc(var(--top-bar, 0px) + 8px); left: 50%; transform: translateX(-50%);
+.touch-views { position: absolute; top: calc(var(--top-bar, 0px) + 8px); left: calc((100% - var(--side, 0px)) / 2);
+  transform: translateX(-50%);
   display: flex; gap: 6px; }
 .touch-stick { position: absolute; left: 18px; bottom: calc(var(--sheet, 0px) + 18px); width: 120px; height: 120px;
   border-radius: 50%; background: rgba(255, 255, 255, 0.18); border: 2px solid rgba(255, 255, 255, 0.55);
   touch-action: none; display: grid; place-items: center; backdrop-filter: blur(2px); }
 .touch-knob { width: 50px; height: 50px; border-radius: 50%; background: rgba(255, 255, 255, 0.85);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); pointer-events: none; }
-.touch-fly { position: absolute; right: 18px; bottom: calc(var(--sheet, 0px) + 18px); display: flex;
+.touch-fly { position: absolute; right: calc(var(--side, 0px) + 18px); bottom: calc(var(--sheet, 0px) + 18px); display: flex;
   flex-direction: column; gap: 10px; }
 .touch-fly button { width: 56px; height: 56px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.18); color: #fff; font-size: 20px; touch-action: none; backdrop-filter: blur(2px); }
@@ -22,7 +24,7 @@
   .hud kbd { display: none; }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 760px), (max-height: 500px) {
   :root { --top-bar: 146px; --sheet: 46vh; }  /* hole card measured at 140px tall on a 390px phone */
 
   .column { position: static; width: auto; gap: 0; }
@@ -60,4 +62,24 @@
   .top-row img { width: 44px; height: 44px; }
   .banner { max-width: calc(100vw - 24px); }
   .click-hint { bottom: calc(var(--sheet) + 12px); max-width: calc(100vw - 24px); }
+  /* Below the Tee / Green / Overhead row, scrolling if the free area is short. */
+  .waiting-card { padding: 10px 12px; gap: 6px; top: calc(var(--top-bar) + 44px); overflow-y: auto;
+    max-height: calc(100% - var(--top-bar) - 44px - var(--sheet)); }
+  .waiting-card .ball { display: none; }
+}
+
+/* Phone in landscape: the rating card becomes a full-height side panel (scrolls if it must), the hole card and
+   the touch controls share what is left of the screen. */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root { --side: min(300px, 40vw); --sheet: 0px; }
+  .column.left { right: var(--side); }
+  .column.right { top: 0; bottom: 0; left: auto; width: var(--side); display: flex; flex-direction: column; }
+  .rate-card { max-height: 100%; border-radius: 14px 0 0 0; padding: 8px 10px; }
+  .thumb-icon { font-size: 22px; }
+  .thumb { padding: 4px 0; }
+  .rate-card textarea { min-height: 40px; margin: 6px 0; }
+  .topbar { right: calc(var(--side) + 10px); }
+  .click-hint { left: calc((100% - var(--side)) / 2); }
+  .waiting-card { left: 150px; right: calc(var(--side) + 84px); width: auto; }  /* between stick and ▲▼ */
+  .top-card { width: min(560px, 100vw); max-height: 100vh; align-self: center; border-radius: 14px; }
 }

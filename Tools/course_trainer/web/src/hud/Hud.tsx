@@ -8,6 +8,7 @@ import { Minimap } from './Minimap';
 import { RatePanel } from './RatePanel';
 import { TastePanel } from './TastePanel';
 import { TopPanel } from './TopPanel';
+import { WaitingCard } from './WaitingCard';
 
 interface Props {
   trainer: Trainer;
@@ -23,7 +24,7 @@ interface Props {
 
 /** React overlay on top of the 3D view. While the mouse is captured the panels dim and ignore the pointer. */
 export function Hud({ trainer, player, locked, help, setHelp, top, setTop, commentRef, user }: Props) {
-  const { hole, busy, error, toast, dismissError, waiting, pool } = trainer;
+  const { hole, busy, error, toast, dismissError, waiting } = trainer;
   return (
     <div className="hud">
       {locked && <div className="crosshair" aria-hidden />}
@@ -57,15 +58,7 @@ export function Hud({ trainer, player, locked, help, setHelp, top, setTop, comme
           <span>{busy}</span>
         </div>
       )}
-      {waiting && !busy && !top && (
-        <div className="loading waiting" role="status">
-          <div className="ball" />
-          <span>Generating new holes…</span>
-          <small>{pool ? `${pool.ready} of ${pool.size} ready in batch ${pool.batch}; ` : ''}you've seen every one so far.
-            The next appears here on its own.</small>
-          <button className="btn small" onClick={() => setTop(true)}>Browse the top holes meanwhile</button>
-        </div>
-      )}
+      {waiting && !busy && !top && <WaitingCard trainer={trainer} onTop={() => setTop(true)} />}
       {error && (
         <div className="banner error" role="alert">
           {error}

@@ -1,8 +1,9 @@
 """Login: name + password -> a signed, HttpOnly session cookie. No sign-up (accounts come from manage.py / seed).
 
-Cookie value: base64(json {"u": user id, "e": expiry, "p": password fingerprint}) + "." + HMAC-SHA256. The
-fingerprint ties a session to the password it was made with, so `passwd` logs that user out everywhere.
-Failed logins are throttled in memory per client IP and per name. Behind a reverse proxy / Cloudflare Tunnel every
+Cookie value: base64(json {"s": session id, "e": expiry}) + "." + HMAC-SHA256. The session id names a row in
+`sessions` (users.py): logout deletes it, `passwd` deletes all of that user's, so both end the session server-side.
+Anything malformed (bad signature, non-ASCII, not JSON) is simply "not logged in": 401, never 500.
+Failed logins are throttled in memory per client IP and per name, independently. Behind a reverse proxy / Cloudflare Tunnel every
 request arrives from the proxy, so with TRAINER_TRUST_PROXY the IP comes from CF-Connecting-IP / X-Forwarded-For.
 Nothing depends on the request scheme (TLS ends at the proxy; the Secure flag is configured, not detected).
 """
@@ -21,7 +22,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from config import Settings
-from users import User, find_user, mark_login, verify_password
+from inputs import Text
+from users import User, create_session, end_session, find_user, mark_login, session_user, verify_password
 
 COOKIE = "trainer_session"
 
@@ -34,67 +36,67 @@ class SessionSigner:
     def _sig(self, body: bytes) -> str:
         return base64.urlsafe_b64encode(hmac.new(self.key, body, hashlib.sha256).digest()).decode().rstrip("=")
 
-    def fingerprint(self, user: User) -> str:
-        return self._sig((user.password_hash or "").encode())[:12]
-
-    def make(self, user: User) -> str:
-        body = base64.urlsafe_b64encode(json.dumps(
-            {"u": user.id, "e": int(time.time()) + self.max_age, "p": self.fingerprint(user)}).encode())
+    def make(self, session_id: str) -> str:
+        body = base64.urlsafe_b64encode(json.dumps({"s": session_id, "e": int(time.time()) + self.max_age}).encode())
         return f"{body.decode()}.{self._sig(body)}"
 
-    def read(self, token: str | None) -> dict | None:
-        """The payload if the signature is good and it has not expired, else None."""
+    def read(self, token: str | None) -> str | None:
+        """The session id if the signature is good and it has not expired, else None."""
         body, _, sig = (token or "").partition(".")
-        if not sig or not hmac.compare_digest(sig, self._sig(body.encode())):
+        if not sig or not (body + sig).isascii() or not hmac.compare_digest(sig, self._sig(body.encode())):
             return None
         try:
             data = json.loads(base64.urlsafe_b64decode(body))
         except ValueError:
             return None
-        return data if data.get("e", 0) > time.time() else None
+        if not isinstance(data, dict) or not isinstance(data.get("s"), str) or not isinstance(data.get("e"), int):
+            return None
+        return data["s"] if data["e"] > time.time() else None
 
 
 @dataclass
 class _Failures:
-    count: int = 0
+    count: int = 0      # at time `last`; one failure is forgiven per whole DECAY seconds since
     last: float = 0.0
 
 
 class LoginThrottle:
     """After FREE failures from one IP or for one name, each further try waits 2, 4, 8 ... s (max 15 min).
-    Entries are forgotten after 15 quiet minutes, or on a successful login."""
+    The IP and name counters are independent and each decays by one failure every DECAY s (so FREE failures are
+    forgotten after FORGET quiet seconds). A successful login clears only its name's counter: logging into your
+    own account between guesses does not reset your IP's."""
     FREE, MAX_WAIT, FORGET = 5, 900.0, 900.0
+    DECAY = FORGET / FREE
 
     def __init__(self):
         self._fails: dict[str, _Failures] = {}
         self._lock = threading.Lock()
 
     def retry_after(self, keys: list[str], now: float | None = None) -> float:
-        now = now or time.time()
+        now = time.time() if now is None else now
         with self._lock:
             waits = [self._wait(self._fails.get(k), now) for k in keys]
         return max(waits, default=0.0)
 
+    def _decayed(self, f: _Failures | None, now: float) -> int:
+        return 0 if f is None else max(0, f.count - int((now - f.last) / self.DECAY))
+
     def _wait(self, f: _Failures | None, now: float) -> float:
-        if f is None or f.count < self.FREE or now - f.last > self.FORGET:
+        if f is None or f.count < self.FREE:
             return 0.0
         return max(0.0, f.last + min(self.MAX_WAIT, 2.0 ** (f.count - self.FREE + 1)) - now)
 
     def failed(self, keys: list[str], now: float | None = None) -> None:
-        now = now or time.time()
+        now = time.time() if now is None else now
         with self._lock:
             for k in keys:
-                f = self._fails.get(k)
-                if f is None or now - f.last > self.FORGET:
-                    f = self._fails[k] = _Failures()
-                f.count, f.last = f.count + 1, now
+                self._fails[k] = _Failures(self._decayed(self._fails.get(k), now) + 1, now)
             if len(self._fails) > 10_000:  # bound memory under a spray of names
-                self._fails = {k: v for k, v in self._fails.items() if now - v.last <= self.FORGET}
+                self._fails = {k: v for k, v in self._fails.items() if self._decayed(v, now) > 0}
 
-    def succeeded(self, keys: list[str]) -> None:
+    def succeeded(self, key: str) -> None:
         with self._lock:
-            for k in keys:
-                self._fails.pop(k, None)
+            self._fails.pop(key, None)
 
 
 def client_ip(request: Request, trust_proxy: bool) -> str:
@@ -108,8 +110,8 @@ def client_ip(request: Request, trust_proxy: bool) -> str:
 
 
 class LoginRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    password: str = Field(min_length=1, max_length=200)
+    name: Text = Field(min_length=1, max_length=100)
+    password: Text = Field(min_length=1, max_length=200)
 
 
 def auth_router(settings: Settings) -> tuple[APIRouter, Callable[[Request], User]]:
@@ -120,15 +122,16 @@ def auth_router(settings: Settings) -> tuple[APIRouter, Callable[[Request], User
     dsn = settings.database_url
 
     def current_user(request: Request) -> User:
-        data = signer.read(request.cookies.get(COOKIE))
-        user = find_user(dsn, user_id=data["u"]) if data else None
-        if user is None or not hmac.compare_digest(data.get("p", ""), signer.fingerprint(user)):
+        sid = signer.read(request.cookies.get(COOKIE))
+        user = session_user(dsn, sid) if sid else None
+        if user is None:
             raise HTTPException(401, "Log in first")
         return user
 
     @router.post("/login")
     def login(req: LoginRequest, request: Request, response: Response):
-        keys = [f"ip:{client_ip(request, settings.trust_proxy)}", f"name:{req.name.strip().lower()}"]
+        name_key = f"name:{req.name.strip().lower()}"
+        keys = [f"ip:{client_ip(request, settings.trust_proxy)}", name_key]
         wait = throttle.retry_after(keys)
         if wait > 0:
             raise HTTPException(429, f"Too many failed logins: try again in {int(wait) + 1} s",
@@ -137,14 +140,18 @@ def auth_router(settings: Settings) -> tuple[APIRouter, Callable[[Request], User
         if not verify_password(req.password, user.password_hash if user else None):
             throttle.failed(keys)
             raise HTTPException(401, "Wrong name or password")
-        throttle.succeeded(keys)
+        throttle.succeeded(name_key)
         mark_login(dsn, user.id)
-        response.set_cookie(COOKIE, signer.make(user), max_age=signer.max_age, httponly=True, samesite="lax",
+        token = signer.make(create_session(dsn, user.id, signer.max_age))
+        response.set_cookie(COOKIE, token, max_age=signer.max_age, httponly=True, samesite="lax",
                             secure=settings.cookie_secure, path="/")
         return {"name": user.name}
 
     @router.post("/logout")
-    def logout(response: Response):
+    def logout(request: Request, response: Response):
+        sid = signer.read(request.cookies.get(COOKIE))
+        if sid:
+            end_session(dsn, sid)
         response.delete_cookie(COOKIE, path="/", httponly=True, samesite="lax", secure=settings.cookie_secure)
         return {"ok": True}
 

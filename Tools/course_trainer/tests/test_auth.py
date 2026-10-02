@@ -54,6 +54,25 @@ def test_logout(client):
     r = client.post("/api/logout")
     assert r.status_code == 200 and f'{COOKIE}=""' in r.headers["set-cookie"]
     assert client.get("/api/presets").status_code == 401
+    assert client.post("/api/logout").status_code == 200  # logging out twice is fine
+
+
+def test_logout_ends_the_session_server_side(make_client):
+    """T-6: a copied cookie stops working after logout; other sessions of the same user stay logged in."""
+    laptop, phone = login(make_client()[0]), login(make_client()[0])
+    stolen = laptop.cookies[COOKIE]
+    assert laptop.post("/api/logout").status_code == 200
+    laptop.cookies.set(COOKIE, stolen)
+    assert laptop.get("/api/me").status_code == 401
+    assert phone.get("/api/me").json() == {"name": "obi"}
+
+
+@pytest.mark.parametrize("value", ["abc.\u00e9", "\u00e9\u00e9.\u00e9", "e30=.x", "WzFd.x", "bnVsbA==.x"])
+def test_odd_cookies_are_401_not_500(make_client, value):
+    """T-8: non-ASCII, JSON that is not an object, unsigned: all just 'not logged in'."""
+    client, _ = make_client()
+    r = client.get("/api/me", headers={"Cookie": f"{COOKIE}={value}".encode()})
+    assert r.status_code == 401
 
 
 def test_password_change_ends_old_sessions(client, clean_db):
@@ -65,12 +84,12 @@ def test_password_change_ends_old_sessions(client, clean_db):
 
 def test_signer_rejects_tampering_and_expiry():
     signer = SessionSigner("secret", days=30)
-    user = users.User(1, "obi", "hash")
-    token = signer.make(user)
-    assert signer.read(token)["u"] == 1
+    token = signer.make("sid-1")
+    assert signer.read(token) == "sid-1"
     assert signer.read(token[:-2] + "xx") is None
+    assert signer.read(token + "\u00e9") is None
     assert SessionSigner("other", 30).read(token) is None
-    assert SessionSigner("secret", days=-1).read(SessionSigner("secret", days=-1).make(user)) is None
+    assert SessionSigner("secret", days=-1).read(SessionSigner("secret", days=-1).make("sid-1")) is None
 
 
 def test_throttle_backs_off_then_forgets():
@@ -84,8 +103,32 @@ def test_throttle_backs_off_then_forgets():
     t.failed(keys, now=100)
     assert t.retry_after(keys, now=101) == 3
     assert t.retry_after(keys, now=100 + LoginThrottle.FORGET + 1) == 0
-    t.succeeded(keys)
+    t.failed(keys, now=100 + LoginThrottle.FORGET + 1)  # 6 decayed by 5 over FORGET: back under FREE
+    assert t.retry_after(keys, now=100 + LoginThrottle.FORGET + 1) == 0
+    t.succeeded("ip:1.2.3.4")
     assert t.retry_after(keys, now=100) == 0
+
+
+def test_throttle_counters_decay_gradually():
+    t = LoginThrottle()
+    for _ in range(LoginThrottle.FREE):
+        t.failed(["ip:x"], now=0)
+    assert t.retry_after(["ip:x"], now=1) == 1
+    t.failed(["ip:x"], now=LoginThrottle.DECAY * 2)  # two forgiven, one more: 4, under FREE again
+    assert t.retry_after(["ip:x"], now=LoginThrottle.DECAY * 2) == 0
+    t.failed(["ip:x"], now=LoginThrottle.DECAY * 2)
+    assert t.retry_after(["ip:x"], now=LoginThrottle.DECAY * 2) == 2
+
+
+def test_own_login_does_not_reset_the_ip_throttle(make_client):
+    """T-7: spraying one guess per name while logging into your own account still hits the per-IP limit."""
+    client, _ = make_client()
+    codes = []
+    for i in range(12):
+        codes.append(client.post("/api/login", json={"name": f"victim{i}", "password": "guess"}).status_code)
+        if i % 4 == 3:
+            client.post("/api/login", json={"name": "obi", "password": PASSWORDS["obi"]})
+    assert codes[:LoginThrottle.FREE] == [401] * LoginThrottle.FREE and 429 in codes
 
 
 def test_repeated_failures_lock_the_name(make_client):

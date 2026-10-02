@@ -23,7 +23,12 @@ export function useTrainer() {
   const [waiting, setWaiting] = useState(false);
   const toastTimer = useRef<number>(0);
   const pollTimer = useRef<number>(0);
-  useEffect(() => () => window.clearTimeout(pollTimer.current), []);
+  /** False once this view unmounts (logout, 401): late responses are dropped and polling stops for good. */
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; window.clearTimeout(pollTimer.current); };
+  }, []);
 
   const flash = useCallback((message: string) => {
     setToast(message);
@@ -36,9 +41,10 @@ export function useTrainer() {
     setBusy(message);
     setError(null);
     try {
-      return await fn();
+      const result = await fn();
+      return alive.current ? result : undefined;
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      if (alive.current) setError(e instanceof Error ? e.message : String(e));
       return undefined;
     } finally {
       setBusy(null);
@@ -56,6 +62,7 @@ export function useTrainer() {
     window.clearTimeout(pollTimer.current);
     setWaiting(false);
     const data = await loadHole(summary, peek);
+    if (!alive.current) return;
     setHole(data);
     setPreset(summary.preset);
     setDraft({ ...EMPTY_DRAFT, rating: summary.rating });
@@ -68,6 +75,7 @@ export function useTrainer() {
   const next = useCallback(async (poll = false) => {
     window.clearTimeout(pollTimer.current);
     const res = poll ? await api.next().catch(() => undefined) : await task('Finding your next hole…', api.next);
+    if (!alive.current) return;
     if (res) setPool(res.pool);
     if (res?.hole) return void await open(res.hole);
     if (res || poll) {
@@ -114,10 +122,13 @@ export function useTrainer() {
       });
       if (!ready) return;
       const wanted = new URLSearchParams(window.location.search).get('hole');
-      // A shared ?hole= link may be someone else's hole: fetch it if it is not in my list.
-      const linked = wanted ? ready.find(h => h.id === wanted) ?? await api.hole(wanted).catch(() => undefined) : undefined;
+      const mine = ready.find(h => h.id === wanted);
+      // A ?hole= that is not one of mine (a shared link, a peeked Top hole, then reload) is only peeked, like Top
+      // holes: it can still be served to me later. Rating it marks it seen.
+      const linked = mine ?? (wanted ? await api.hole(wanted).catch(() => undefined) : undefined);
+      if (!alive.current) return;
       const start = linked ?? (ready[0] && !ready[0].rating ? ready[0] : undefined);
-      if (start) await open(start);
+      if (start) await open(start, !mine && start === linked);
       else await next();
     })();
   }, []);

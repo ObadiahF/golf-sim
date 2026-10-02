@@ -30,7 +30,8 @@ docker compose logs -f trainer             # "applied migration 002_pool.sql", "
 ```
 
 New settings since the first deploy (add to `.env`): `TRAINER_MAX_GENERATIONS=8`, `TRAINER_GAME_KEY=$(openssl
-rand -hex 24)`, optionally `TRAINER_POOL_BATCH_SIZE` / `TRAINER_POOL_REFILL_AT`.
+rand -hex 24)`, optionally `TRAINER_POOL_BATCH_SIZE` / `TRAINER_POOL_REFILL_AT` / `TRAINER_POOL_MAX_UNRATED` /
+`TRAINER_API_DOCS`. Migration `003_sessions.sql` moves sessions server-side, so everyone logs in once after it.
 
 The compose file builds from the repo root (the image needs `Tools/course_gen`, `Tools/course_prep`,
 `Tools/course_trainer` and `Docs/hole-format`; `Dockerfile.dockerignore` sends only those). Services:
@@ -81,8 +82,10 @@ docker compose run --rm trainer adduser sam     # prompts for the password (or -
 docker compose run --rm trainer passwd sam      # also logs sam out everywhere
 ```
 
-Names are case-insensitive. Sessions last `TRAINER_SESSION_DAYS` (30). After 5 failed logins from one IP or
-for one name, further tries wait 2, 4, 8 s ... (max 15 min), in memory.
+Names are case-insensitive. Sessions live in Postgres (`sessions`) and last `TRAINER_SESSION_DAYS` (30); Log out
+ends that session on the server, `passwd` ends all of the user's. After 5 failed logins from one IP or for one
+name, further tries wait 2, 4, 8 s ... (max 15 min), in memory. The IP and name counters are independent, each
+forgets one failure every 3 minutes, and a successful login clears only its own name's counter.
 
 ### Backups
 
@@ -110,7 +113,9 @@ Or snapshot the `course-trainer_db` volume with the stack stopped. `docker compo
 | `TRAINER_SEED_USERS` | | `name:pw,name:pw` |
 | `TRAINER_MAX_GENERATIONS` | `2` | concurrent generations (pool worker processes + ad-hoc Generate); the rest queue. `8` on the R730xd |
 | `TRAINER_POOL_BATCH_SIZE` | `100` | holes per pool batch |
-| `TRAINER_POOL_REFILL_AT` | `0.5` | the next batch starts once anyone has seen this share of the newest batch |
+| `TRAINER_POOL_REFILL_AT` | `0.5` | the next batch starts once anyone has *rated* this share of the newest batch (see Hole pool) |
+| `TRAINER_POOL_MAX_UNRATED` | `300` | no new batch while this many pool holes have no vote from anyone |
+| `TRAINER_API_DOCS` | `false` | serve `/docs`, `/redoc`, `/openapi.json` (`run.sh` turns it on for local dev) |
 | `TRAINER_GAME_KEY` | | bearer key for the Game API (`openssl rand -hex 24`); empty: Game API off |
 | `TRAINER_GEN_SPACING` | `0.75` | meters per heightmap sample (bigger: faster, coarser; tests use 3) |
 | `TRAINER_KEEP_UNRATED` | `40` | unrated holes kept on disk |
@@ -131,13 +136,18 @@ Everyone rates holes from one shared pool (`pool.py`, filled by `pool_worker.py`
    finish, so people can start while the batch is still generating. A restart resumes unfinished batches.
 3. **Startup.** If there is no batch yet, the first one starts. Batch creation holds a Postgres advisory lock
    and only ever compares against the newest batch, so it is idempotent and race-safe.
-4. **Serving** (`GET /api/next`): the next pool hole you have not seen (shown, rated or skipped; ad-hoc holes and
-   opened links count too), newest batch first, in your own shuffled order (`md5(hole id : user id)`), so
+4. **Serving** (`GET /api/next`): the next pool hole you have not seen (shown, rated or skipped; ad-hoc holes count
+   too, peeked links do not), newest batch first, in your own shuffled order (`md5(hole id : user id)`), so
    friends start on different holes and the leaderboard gets broad coverage. It is recorded as seen right away.
-   Nothing unseen ready yet: `state: "generating"` and the UI shows "Generating new holes… N of M ready" and
-   polls every 3 s.
-5. **Refill.** When anyone has seen `TRAINER_POOL_REFILL_AT` (50%) of the newest batch, the next batch starts:
-   once per batch. While it generates, unseen holes from older batches are served.
+   Nothing unseen ready yet: `state: "generating"` and the UI shows a "Generating new holes… N of M ready" card
+   (the rest of the HUD stays usable) and polls every 3 s, until the view unmounts (logout, 401).
+5. **Refill** (`pool.refill_due`, checked on `/api/next` and on every rating). The next batch starts when the
+   newest batch has **finished** generating (so one batch generates at a time), someone has **rated**
+   `TRAINER_POOL_REFILL_AT` (50%) of it **or seen all of it** (skips only count once the batch is used up, so
+   skip-spam earns at most one batch per finished batch), and fewer than `TRAINER_POOL_MAX_UNRATED` pool holes
+   have no vote from anyone. At the cap (`pool.capped`) the waiting card asks people to rate holes they skipped.
+   A finished batch with 0 holes (every generation failed) counts as used up after 10 minutes, so it can't wedge
+   the refill. While a batch generates, unseen holes from older batches are served.
 6. Pool holes are **never pruned**. **Submit** and **Skip** (N) both go to the next pool hole. The old ad-hoc
    Generate (preset / par) is under "Advanced" on the hole card.
 
@@ -154,7 +164,8 @@ score = (p + z²/2n − z·sqrt(p(1−p)/n + z²/4n²)) / (1 + z²/n)        (0 
 That is the like share the hole has at least, given how few votes it has: 1 👍 0 👎 scores 0.21, 2 👍 0.34,
 4 👍 1 👎 0.38, 9 👍 1 👎 0.60, so one lucky like never beats a hole many people liked (the raw ratio would rank
 1/1 = 100% first). Ties: more likes, then id. Opening a leaderboard hole (`hole.json?peek=true`) does not mark
-it seen, so it can still be served to you later; rating it does.
+it seen, so it can still be served to you later; rating it does. The same goes for any `?hole=` link that is not
+already in your recent holes (a shared link, or reloading on a peeked hole).
 
 ### Game API
 
@@ -301,7 +312,7 @@ cd Tools/course_trainer && TRAINER_TEST_DATABASE_URL=postgresql://trainer:traine
 | T / G / O | teleport to the tee · the green approach · an overhead view |
 | 1 / 2 | 👍 / 👎 |
 | F | jump to the feedback box (typing never moves you or triggers hotkeys) |
-| Enter (Ctrl/⌘+Enter in the box) | submit and go to the next pool hole |
+| Enter (Ctrl/⌘+Enter in the box) | submit and go to the next pool hole (not while a button or a ▸ section is focused) |
 | N | skip: next pool hole without rating |
 | L | Top holes (leaderboard) |
 | H | controls overlay |
@@ -322,12 +333,13 @@ course_trainer/
   ranking.py        leaderboard: Wilson lower bound over latest_votes
   game.py           read-only Game API behind TRAINER_GAME_KEY
   auth.py           signed session cookie, login / logout / me, login throttle, client IP behind a proxy
-  users.py          scrypt password hashes, accounts, seed (users + legacy ratings.jsonl import)
+  users.py          scrypt password hashes, accounts, server-side sessions, seed (users + legacy ratings.jsonl)
+  inputs.py         input hygiene: text without NUL / lone surrogates, ASCII-safe JSON errors (4xx, never 500)
   db.py             migrations runner, hole views (recent holes, prune protection), training log
   config.py         Settings from TRAINER_* environment variables
   holes.py          hole packages on disk: safe lookup, per-hole summary
   migrations/       001_init.sql (users, votes + latest_votes view, hole_views, training_runs),
-                    002_pool.sql (batches, pool_holes)
+                    002_pool.sql (batches, pool_holes), 003_sessions.sql (sessions)
   Dockerfile, Dockerfile.dockerignore, docker-compose.yml, .env.example, requirements.txt
   tests/            test_api, test_auth, test_votes, test_pool, test_ranking (+ conftest: throwaway database)
   web/              Vite + React + TypeScript + three.js (@react-three/fiber, drei)
@@ -348,8 +360,8 @@ exactly as before.
 
 Multi-user: at most `TRAINER_MAX_GENERATIONS` generations run at once (pool and ad hoc; the rest wait), one
 retrain at a time. Pruning (keep `TRAINER_KEEP_UNRATED` unrated holes) never deletes a pool hole, a hole anyone
-voted on, or one anyone opened or generated within `TRAINER_VIEW_GRACE_HOURS`. "Recent holes" are per user (`hole_views`); a shared `?hole=`
-link opens someone else's hole and adds it to your list.
+voted on, or one anyone opened or generated within `TRAINER_VIEW_GRACE_HOURS`. "Recent holes" are per user
+(`hole_views`); a shared `?hole=` link opens someone else's hole as a peek (rate it to add it to your list).
 
 Coordinates: package `x` = east, `z` = north (metres from the SW corner); three.js uses `X = x`,
 `Y = up` (metres above the minimum elevation), `Z = -north`.
@@ -357,7 +369,8 @@ Coordinates: package `x` = east, `z` = north (metres from the SW corner); three.
 ## API
 
 All `/api` routes except `login` / `logout` and the [Game API](#game-api) (`/api/game/*`, bearer key) need the
-session cookie (401 otherwise). `/healthz` is public.
+session cookie (401 otherwise; a malformed cookie is just 401). `/healthz` is public. Malformed input (NUL, lone
+surrogates, ids over 200 characters, NaN / Infinity) is a 4xx with a message, never a 500.
 
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
@@ -365,20 +378,23 @@ session cookie (401 otherwise). `/healthz` is public.
 | POST | `/api/logout` | | clears the cookie |
 | GET | `/api/me` | | `{name}` |
 | GET | `/api/presets` | | `{presets, params, pars, feedback}` (feedback = chip table) |
-| GET | `/api/status` | `?preset=` | `{ratings, up, yours, trainedOn, preset, likes, dislikes}` (ratings = everyone's) |
+| GET | `/api/status` | `?preset=` | `{ratings, up, yours, trainedOn, preset, likes, dislikes, presetVotes: {up, down}}` (ratings = everyone's; presetVotes = everyone's on `preset`) |
 | GET | `/api/holes` | `?limit=20` | `{holes: [summary]}`: your holes, most recently opened first |
-| GET | `/api/holes/{id}` | | summary: `id, preset, theme, par, seed, params, modelScore, lengthMeters, created, rating` (your vote) |
+| GET | `/api/holes/{id}` | | summary: `id, preset, theme, par, seed, params, modelScore, lengthMeters, created, rating` (your vote); never marks it seen |
 | GET | `/api/holes/{id}/{file}` | `hole.json`, `heightmap.raw`, `objects.bin`, `gen.json`, `preview.png`; `?peek=true` | package file (opening `hole.json` marks the hole seen unless `peek`) |
-| GET | `/api/next` | | `{state: "ready"\|"generating", hole: summary\|null, pool: {batch, size, status, ready, seen}}`; marks the hole seen |
+| GET | `/api/next` | | `{state: "ready"\|"generating", hole: summary\|null, pool: {batch, size, status, ready, seen, capped}}`; marks the hole seen |
 | GET | `/api/top` | `?limit=20` | `{formula, holes: [summary + rank, ups, downs, score, previewUrl, files]}` |
 | POST | `/api/generate` | `{preset, par?, seed?, overrides?: {knob: 0..1}, useModel?: true}` | summary + `attempts`, `pruned` |
-| POST | `/api/rate` | `{id, rating: "up"\|"down", comment?, tags?: [chip id]}` | `{entry, status}` |
+| POST | `/api/rate` | `{id, rating: "up"\|"down", comment?, tags?: [chip id]}` | `{entry, status}`; 400 for contradictory chips |
 | POST | `/api/train` | `?preset=&only=<user>` | status (409 when there are no ratings) |
 | GET | `/api/export/votes.jsonl` | `?history=true` | ratings.jsonl lines + `user` |
 
 ## Feedback chips and training
 
-Chips live in one table, `Tools/course_gen/feedback.py` (`TAGS`): each maps to knobs and a
+Chips live in one table, `Tools/course_gen/feedback.py` (`TAGS`). Chips that pull a knob opposite ways (Too long /
+Too short, More / Fewer trees, Boring / Too hilly ...) are mutually exclusive: `feedback.opposites` derives them
+from the table, the catalog lists them as `excludes` (the UI drops the opposite chip), and `validate_tags` rejects
+both together. Each chip maps to knobs and a
 direction (`more_trees` → `tree_density +1`, `too_long` → `length −1`, `boring` → `dogleg +1, relief +1`,
 …). They are stored on the rating line (`"tags": [...]`, plus `"comment"` for the note; both optional,
 so older lines and the Unity window are unaffected) and **used in training**: a tag on a rated hole

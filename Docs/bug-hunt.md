@@ -1,372 +1,420 @@
 # Bug hunt log
 
 QA findings, newest round first. Each entry has a severity (blocker / major / minor / polish), the component, repro steps, expected vs actual, and evidence.
-Evidence files live in the tester's tmp folder (`/Users/obadiah/.claude/jobs/5fd17b43/tmp/bughunt/`) unless noted.
+Evidence files live in the tester's tmp folder (round 1: `/Users/obadiah/.claude/jobs/5fd17b43/tmp/bughunt/`, round 2: `…/tmp/bughunt2/`) unless noted.
 
 ---
 
-## Round 1 (2026-10-02)
+## Round 2 (2026-10-02)
 
-The Unity tests ran in the Editor in Play mode, driven by a dev script (`tmp/bughunt/BugHunt.cs`).
-- The script calls `ShotPanel.Hit`, `GolfBall.Advance`, `NavInput.Push`, and the private `ShotPanel.ResetBall`, which is what the R key calls.
-- The hole is the one in `HoleSimulator.unity`: `forest_7_e3914f`, par 4, 412 yd.
-- The game server ran as an isolated compose project `bughunt` on port 18080. The repros below say `localhost:8080`; swap in your own port.
+This round covered the two parts nobody else was editing: the Course Trainer website and the iPhone app.
+- **Trainer:** the local compose project `e2etrainer` on http://localhost:8765, with `TRAINER_POOL_BATCH_SIZE=12` and `TRAINER_MAX_GENERATIONS=6`.
+  - Test users `qa1`–`qa5` and `QaMixed` were added with `adduser`.
+  - It was driven with httpx scripts and the Playwright browser: desktop at 1440×900 and 1280×650, and a phone context (390×844, touch, `pointer: coarse`).
+- **App:** see the iPhone app section below.
+- Evidence is in `/Users/obadiah/.claude/jobs/5fd17b43/tmp/bughunt2/`: `trainer/` holds the scripts, `trainer/shots/` the screenshots, and `app/` the app evidence.
 
-### Hole Simulator / ball
+### Course Trainer
 
-#### U-1 Reset (R) leaves the previous shot's tracer on screen
-- **Status:** Fixed (2026-10-02). `GolfBall` raises a new `Placed` event whenever the ball is put down (reset, drop, next turn) and `BallTracer` clears the trace on it. Check: `BugFixCheck.TracerReset`.
-- **Severity:** minor
-- **Component:** `GolfSim/Ball/Runtime/BallTracer.cs`. The tracer only clears on `GolfBall.ShotStarted`, and `GolfBall.ResetToTee` raises no event.
+#### T-1 Phone in landscape: the Submit button is off screen, so you can't rate
+- **Fixed** (2026-10-02): `mobile.css`: the phone layout also applies at `max-height: 500px`. In landscape, the rating card is a full-height side panel that scrolls, with the touch controls beside it. Checked at 844×390 and 390×844: Submit, chips and Log out are hit-testable, and the touch controls overlap no card.
+- **Severity:** major
+- **Component:** `web/src/mobile.css`. The phone layout only applies at `max-width: 760px`. A landscape phone (844×390, 932×430) gets the desktop layout, plus the touch controls from `@media (pointer: coarse)`.
 - **Repro:**
-  1. In the Hole Simulator, hit a Driver (Space).
-  2. Press R, either mid-flight or after the ball stops.
-- **Expected:** the trace is cleared when the ball goes back to the tee.
+  1. On a phone, or in a touch emulator at 844×390, log in and rotate to landscape.
+- **Expected:** a usable layout with Submit reachable, like portrait.
 - **Actual:**
-  - The old trace stays drawn until the next hit.
-  - After R mid-flight, the LineRenderer still had 101 points. After R at rest, it had 237.
-  - In the live game it was 35 points after R mid-flight, and the trace was drawn from the tee into the trees.
-- **Evidence:** `bh_after_reset.png`. The ball is back on the tee and the yellow trace of the aborted shot is still shown.
+  - The rate card is 436 px tall in a 390 px viewport. The Submit button's bottom edge is at y = 455, and nothing scrolls (`body { overflow: hidden }`, and the card has no scroll container). There is no Enter key on a phone, so a vote can't be submitted.
+  - The Tee / Green / Overhead buttons sit under the top bar (Log out, Top holes). `elementFromPoint` there returns the top-bar button.
+  - The move stick covers the "Advanced" and "Revisit a recent hole" rows of the hole card, and the ▲/▼ buttons cover the chips.
+- **Evidence:** `trainer/shots/bh2_phone_landscape.png`.
 
-#### U-2 Reset (R) mid-flight leaves the camera in chase mode
-- **Status:** Fixed (2026-10-02). `ShotPanel.LineUp` (used by R) now calls `flyCam.StopFollowing()` and zeroes `followOffset` before jumping behind the ball. Check: `BugFixCheck.CameraReset`.
+#### T-2 The "Generating new holes…" overlay blocks the whole HUD
+- **Fixed** (2026-10-02): the waiting overlay is now `hud/WaitingCard.tsx`, a centred card. The top bar, Skip, Advanced, history and Like stay clickable (`elementFromPoint` checked).
 - **Severity:** minor
-- **Component:** `ShotPanel.ResetBall` / `LineUp`. These call `flyCam.JumpTo` but never clear `HoleFlyCamera.trackTarget` or `followOffset`, which `ShotPanel.Hit` set.
+- **Component:** `hud/Hud.tsx` and the `.loading.waiting` style (`position: absolute; inset: 0; pointer-events: auto; z-index: 20`).
 - **Repro:**
-  1. Hit a Driver with "Camera follows ball" on.
-  2. Press R about 1.5 s into the flight.
-  3. Wait 3 s.
-- **Expected:** the camera stays at the line-up pose, 6 m behind the ball and looking down the target line, as it does after a normal shot.
+  1. See every ready pool hole so the app shows the waiting card. (In the test, `/api/next` was stubbed to `generating`, because real batches of 12 finish in about 10 s.)
+  2. Try to click Log out, Skip, Advanced › Generate, "Revisit a recent hole", or Like.
+- **Expected:** the waiting card is a card, and the rest of the HUD still works. Advanced › Generate is exactly what you'd want while you wait.
 - **Actual:**
-  - Just after R, the camera is at the line-up pose (236.3, 13.8, 65.3) and looking down the line.
-  - Three seconds later, it has drifted to the chase offset (237.1, 16.8, 57.2), 14 m back and 5 m up, and is staring down at the ball (ball at viewport 0.5, 0.5).
-  - `trackTarget` is still "Golf Ball" and `followOffset` is still (2.59, 5.00, -14.08).
+  - `elementFromPoint` at each of those controls returns the `.loading waiting` overlay.
+  - Only "Browse the top holes meanwhile" and the keyboard (N, L) work. On a phone, you can't even log out.
+- **Evidence:** `trainer/shots/bh2_waiting.png`. Everything behind the card is dimmed and unclickable.
 
-#### U-3 Pressing Space mid-flight changes the wind on the ball already in flight
-- **Status:** Fixed (2026-10-02). `ShotPanel.Hit(ShotData)` returns before touching the wind or camera while the ball is moving. Check: `BugFixCheck.WindMidFlight`.
+#### T-3 A lost session leaves a zombie `/api/next` poller that later eats a pool hole
+- **Fixed** (2026-10-02): `useTrainer` stops polling and drops late responses once unmounted. `api.ts` aborts the session's in-flight requests on logout or 401. No `/api/next` calls on the login screen.
 - **Severity:** minor
-- **Component:** `ShotPanel.Hit(ShotData)`. It writes `ball.windSpeed` and `ball.windHeading` before `GolfBall.Hit`, and `GolfBall.Hit` then ignores the hit because the ball is moving.
+- **Component:** `useTrainer.ts` `next(poll)`.
+  - The 401 dispatches `UNAUTHORIZED`, which unmounts `TrainerView`, and its cleanup clears `pollTimer`.
+  - The rejected promise then resolves to `undefined`. Because `poll` is true, it schedules a new timer, and nothing ever clears that one.
 - **Repro:**
-  1. Set wind to 0 and hit a Driver.
-  2. While it flies, move the Wind slider to 30 mph and Wind from to 90° (E), then press Space.
-- **Expected:** a hit while the ball is moving is ignored entirely, and the shot keeps the wind it was launched with.
+  1. Reach the waiting state.
+  2. Lose the session. Clear the cookie, run `passwd` for the user, or let the session expire.
+  3. Wait on the login screen, then log in again.
+- **Expected:** polling stops when the view unmounts.
 - **Actual:**
-  - The second hit is ignored, but `ball.windSpeed` becomes 13.4 m/s and the current shot curves.
-  - The result was 40.4 yd left, against 0.1 yd for the same shot without the extra press.
-  - Remote shots are not affected, because `Shots.Hit` checks `InMotion` first.
+  - The login screen keeps calling `GET /api/next` every 3 s. That was 5 × 401 in 15 s, each logged as a console error.
+  - After logging back in, the old poller's next call succeeds. `/api/next` marks a hole as seen (`forest_341233168_a7b069`), and the dead instance calls `history.replaceState` with that id.
+  - The screen shows a different hole (`links_213223419_58e6c5`) from the URL. The served hole was never shown, but it counts as seen.
 
-#### U-4 Practice HUD shows a stale lie after Reset (R)
-- **Status:** Fixed (2026-10-02). practice lie now follows `GolfBall.Placed` (`RoundDirector.OnBallPlaced` reads `GolfBall.Lie`), and a ball on the tee marker always reads "tee". Check: `BugFixCheck.PracticeLie`.
-- **Severity:** polish
-- **Component:** `RoundDirector.Play.cs`. `practiceLie` only updates in `OnShotFinished`, and R doesn't reset it.
-- **Repro:**
-  1. In the Hole Simulator, hit a Driver into the trees.
-  2. Press R.
-- **Expected:** the HUD shows LIE Tee.
-- **Actual:** the HUD shows LIE Woods while the ball sits on the tee.
-- **Evidence:** `bh_after_reset.png`, top-left panel.
-
-#### U-5 Hang time and land angle read 0 when the ball leaves the map in the air
-- **Status:** Fixed (2026-10-02). `Finish` sets `flightTime` when the ball leaves the map in the air and the new `ShotResult.landed` is false, so the panel shows land angle "n/a". Check: `BugFixCheck.OffMapInAir`.
-- **Severity:** minor
-- **Component:** `GolfBall.Simulate` / `Finish`. OutOfBounds while flying never sets `flightTime` or `landAngle`, and `carry` is set to `total`.
-- **Repro:** `aimOffset = 180` (aim backwards), then hit 200 mph at 15° from the tee.
-- **Expected:**
-  - The ball leaves the map 34 m up after about 1 s.
-  - Hang time is about 1.0 s, and land angle is blank or "n/a" rather than a number.
-- **Actual:**
-  - The panel shows Carry 78.1 yd, Hang time 0.00 s and Land angle 0.0°.
-  - A 90° aim shows the same: carry 324 yd, hang 0.00, land 0.0.
-  - Any big downwind drive can fly off the 531 m tile like this.
-
-#### U-6 Tee position sits off the back tee box, on rough (generator)
-- **Status: Fixed.** `layout.py` `tees()` nudges the back box so the tee point is >= 1.5 m (`TEE_MARGIN`) inside it (same RNG draws); `validate.py` rejects a layout whose tee is off the box; test over 42 holes; `GENERATOR_VERSION` 3.
+#### T-4 Reloading after opening a Top hole marks it as seen
+- **Fixed** (2026-10-02): a `?hole=` that isn't in your recent holes opens as a peek, and `GET /api/holes/{id}` no longer marks a hole seen. After a reload, `hole_views` has no row.
 - **Severity:** minor
 - **Component:**
-  - Root cause: `Tools/course_gen` (`layout.py` `tees()`; `generate.py` sets `"tee"` to `layout.path.coords[0]`).
-  - Not caught by: `prep_hole.py validate`.
+  - `useTrainer.ts` start-up: `?hole=` that isn't in your recent list calls `api.hole(id)`.
+  - `api.py` `describe`: `GET /api/holes/{id}` calls `db.touch_view`.
+  - Then `open(start)` fetches `hole.json` without `peek`.
 - **Repro:**
-  - **In Unity:**
-    1. Open the Hole Simulator and look at the tee.
-    2. Hit the Putter from the tee.
-    - The ball's lie reads "rough".
-    - `TerrainSurfaceMap.SurfaceAt(hole.TeeWorld)` returns `rough`, and the tee box starts about 1.5 m ahead.
-  - **Generator:**
-    1. `cd Golf-sim/Tools && course_prep/.venv/bin/python course_gen/gen_hole.py generate --no-model --preset parkland --par 4 --seed 7 --out /tmp/x`.
-    2. Classify the `tee` point against the areas.
-- **Expected:** the tee point, documented as the "tee centre", lies inside a `tee` area.
+  1. As `qa4`, press L and open a pool hole you haven't seen (`forest_621272063_f250a1`). At this point `hole_views` has no row for it, which is correct.
+  2. Reload the page.
+- **Expected:** a peeked hole still isn't seen. The README says "it can still be served to you later".
 - **Actual:**
-  - `forest_7_e3914f`: the tee is (234.51, 71.30) and the first tee polygon spans y 70.67–83.21. The tee sits 0.6 m from the back edge and samples as rough.
-  - In 27 of 81 generated holes (all presets and pars) the tee is outside the tee box. The worst is 2.0 m, in `desert_316_52c0a6`.
-  - Cause: the tee is the start of the path, but the first box is centred 5 ± 2 m along it with a random 9–15 m length.
-- **Evidence:**
-  - `bh_round.png`: the ball sits on the rough strip behind the tee box.
-  - `gen/tee_offbox_desert_316.png`
-  - `gen/batch_check.txt`
+  - After the reload, `hole_views` has `(qa4, forest_621272063_f250a1)`, so it will never be served to `qa4`.
+  - The same happens when a leaderboard hole's URL is shared.
 
-#### U-7 Lie has no effect on the shot (bunker, woods and rough play like the fairway)
-- **Status:** Fixed (2026-10-02). `GolfBall.Hit` applies `BallPhysicsSettings.lies` (rough −12%, woods −15%, bunker −25% for full shots; less for short shots; less spin, a little more launch) for every input, and the HUD and panel show it ("Rough −10%"). Check: `ObstacleCheck.Lies`.
-- **Severity:** minor (may be a missing feature rather than a bug)
-- **Component:** `GolfBall.Hit` / `BallPhysics.Launch`. There is no lie-based adjustment to ball speed or spin.
-- **Repro:** place the ball about 153 yd from the pin on fairway, rough, bunker, native and woods, and hit a 7 Iron preset from each.
-- **Expected:** reduced distance or spin from bunker, rough and woods (GSPro-style lie penalties).
-- **Actual:**
-  - Carry is 173.1, 172.2, 172.3, 169.5 and 174.9 yd respectively, with identical apex (30.8 yd).
-  - A full 7 iron from inside the woods flies as far as one from the fairway.
-
-#### U-8 Ball flies through trees
-- **Status:** Fixed (2026-10-02). new `ObstacleField` (grid of `HoleInfo.obstacles`) gives trunks, shrubs and rocks solid rebounds and makes canopy hits a matter of chance, with a per-shot seed. `GolfBall.HitObstacle` and `ShotResult.hitTree`/`hitRock` report the hits. Check: `ObstacleCheck.All`.
-- **Severity:** minor (missing feature)
-- **Component:** `GolfBall` / `BallPhysics`. Flight only tests against the terrain heightmap, never against trees or objects.
-- **Repro:** from the tee, hit a 3 Wood or Driver straight at the pin. The line runs through the forest on this dogleg.
-- **Expected:** the ball hits trees and drops.
-- **Actual:** it passes straight through and lands in "woods" 250+ yd away. For example, the Driver lands at (241.6, 320.1) with lie woods.
-
-#### U-9 Fly-camera help box is drawn under the Practice HUD panel
-- **Status:** Fixed (2026-10-02). the fly-camera help is off whenever the Round HUD exists (H still toggles it). `HoleFlyCamera` is CourseBuilder code, so the fix is in `RoundDirector.Bind`. Check: `BugFixCheck.HelpOverlay`.
-- **Severity:** polish
-- **Component:** `HoleFlyCamera.OnGUI` (the box at 10, 10) and the Round HUD panel (top-left).
-- **Repro:** open the Hole Simulator in practice (help is on by default) and look at the top-left corner.
-- **Expected:** the two overlays don't overlap.
-- **Actual:** the IMGUI help text ("Hole forest_7… Right mouse: look…") shows through around the edges of the PRACTICE panel.
-- **Evidence:** `bh_after_reset.png`.
-
-### Menus
-
-#### M-1 Select or click twice during the fade loads the scene twice
-- **Status:** Fixed (2026-10-02). `ScreenFade.LoadScene` ignores requests until the requested scene has loaded (static `ScreenFade.Loading`), and `MainMenu.Play` and `RoundDirector.PlayRound` check it too. Check: `BugFixCheck.Menu` (1 scene load for 2 Restarts).
+#### T-5 The previous user's `?hole=` carries over to the next login, and it's marked seen for them
+- **Fixed** (2026-10-02): ending a session (logout or 401) clears `?hole=` and unmounts all per-user state. A shared link opened while logged out is kept.
 - **Severity:** minor
-- **Component:** `ScreenFade.LoadScene`, used by `HomeMenu` and `MainMenu`. Nothing guards against a second call while the 450 ms fade is running.
+- **Component:** `useSession.logout` / `useTrainer` start-up. Logout leaves `?hole=<id>` in the URL, and the next login opens it.
 - **Repro:**
-  - **Pause menu:** Esc, Down (Restart), then Enter twice quickly.
-  - **Main menu:** Enter twice quickly on Play.
-- **Expected:** one scene load.
+  1. Log in as `qa4` and look at a hole.
+  2. Log out, and log in as `qa5` in the same tab.
+- **Expected:** `qa5` starts on their own next pool hole.
 - **Actual:**
-  - `sceneLoaded` fires twice, about 0.4 s apart: HoleSimulator at t = 332.26 and 332.64.
-  - `[UdpShotReceiver] Listening…` is logged twice.
-  - On "Play a Round", `PlayRound` runs twice: the round starts, then is restarted by the second load.
-  - The same applies to a mouse double-click on a card or button.
+  - `qa5` starts on `qa4`'s hole (`forest_563021450_515b36`), and it's recorded as seen for `qa5` through `GET /api/holes/{id}`.
+  - Also, Back after Log out leaves the app (`about:blank`), because the app only uses `replaceState`.
 
-### Game server
+#### T-6 Logout doesn't end the session server-side
+- **Fixed** (2026-10-02): server-side `sessions` table (`003_sessions.sql`). Logout deletes the session and `passwd` deletes all of the user's sessions. A replayed cookie gets 401.
+- **Severity:** minor (security)
+- **Component:** `auth.py`. The signed cookie is stateless, and `/api/logout` only tells the browser to delete it.
+- **Repro:** `trainer/auth5.py`.
+  1. Log in and copy the `trainer_session` value.
+  2. `POST /api/logout`.
+  3. `GET /api/me` with the copied value.
+- **Expected:** 401.
+- **Actual:** 200 `{"name":"qa2"}`. The cookie stays valid for `TRAINER_SESSION_DAYS` (30 days) unless the password changes. On a shared or borrowed computer, "Log out" doesn't really log out.
 
-#### GS-1 Auth bypass: `/api;/…` and `/%61pi/…` skip the token check
-- **Severity:** blocker
-- **Component:** `auth/ApiTokenFilter.shouldNotFilter`. It checks the raw `getRequestURI()`, but Spring routes on the normalised path.
-- **Repro (no token):**
-  - `curl -s -w '%{http_code}\n' http://localhost:8080/api/players` gives 401. That is correct.
-  - `curl -s -w '%{http_code}\n' 'http://localhost:8080/api;/players'` gives **200** with the full list.
-  - `curl -s -w '%{http_code}\n' 'http://localhost:8080/%61pi/leaderboard'` gives **200**.
-  - `curl -X POST -H 'Content-Type: application/json' -d '{"players":["Intruder"],"holes":1}' 'http://localhost:8080/api;/games'` gives **201**. The game is created and the current one is abandoned.
-  - `curl -X POST 'http://localhost:8080/api;/games/2/end'` gives **200**.
-- **Expected:** 401 for every `/api/**` route.
-- **Actual:** every endpoint, writes included, works without a token.
+#### T-7 Any account holder can bypass the per-IP login throttle
+- **Fixed** (2026-10-02): the IP and name counters are independent and each forgets one failure every 3 min. A successful login clears only its own name's counter. `auth3.py` now gets 429 after 5 failures.
+- **Severity:** minor (security)
+- **Component:** `auth.py` `login`. `throttle.succeeded(keys)` clears the `ip:` key on any successful login, including the attacker's own.
+- **Repro:** `trainer/auth3.py`.
+  - Try 30 wrong passwords against 30 different names, logging into your own account after every 4th try.
+- **Expected:** throttled after 5 failures from one IP.
+- **Actual:**
+  - All 30 tries return 401 and none returns 429, so unlimited password spraying (one guess per name) is possible.
+  - The per-name limit still works: five failures for one name give 429 with `Retry-After: 2`, which was checked.
 
-#### GS-2 Simultaneous final `holeScore`s leave the game IN_PROGRESS forever (no `gameFinished`)
+#### T-8 A non-ASCII session cookie returns 500 on every route
+- **Fixed** (2026-10-02): `SessionSigner.read` treats non-ASCII or malformed cookies as no session: 401.
+- **Severity:** minor
+- **Component:** `auth.py` `SessionSigner.read`. `hmac.compare_digest(sig, …)` raises `TypeError: comparing strings with non-ASCII characters is not supported`.
+- **Repro:** `curl -H $'Cookie: trainer_session=abc.\xc3\xa9' localhost:8765/api/next` gives **500** and a stack trace in the log. `/api/me` does the same.
+- **Expected:** 401.
+- **Actual:**
+  - 500 on every route that checks the session, with a traceback logged each time.
+  - In production, a parent-domain cookie with this name set by any app on a sibling `*.obadiahfusco.xyz` host could break the trainer for that visitor. This is by reasoning only and wasn't tested.
+
+#### T-9 Malformed input gives 500 instead of 400/404
+- **Fixed** (2026-10-02): `inputs.py`: NUL and lone surrogates give 422, ids over 200 characters give 404/422, and NaN/Infinity overrides give 422. Errors are ASCII-safe JSON. A `SystemExit` from course_gen becomes 400, and seeds above 2^63 give 422.
+- **Severity:** minor
+- **Component:** `api.py` handlers, `holes.HoleStore.folder`, and `style.apply_overrides`.
+- **Repro:** `trainer/inputs1.py`, `inputs2.py`, `gen1.py`. Each of these was re-run.
+  - `POST /api/rate` with `"comment":"a\u0000b"` gives 500: `psycopg.DataError: PostgreSQL text fields cannot contain NUL`.
+    - The 500 also drops the keep-alive connection.
+  - `"comment":"\ud800"` (a lone surrogate) gives 500. So does a lone surrogate in a tag or in `id`.
+    - `UnicodeEncodeError` is raised while encoding the error message or the stored value.
+  - A hole id longer than 255 characters gives 500 (`OSError: [Errno 36] File name too long`, from `Path.is_file()`). This happens on:
+    - `GET /api/holes/<id>` and `/api/holes/<id>/hole.json`
+    - `POST /api/rate`
+    - the Game API: `GET /api/game/holes/<id>/hole.json`
+  - `POST /api/generate {"preset":"parkland","overrides":{"water":NaN}}` (or `Infinity`, which Python's JSON parser accepts) gives 500.
+    - `style.apply_overrides` turns the `ValueError` into `SystemExit` inside the request thread.
+    - The server survives, but this is the round-1 PY-2 fix leaking into the web API.
+- **Expected:** 400, 404 or 422 with a message.
+
+#### T-10 Enter on a focused `<summary>` submits your vote and moves on
+- **Fixed** (2026-10-02): Enter submits only when focus isn't on a button, summary, link or form field (`isInteractive`).
+- **Severity:** minor
+- **Component:** `TrainerView.tsx` hotkeys. Enter submits unless the target is a `BUTTON` or `isTyping`, and `<summary>` is neither.
+- **Repro:**
+  1. Press 2 (dislike).
+  2. Tab to "Advanced: generate a specific hole" (or "Style knobs") and press Enter to expand it.
+- **Expected:** the section expands.
+- **Actual:** it expands, and it also sends `POST /api/rate` then `GET /api/next`. The vote is saved and you're moved to a new hole.
+
+#### T-11 Each hole leaks a WebGL texture
+- **Fixed** (2026-10-02): `Terrain` disposes the detail texture with the material. `renderer.info.memory.textures` stayed at 9 over 20 holes.
+- **Severity:** polish
+- **Component:** `scene/Terrain.tsx`. The material's `onBeforeCompile` creates `detail = new THREE.CanvasTexture(noiseCanvas(…))` per hole, but the cleanup only disposes `material.map` and `material`.
+- **Repro:** wrap `createTexture` / `deleteTexture` with an init script, then press N 8 or 20 times.
+- **Expected:** a flat texture count.
+- **Actual:**
+  - Live textures went 13 → 33 over 20 holes and 13 → 21 over 8 holes: exactly +1 per hole.
+  - Buffers were flat (80–89), and the JS heap was flat (55–73 MB).
+  - It's small (a 128² texture), but it grows for as long as someone rates.
+
+#### T-12 Skip spam grows the pool without limit
+- **Fixed** (2026-10-02): a new batch starts only when the newest batch is finished, someone has *rated* 50% of it or seen all of it, and fewer than `TRAINER_POOL_MAX_UNRATED` (300) pool holes are unrated. A batch with 0 holes is retried after 10 min. `pool3.py` created 0 batches.
+- **Severity:** minor
+- **Component:** `pool.maybe_refill` / `api.next_hole`.
+  - Skips count toward the refill threshold.
+  - There's no cap on batches or disk space.
+  - Pool holes are never pruned.
+- **Repro:** `trainer/pool3.py`. One user calls `/api/next` in a loop for 40 s.
+- **Expected:** a rate limit, or a cap on unrated batches or pool size.
+- **Actual:**
+  - 207 holes were served, and 9 new batches (108 holes) were generated in 40 s.
+  - After the session, the DB has 29 batches and `/data/holes` holds about 250 MB for 132 holes, about 1.9 MB each.
+  - In production (100 per batch, never pruned), a looping script or a stuck key fills the disk and keeps the CPU busy.
+
+#### T-13 `/docs`, `/redoc` and `/openapi.json` are public
+- **Fixed** (2026-10-02): `/docs`, `/redoc` and `/openapi.json` are off unless `TRAINER_API_DOCS=true` (`run.sh` sets it).
+- **Severity:** polish
+- **Component:** `api.py` `FastAPI(...)`. The default docs URLs are on.
+- **Repro:** `curl localhost:8765/openapi.json` with no session gives 200, the full route and schema list, including the Game API.
+- **Expected:** off in production (`docs_url=None, redoc_url=None, openapi_url=None`) or behind a login.
+
+#### T-14 Contradictory feedback chips are accepted together
+- **Fixed** (2026-10-02): `feedback.opposites` derives the opposite chips from `TAGS`. The UI drops the opposite chip, and `validate_tags` rejects contradictory pairs with 400.
+- **Severity:** polish
+- **Component:** `RatePanel.tsx` chips and `feedback.validate_tags`.
+- **Repro:** select Too long and Too short (or More trees and Fewer trees) and submit. The API accepts `"tags":["too_long","too_short"]` too.
+- **Expected:** opposite chips are exclusive, as with the thumbs.
+- **Actual:** both are stored and both become training pairs that cancel out.
+
+#### T-15 The "Our taste · Links 26👍 12👎" tally is everyone's votes on every preset
+- **Fixed** (2026-10-02): `/api/status` returns `presetVotes`, and the tally counts only that preset's votes.
+- **Severity:** polish
+- **Component:** `hud/TastePanel.tsx`. `status.up` / `ratings` are global, but the header names the hole's preset.
+- **Repro:** open any hole and compare the header tally with `/api/status?preset=links`.
+- **Actual:** the header shows the same 27/13 on a Lakes, Links or Parkland hole.
+- **Evidence:** `bh2_desk_first.png` and `bh2_desk_1280x650.png`.
+
+### Tested, no bugs found (round 2, trainer)
+- **Auth:**
+  - Name case and whitespace variants (`QA1`, ` qa1 `, `qamixed` → `QaMixed`) log in. The password is case-sensitive.
+  - A zero-width-space name fails.
+  - The throttle locks after 5 failures (429, `Retry-After: 2`) and also blocks the correct password, as designed.
+- **Cookies:** a missing signature, a swapped payload, garbage, empty or trailing data, and an extra segment all give 401. With duplicate cookies, the first one wins. The cookie is `HttpOnly; SameSite=lax`.
+- **Every `/api` route and hole file without a session:** 401.
+- **Game key:**
+  - It opens only `/api/game/*`. With the key, `/api/me`, `/api/next`, `/api/top`, `/api/export` and `/api/holes/...` give 401, and a session can't open game routes.
+  - `bearer` in lower case is accepted. A wrong key, the key ±1 character, `Basic`, `Token`, or the bare key give 401.
+  - `limit` is clamped to 1..100.
+  - Game files are `private, max-age=86400, immutable`.
+- **Path tricks:** none got past auth.
+  - Tried: `/api;/`, `/%61pi/`, `//api`, `/api//`, `/api/./`, `/x/../api`, `/api%2f`, `/API/`, `/api/game/../next`, `/api/game/%2e%2e/next`, `..` / `%2e%2e` / `%2f` hole ids and file names, `/.env`, `../etc/passwd`.
+  - Each gives 401 or 404.
+- **Pool:**
+  - 6 threads across 2 users made 48 `/api/next` calls with 0 repeats per user.
+  - A 40 s Skip loop and a 324-hole drain had 0 repeats.
+  - Skip and Submit both count as seen.
+  - The refill fires once per batch at 6/12.
+  - The waiting state appears when everything ready has been seen, and the next hole appears on its own.
+  - `/api/next`, `/api/top` and `/api/status` stayed under 0.45 s while batches generated. `/api/presets` peaked at 1.4 s during 6 concurrent retrains.
+- **Top holes:** the order matches the Wilson lower bound computed from `latest_votes`, including re-votes and ties (more likes, then id), across 20 holes. Opening one with `peek` doesn't mark it seen (but see T-4).
+- **Rate:**
+  - Unknown tags give 400 and duplicate tags are de-duplicated.
+  - A bad, numeric or missing rating gives 422, and an unknown, empty or traversal id gives 404.
+  - Comments of 4000 characters and 4000 emoji are fine, and 4001 characters gives 422.
+  - HTML in a comment is stored as text and never rendered by the UI.
+  - Rating any hole on disk is allowed: holes are shared by design.
+- **Double submit:**
+  - Five Enters gave 1 rate and 1 next.
+  - Ten N presses gave 1 next.
+  - The buttons are disabled while busy.
+- **Export:**
+  - 41 lines equal 41 `latest_votes`, and `?history=true` gives 49, equal to 49 `votes`.
+  - Every line has `user`, there are no duplicate (user, hole) pairs, and re-votes show the latest.
+  - A comment with a newline, quotes, HTML and emoji round-trips.
+- **Retrain during a batch:** 6 parallel `POST /api/train` calls (all users, `only=qa1`, `only=QA3`) gave 200, `only=nobody` gave 409, and there were no errors in the log.
+- **XSS:** `?hole=<img src=x onerror=alert(1)>` raised no dialog and injected no element. Comments and names render as text.
+- **3D controls:**
+  - Positions below the terrain, a million metres out, 1e9 high, and walking off the tile edge are all clamped back onto the tile and above the ground.
+  - The fly speed clamps at 2–220.
+- **Touch:**
+  - The move stick moves the player and stops on release.
+  - Holding ▲ climbs, and it stops even when the finger slides off before lifting.
+  - A one-finger drag looks around. A two-finger swap and a later drag still work.
+  - The Top panel list scrolls, and tapping a row opens it (peek).
+  - Portrait 390×844 has no horizontal overflow, and the comment box is 16 px (no iOS zoom).
+- **Desktop:** at 1024×700, 1280×650 and 1366×768 every control is on screen.
+- **Console:** the only errors are the expected 401s (`/api/me` before login, a wrong password) and a `THREE.Clock` deprecation warning.
+
+### Not tested (round 2, trainer)
+- **Real iOS Safari:** the phone tests used Chromium touch emulation, so pointer lock, `100vh` and Safari bottom-bar behaviour weren't checked.
+- **Behind Cloudflare** (`TRAINER_TRUST_PROXY`, `CF-Connecting-IP` throttle keys): the local stack has the proxy off.
+- **NaN player position** (from the console, `courseTrainer.player.position.x = NaN`): the camera stays NaN until T / G / O. Normal input can't produce this, so it isn't filed.
+- **A batch that ends `ready` with 0 holes** (fixed with T-12): by code reading, `maybe_refill` would need 1 seen of 0 and never refill, but this needs every generation to fail and wasn't reproduced.
+
+### iPhone app (SwingRemote, `Golf-app`)
+
+How it was tested:
+- **Build:** built with `xcodebuild` and run on the iPhone 17 Pro simulator, plus a temporary iPhone SE (3rd gen) simulator.
+- **Driving it:** `idb` for taps, typing and the accessibility tree.
+- **Server:** an isolated game server, compose project `bughunt2` on port 18081, torn down with `down -v` at the end.
+- **Fake sim:** a scripted role=sim client (`app/sim.py`) that logs every frame to `app/sim.log`.
+- **Evidence:** in `app/`.
+
+#### A-1 Aim buttons keep sending `aim` forever if the screen changes while one is held
 - **Severity:** major
-- **Component:** `GameService.recordScore`. The `countByGame >= players*holes` check runs per READ COMMITTED transaction, so concurrent transactions can't see each other's inserts.
+- **Component:** `Golf-app/Views/RingSegment.swift`, `HoldRepeatButton`.
+  - The repeat `Task` lives in `@State` and is cancelled only in `DragGesture.onEnded`.
+  - When `GameplayView` disappears mid-press (`PlayView` swaps to `RemoteView` on any non-`game` screen), `onEnded` never fires.
+  - The task, which holds `session.game`, then runs forever.
 - **Repro:**
-  1. `POST /api/games {"players":["W1","W2","W3","W4"],"holes":1}`.
-  2. Over 4 `role=sim` sockets, send `holeScore` for W1–W4 at the same moment. Alternatively, send 4 parallel `POST /api/games/<id>/scores`.
-  3. `GET /api/games/<id>`.
-- **Expected:** FINISHED, winners set, and one `gameFinished`.
+  1. The sim is on screen `game`, so the phone shows gameplay mode.
+  2. Hold Aim left or Aim right.
+  3. While holding, the sim sends `{"type":"state","screen":"paused"}` or `"holeComplete"`. In real play this is the hole ending, or Esc on the PC.
+  4. Release.
+- **Expected:** the repeat stops on release, or when the view goes away.
 - **Actual:**
-  - All players have `holesPlayed: 1`, but the status stays `IN_PROGRESS` and no `gameFinished` is sent.
-  - This happened in 10/10 WS trials and 9/10 REST trials (scripts `ws2.py`, `race.py`).
+  - `{"type":"aim","delta":±1}` keeps arriving about 8 times a second indefinitely: 32 → 112 messages in the 10 s after release, and 190 → 270 in another run.
+  - It survives going back to gameplay. Only killing the app stops it.
+  - Reproduced 3 times on both simulators.
+- **Evidence:** `app/sim.log` (from 02:15:13), `aim_runaway_paused.png`, `aim_runaway2.png`.
 
-#### GS-3 Concurrent requests return 500 instead of a clean result
+#### A-2 Gameplay and Practice overflow on iPhone SE: Menu / Mulligan / Pick up and the header can't be reached
 - **Severity:** major
-- **Component:** `GameService.recordScore` (a check-then-insert upsert) and `GameService.start`. Neither handles `DataIntegrityViolationException`.
-- **Repro:** `race.py`.
-  - (a) Send 6 parallel identical `POST /api/games/<id>/scores {"player":"D1","hole":1,"par":4,"strokes":3}`.
-    - One returns 200 and five return **500**.
-    - Log: `duplicate key … hole_scores_game_id_player_id_hole_number_key`.
-    - PROTOCOL.md calls this an "idempotent upsert; safe to resend".
-  - (b) Send 6 parallel `POST /api/games`.
-    - One returns 201 and five return **500**.
-    - Log: `games_single_in_progress_uk`.
-- **Expected:**
-  - Scores: 200, last write wins.
-  - Game starts: serialised, or a 409.
-- **Actual:** 500s, plus ERROR stack traces in the log.
-
-#### GS-4 A game ended early as FINISHED crowns the player with the fewest holes played
-- **Severity:** major
-- **Component:** `GameView.of` / `Scoring.winners` and `StatsService` (bestTotal, averages, bestRounds, handicap). They rank on raw strokes and ignore `holesPlayed`.
-- **Repro:**
-  1. `POST /api/games {"players":["Pro","Quitter"],"holes":9}`.
-  2. Post Pro 3 strokes on par 4 for holes 1–9, and Quitter 8 strokes on hole 1 only.
-  3. `POST /api/games/<id>/end {"status":"FINISHED"}`.
-- **Expected:** Pro wins (27, -9). Alternatively, incomplete cards are excluded, or FINISHED is refused.
+- **Component:** `Views/Game/GameplayView.swift` and Practice's `ContentView`.
+  - Both are fixed `VStack`s with no `ScrollView`.
+  - `ClubWheel` is a fixed 320 pt and `AddressButton` 168 pt.
+  - `RemoteView`'s scorecard has the same problem.
+- **Repro:** on an iPhone SE (3rd gen), with the sim on `game`, open the Play tab, then the Practice tab.
+- **Expected:** every control and the header (status pill, Settings gear) are visible and tappable.
 - **Actual:**
-  - `winners: ["Quitter"]`.
-  - `/api/players/quitter` shows `wins:1`, `bestTotal:8` and `averageTotal:8.0` for a "9-hole" round.
-  - Partial rounds also feed the handicap, which scales by `holesCount`, not `holesPlayed`.
+  - **Gameplay:**
+    - The header is laid out at y = -42.
+    - Menu, Mulligan and Pick up sit at y 578–623, under the tab bar (y 584). Tapping "Mulligan" switched to the Players tab and sent nothing.
+    - "Simulate swing" is also under the tab bar.
+  - **Practice:** the header and gear are at y = -51, and the Swing scale slider is under the tab bar.
+  - **Remote on `holeComplete`:** the scorecard collapses to zero height.
+  - On the 17 Pro, gameplay only just fits.
+- **Evidence:** `se_gameplay.png`, `se_practice.png`, `se_holecomplete.png`. For comparison on the 17 Pro: `gameplay_17pro.png`, `holecomplete.png`.
 
-#### GS-5 A 40-char WS device name ending in an emoji stops every client from getting `hello`
-- **Severity:** major
-- **Component:** `TokenHandshakeInterceptor`. `name.substring(0, 40)` splits a surrogate pair, and every `hello` then fails to encode. `WsHub.write` swallows the failure.
-- **Repro:** `ws_surrogate.py`.
-  1. Keep `ws://…/ws?token=…&role=remote&name=` + 39×"A" + `%F0%9F%98%80` open.
-  2. Connect a sim and another remote.
-- **Expected:** the name is truncated on a code-point boundary and everyone gets `hello`.
+#### A-3 When the server drops mid-hole, the phone stays in gameplay mode and every button silently does nothing
+- **Severity:** minor
+- **Component:** `Network/GameLink.swift`.
+  - After a receive failure, `run()` only resets `simConnected`. `state` is cleared only on `simStatus false`, and `stop()` doesn't clear it either.
+  - `send()` returns false silently.
+  - `AppHeader.statusText` falls back to the UDP label.
+- **Repro:**
+  1. The sim is on `game`.
+  2. `docker stop <project>-game-server-1`.
+  3. Wait 15 s, then tap Aim, Menu or Mulligan.
+- **Expected:** the phone leaves gameplay mode, or disables the controls and says "Server not reachable".
 - **Actual:**
-  - No one gets `hello`.
-  - Log: `WARN WsHub: Send to REMOTE AAAA…? failed: Encoding error [MALFORMED[1]]`.
-  - It recovers only when that remote disconnects.
+  - The stale gameplay screen stays, and the pill says "No PC found".
+  - Taps are dropped: 0 frames reached the sim after it reconnected.
+  - It recovers within the 5 s backoff once the server is back.
+- **Evidence:** `server_down_game.png`, `server_down_game2.png`.
 
-#### GS-6 A player named "İvan" locks out "ivan" and "IVAN" with a 500
+#### A-4 Leaderboard table: one long name pushes every stat column off-screen
 - **Severity:** minor
-- **Component:** `PlayerRepository.findByNameIgnoreCase` uses `upper()`, but the unique index uses `lower()`.
-- **Repro:**
-  1. `POST /api/games {"players":["İvan"],"holes":1}` returns 201.
-  2. Repeat with `"ivan"` or `"IVAN"`. It returns **500**: `duplicate key … players_name_ci_uk`.
-- **Expected:** it matches the existing player, or returns a clean 400.
-
-#### GS-7 Wrong HTTP method or content type returns 500 and logs an ERROR stack trace
-- **Severity:** minor
-- **Component:** `GlobalExceptionHandler`. Its catch-all swallows Spring's 405 and 415 exceptions.
-- **Repro:**
-  - `curl -X DELETE -H 'Authorization: Bearer golf-sim-dev-token' localhost:8080/api/games/1` gives 500. PUT, PATCH and `POST /api/ping` do the same.
-  - `-X POST -H 'Content-Type: text/plain' -d x …/api/games` gives 500.
-- **Expected:** 405 and 415.
-
-#### GS-8 Malformed input gives 500 instead of 400
-- **Severity:** minor
-- **Component:** name validation and `TokenHandshakeInterceptor`.
-- **Repro:**
-  - `POST /api/games {"players":["a\u0000b"]}` gives 500 (`invalid byte sequence for encoding "UTF8": 0x00`).
-  - The WS upgrade `?token=golf-sim-dev-token&role=remote&name=%zz` gives HTTP 500 (`URISyntaxException: Malformed escape pair`).
-- **Expected:** 400 in both cases.
-
-#### GS-9 WS frames over about 8 KB close the connection (1009)
-- **Severity:** minor
-- **Component:** the WebSocket container's text buffer, left at the 8 KB default.
-- **Repro:** as a sim, send `{"type":"state","screen":"<8,200 chars>"}`.
-- **Expected:** PROTOCOL.md says invalid input gets an `error` and "the connection stays open". Alternatively, document the limit.
+- **Component:** `Views/Game/LeaderboardView.swift`, `PlayerTable`. The name `Text` has no width cap and sits in a horizontal `ScrollView` with hidden indicators.
+- **Repro:** finish a round with a 22× "😀" or 40-character name (both accepted), then open Scores › Leaderboard.
+- **Expected:** names are truncated, and HCP / Avg / Best / Wins / Bird / Aces stay visible.
 - **Actual:**
-  - The connection closes with 1009, and remotes get `simStatus connected:false`.
-  - An 8,000-character screen is fine.
+  - The name column is 479 pt wide, and HCP starts at x = 522 on a 402 pt screen.
+  - Only names are visible, with no hint that the table scrolls.
+  - In "Most birdies" the name wraps under the tab bar.
+- **Evidence:** `scores_leader2.png`.
 
-#### GS-10 Relay validation lets non-finite and wrong-typed values through to the sim
+#### A-5 Scorecard hides hole 9, OUT/IN, TOT and ± off-screen
 - **Severity:** minor
-- **Component:** `WsMessage` validation plus the byte-for-byte relay.
-- **Repro:** the remote sends any of these:
-  - `{"type":"shot","speed":1e400,…}`. It parses as +Infinity, passes `@Positive`, and is relayed. `{"type":"aim","delta":1e400}` is relayed too.
-  - `"id":1.9`. It is relayed.
-  - `{"type":"type","type":"nav","key":"up"}`. The last key is validated, but the raw text is relayed.
-- **Expected:** rejected with `error`.
-- **Actual:** all of these reach the sim.
-  - The Unity sim's `RemoteShotMessage.TryParse` rejects non-finite shot values, so the ball is safe.
-  - Other clients are not protected.
-
-#### GS-11 Hard-coded `container_name` stops a second compose project from running
-- **Severity:** polish
-- **Component:** `Game-server/docker-compose.yml`.
-- **Repro:** `docker compose -p bughunt config | grep -E 'container_name|image:'` shows `game-server`, `golf-postgres` and `golfsim/game-server:local`.
-- **Expected:** `-p` gives an isolated stack.
-- **Actual:** the container names clash and the build re-tags the shared image. An override file was needed.
-
-#### GS-12 Name validation counts UTF-16 units and accepts invisible or control-character names
-- **Severity:** polish
-- **Component:** `GameRequests.StartGame`.
-- **Repro:**
-  - 21 emoji give 400 "size must be between 0 and 40".
-  - `"​"` and `" "` give 201, and the players look blank.
-  - `"tab\tname"` and `"new\nline"` are stored.
-  - `{"holes":1.7}` is accepted as 1 hole.
-  - The error text says the minimum is 0, but the documented minimum is 1.
-- **Expected:** count code points, and reject blank-looking or control-character names and fractional holes.
-
-#### GS-13 Stats: par-1 hole-in-one counted twice, and negative averages round toward zero
-- **Severity:** polish
-- **Component:** `RoundRepository.findHoleTallies` and `StatsService.average`.
-- **Repro:**
-  - **Double count:**
-    - A `{"par":1,"strokes":1}` score counts as both `holesInOne` and `pars`.
-    - With 8 holes played, the categories sum to 9.
-    - `mostBirdies` also counts it as a birdie.
-  - **Rounding:** 1-hole rounds at -3, -3, -3, -2 give `averageToPar -2.7`, while +3, +3, +3, +2 give `2.8` (`Math.round` rounds half-up).
-
-### Python generator
-
-#### PY-1 `gen_hole.py` crashes on a negative seed, and the Unity Generator window allows one
-- **Status: Fixed.** `--seed` must be >= 0 (clean argparse error); `generate_hole` raises ValueError on a negative seed; the Generator window clamps its seed field to >= 0.
-- **Severity:** minor
-- **Component:** `Tools/course_gen/gen_hole.py`, and `CourseGeneratorWindow.cs`, whose seed `IntField` has no clamp.
-- **Repro:** `course_prep/.venv/bin/python course_gen/gen_hole.py generate --no-model --seed -5 --out /tmp/x`
-- **Expected:** a clean argparse error, or a clamp.
-- **Actual:** a traceback, `ValueError: expected non-negative integer` (numpy bit_generator).
-
-#### PY-2 `--set water=nan`, a non-numeric value or a missing value crashes with a raw traceback
-- **Status: Fixed.** `--set` items are parsed by an argparse type built on `style.override_value` (shared with `apply_overrides`): unknown names, missing / non-numeric / NaN / inf values are clean errors; finite values are clamped to 0..1 as before.
-- **Severity:** polish
-- **Component:** `gen_hole.py` `parse_overrides` and `style.py` `apply_overrides`. `np.clip` passes NaN through.
-- **Repro:**
-  - `--set water=nan` gives `ValueError: cannot convert float NaN to integer`.
-  - `--set tree_density=abc` and `--set water` also give tracebacks.
-- **Expected:** a clean error, like the one for an unknown parameter name.
-
-#### PY-3 `--keep-unrated 0` or a negative value silently deletes every other unrated hole
-- **Status: Fixed.** `--keep-unrated` must be >= 1 (it counts the new hole); `prune_unrated` raises ValueError for keep < 1 instead of deleting.
-- **Severity:** polish
-- **Component:** `gen_hole.py` `prune_unrated` (`unrated[max(0, keep - 1):]`).
-- **Repro:**
-  1. Generate 3 holes into an empty `--out`.
-  2. Generate a 4th with `--keep-unrated 0`.
-- **Expected:** negative values are rejected, and the meaning of 0 is documented.
+- **Component:** `Views/Game/ScorecardTable.swift`.
+  - Each nine needs about 456 pt and is its own hidden-indicator `ScrollView`.
+  - `RemoteView` caps the card at 220 pt.
+- **Repro:** open Scores › Scorecard on any game, or the Play tab on `holeComplete`.
+- **Expected:** the total and ± are visible at a glance.
 - **Actual:**
-  - The output says "Pruned 3 old unrated hole(s)".
-  - `-1` and `1` behave the same as 0.
-  - The default `--out` is `Assets/CourseData/generated`, so a typo wipes that folder.
+  - Only holes 1–8 are visible, and on 18 holes each nine scrolls separately.
+  - Between holes on the Play tab, only 2 player rows fit.
+- **Evidence:** `scores_card.png`, `scores_18.png`, `holecomplete.png`.
 
-### Tested, no bugs found (round 1)
+#### A-6 Leaderboard doesn't refresh when a game finishes
+- **Severity:** minor
+- **Component:** `Views/Game/ScoresView.swift`. It loads only on `.task(id: page)` and pull-to-refresh, and ignores the WebSocket `gameFinished`.
+- **Repro:** with Scores › Leaderboard open, finish a game.
+- **Expected:** the leaderboard updates.
+- **Actual:**
+  - It showed "No finished rounds yet" after 4 games had finished.
+  - Kim's row (rank 1 → 2, HCP -2.0 → -1.0) changed only after pull-to-refresh.
+- **Evidence:** `lb_before.txt`, `lb_after.txt`, `scores_leader_empty.png`.
 
-- **Club presets from the tee:** all 7 are sensible.
-  - Driver 269 yd carry, 34 yd apex, 6.8 s hang.
-  - Wedge 134 yd, 32 yd apex.
-  - No NaN. The ball never ends below the terrain (rolling clearance = ball radius).
-- **Extreme shot values:**
-  - Speeds of 0, 2, 200 and 1000 mph.
-  - Launch angles of -90, -5, 60 and 90°.
-  - 0 and 12k rpm backspin, ±3000 rpm sidespin, ±15° direction.
-  - Negative speed and NaN are unreachable: remote shots are validated and clamped, and the sliders stop at 2 mph.
-- **Wind:** 30 mph from all 8 compass points plus 359°.
-  - The direction convention is correct: headwind shortens, and wind from E pushes the ball left on this north-running hole.
-- **Stress run:** 300 random shots and putts from random spots, aims and winds.
-  - No NaN, no ball under the terrain, no simulation over 12.3 s.
-  - Results were 252 Stopped and 48 OutOfBounds.
-- **Lies:** hits from fairway, rough, bunker, native, scrub, woods and tee all complete normally. See U-7 for the lack of a lie penalty.
-- **Putts:** 0.5–25 m putts.
-  - Rolling distance scales with speed (Stimp-like), and putts break on slope.
-  - Holing out works: status Holed, ball dropped in the cup. The next hit restarts from the tee.
-- **OOB:** off the tile in the air or rolling gives OutOfBounds. The next hit restarts from the tee.
-- **Pause:**
-  - Esc mid-flight freezes the ball (timeScale 0), disables the shot panel and fly camera, and gates remote shots ("The sim is paused").
-  - Resuming finishes the shot at exactly the same spot as an unpaused shot.
-- **Menu flow:** main menu → Hole Simulator → Esc → Restart (3×) → Main Menu → back, repeated.
-  - No leaks: 7 GameObjects on the menu and 22 on the hole every time, with one RoundDirector, one camera and one tracer.
-  - timeScale is back to 1 and NavInput still works.
-  - No console errors or exceptions during the whole session.
-- **Game server:** see the fork report. Covered:
-  - Auth (no, wrong or lowercase token, on REST and WS).
-  - REST validation: bad JSON, players and holes limits, names, case-insensitive duplicates, `limit`, unknown ids and routes.
-  - Score validation, ending a game twice (409), 18-hole games with unicode names, auto-FINISH.
-  - Stats maths checked by hand: handicap 7.0 and 8.0, averages, wins, mostBirdies.
-  - Every documented WS error, ping/pong, simStatus, `hello` on reconnect, duplicate remote names, and 12 rapid holeScores from one sim.
-- **Python generator:**
-  - pytest: 43 passed, 24 skipped. The skipped tests need `TRAINER_TEST_DATABASE_URL`.
-  - All 6 presets at par 3, 4 and 5, plus a 54-hole batch and 9 extreme-knob holes, all pass `prep_hole.py validate`.
-  - Lengths are sensible.
-  - In all 81 holes:
-    - The pin is always on the green.
-    - Water never overlaps the green, tee, fairway or bunkers.
-    - No NaN heights.
-    - Tee and pin are at least 20 m from the tile edge.
-    - No objects sit on playing surfaces.
-  - Generation is deterministic per seed.
-  - `tree_density=1 water=1`, all knobs at 0 and all at 1 give sane holes.
+#### A-7 Port shown as "8,080" in Settings
+- **Severity:** polish
+- **Component:** `Views/SettingsView.swift`. The `Int` port is locale-formatted inside a `LocalizedStringKey`.
+- **Repro:** open Settings › Game server.
+- **Expected:** 8080 everywhere.
+- **Actual:**
+  - The placeholder reads "127.0.0.1:8,080", so copying it gives an invalid address.
+  - The footer reads "port 8,080" and "TCP 8,080".
+- **Evidence:** `settings_8080.png`.
 
-### Not tested this round
-- **Water hazard in Unity:** the Hole Simulator's hole has no water, and regenerating the scene's hole was off-limits.
-- **Real keyboard input:** `simulate_key` events didn't reach the game while the Editor was unfocused, so input was driven through `NavInput.Push` and direct `ShotPanel` calls. Tab and keyboard Space/R were checked by code reading only.
-- **Generator `rate`, `train` and `status`, and the Postgres trainer.**
+#### A-8 An invalid Game server address is silently ignored
+- **Severity:** polish
+- **Component:** `SettingsView.applyServer` returns early when `AppConfig.serverURL` is nil.
+- **Repro:** type `ftp://bad host` and tap Reconnect.
+- **Expected:** a validation error.
+- **Actual:**
+  - Nothing happens: the bad text stays in the field and the app stays on the old server.
+  - Reopening Settings silently reverts the field.
+- **Evidence:** `settings_invalid.png`.
+
+#### A-9 "Up to 8 players" error stays after deleting a player
+- **Severity:** polish
+- **Component:** `Views/Game/PlayersView.swift`. `.onDelete` doesn't clear `problem`.
+- **Repro:** with 8 players, try to add a 9th, then delete one.
+- **Expected:** the error clears.
+- **Actual:** the error stays under a 7-player list until the next add.
+- **Evidence:** `players_full.png`.
+
+### Tested, no bugs found (round 2, app)
+- **Remote D-pad:** all six keys send the right `nav`. Status titles and hints are right for menu, game and holeComplete, and for the not-connected and sim-not-running states.
+- **Club wheel:** tap and drag send `club` with the full name, and the phone follows the sim's suggested club.
+- **Aim:**
+  - A tap sends ±1.
+  - Holding repeats at about 8 per second and stops on release when the screen doesn't change.
+  - The label follows the sim's aim.
+- **Simulate swing:**
+  - It sends `shot` over the WebSocket; the first tap only addresses, which is how it's built.
+  - With the server down it falls back to UDP ("No PC connected").
+- **Shot result and pause buttons:**
+  - `shotResult` shows in the Last shot strip.
+  - Menu sends `nav back` and Mulligan sends `mulligan`.
+  - Pick up confirms, then sends `skip`.
+- **Players:**
+  - Add, the case-insensitive duplicate check and the 8-player limit work.
+  - Reorder and delete work.
+  - Emoji, 40-character and accented names work.
+  - 9 and 18 holes work, and Start Game works with 3 and 8 players.
+  - The in-progress banner and End game work (the game is set to ABANDONED).
+  - Start Game is disabled with 0 players (checked in code).
+  - The server accepted a 22-emoji name, so the GS-12 length limit looks fixed.
+- **Scores:** the live scorecard updates over the WebSocket, the 18-hole, 8-player card renders, and the leaderboard stats over 5 games are right.
+- **Connection:**
+  - Server stop and start: the phone reconnects and `hello` restores state.
+  - Background for 65 s, then foreground: it picks up the state the sim sent meanwhile.
+- **Stability:**
+  - No crashes, and no app errors in the log.
+  - The unit tests passed 3 out of 3 runs.
+  - The 4 older `Golf-app-*.ips` crash reports are test-runner crashes at `GameLinkTests.swift:101` (`server.received[0]` out of range). They didn't reproduce; it may be a race in `FakeServer`.
+- **SE layout:** the Players and Remote screens fit on the SE.
+
+### Not tested (round 2, app)
+- **Rotation:** the app is portrait-only, so it doesn't apply.
+- **Real swing detection and haptics:** these need a physical device.
+- **UDP discovery, the 4242 fallback against a real sim, and real Unity replies:** the Unity Editor was off-limits this round.
+- **Zero-width names through the UI:** idb can't type them.
+- **VoiceOver:** not checked properly. From the accessibility tree, the delete (minus) buttons have no accessibility element, and the reorder handles read "Reorder 1" instead of the player's name.
+- **Plain-http server on a non-local hostname:** not tried.
+
+---
+
+## Round 1
+
+Moved to [bug-hunt-round1.md](bug-hunt-round1.md) to keep this file short.

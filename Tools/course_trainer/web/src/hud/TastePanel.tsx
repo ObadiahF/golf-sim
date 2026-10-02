@@ -6,7 +6,6 @@ const pretty = (s: string) => s.replace(/_/g, ' ');
 export function TastePanel({ trainer }: { trainer: Trainer }) {
   const { status, retrain, busy, catalog } = trainer;
   if (!status) return null;
-  const down = status.ratings - status.up;
   const stale = status.ratings - status.trainedOn;
   const presetLabel = catalog?.presets.find(p => p.name === status.preset)?.label ?? status.preset;
 
@@ -14,7 +13,9 @@ export function TastePanel({ trainer }: { trainer: Trainer }) {
     <section className="panel card taste-card">
       <header className="card-head">
         <span className="eyebrow">Our taste{presetLabel ? ` · ${presetLabel}` : ''}</span>
-        <span className="tally"><b>{status.up}</b>👍 <b>{down}</b>👎</span>
+        <span className="tally" title={`Everyone's votes on ${presetLabel ?? 'all'} holes`}>
+          <b>{status.presetVotes.up}</b>👍 <b>{status.presetVotes.down}</b>👎
+        </span>
       </header>
       <div className="taste-lists">
         {status.likes.map(l => <span key={l} className="taste like">＋ {pretty(l)}</span>)}
