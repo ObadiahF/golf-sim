@@ -19,6 +19,7 @@ struct GameplayView: View {
             .waiting(game.shotWait)
             GameAim(game: game)
             LastShotStrip(result: game.lastShotResult, delivery: session.delivery)
+        } bottom: {
             GameActions(game: game)
             SimulateSwingButton(session: session)
         }

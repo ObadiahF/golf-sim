@@ -21,14 +21,15 @@ struct RemoteView: View {
             }
             Spacer(minLength: 0)
             // Smaller under the scorecard, so OK stays in reach.
-            DPad(size: game.showsScorecard ? 220 : fit.size(300, 240), onPress: game.nav)
+            DPad(size: game.showsScorecard ? 200 : fit.size(300, 240), onPress: game.nav)
                 .usable(game.simReady)
+            Spacer(minLength: 0)
+        } bottom: {
             PillButton(title: "Back", systemImage: "arrow.uturn.backward") {
                 Haptics.press()
                 game.nav(.back)
             }
             .disabled(!game.simReady)
-            Spacer(minLength: 0)
         }
     }
 

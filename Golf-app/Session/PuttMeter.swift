@@ -28,6 +28,9 @@ nonisolated struct PuttMeter: Equatable, Sendable {
     private(set) var result: Result?
     /// Metres to the hole when the putt was struck, until its result arrives.
     private var pendingDistance: Double?
+    /// The hole and Play screen of the sim state last followed, to notice a new hole or leaving the putting view.
+    private var followedHole: Int?
+    private var wasPutting = false
 
     /// What the meter fills to: the putt sent, else the live stroke.
     var shown: Double { struck ?? live }
@@ -37,6 +40,26 @@ nonisolated struct PuttMeter: Equatable, Sendable {
         live = 0
         peak = 0
         struck = nil
+    }
+
+    /// Back to empty, so the last putt's strength doesn't read as a preset for the next one (new turn, address).
+    /// A putt still waiting for its result keeps waiting; `clearingResult` also drops "Putted 4.2 m of 5.0 m".
+    mutating func reset(clearingResult: Bool = false) {
+        begin()
+        if clearingResult { result = nil }
+    }
+
+    /// Follows the sim's state: a new hole clears the meter and the last putt's result, and leaving the putting
+    /// view clears the meter.
+    mutating func follow(_ state: GameProtocol.SimState?) {
+        let putting = PlayScreen.of(state) == .putting
+        if let hole = state?.hole, hole > 0, hole != followedHole {
+            followedHole = hole
+            reset(clearingResult: true)
+        } else if wasPutting, !putting {
+            reset()
+        }
+        wasPutting = putting
     }
 
     /// One motion sample during the stroke, as a roll distance.

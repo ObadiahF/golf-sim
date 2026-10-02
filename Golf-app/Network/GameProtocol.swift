@@ -82,6 +82,9 @@ nonisolated enum GameProtocol {
         var canShoot: Bool?
         /// Why not, e.g. "Wait for the next turn"; empty while `canShoot`.
         var waitReason: String?
+        /// The TV offers an instant replay of the last shot ("▲ Replay"; `nav up` starts it). Optional: today's sim
+        /// leaves it out, and the phone then infers the offer from `waitReason` (see `offersReplay`).
+        var canReplay: Bool?
 
         var isGame: Bool { screen == "game" }
         /// The sim is playing a hole and would hit a swing now.
@@ -92,6 +95,11 @@ nonisolated enum GameProtocol {
             return waitReason.flatMap { $0.isEmpty ? nil : $0 } ?? "Wait for the next shot"
         }
         var isPutting: Bool { isGame && putting == true }
+        /// The sim's `waitReason` between turns: the ball is at rest and the next player isn't up yet.
+        static let betweenTurns = "Wait for the next turn"
+        /// The TV offers a replay of the last shot, so the phone shows a Replay button. Without `canReplay`, between
+        /// turns: that is when the sim's ReplayDirector offers it (not while the ball moves, nor during a replay).
+        var offersReplay: Bool { isGame && (canReplay ?? (canShoot == false && waitReason == Self.betweenTurns)) }
         var showsScorecard: Bool { screen == "holeComplete" || screen == "results" }
         var player: String? { currentPlayer.flatMap { $0.isEmpty ? nil : $0 } }
     }

@@ -78,6 +78,7 @@ final class SwingSession {
             return
         }
         if stage == .idle || isUnavailable { motion.start { [weak self] in self?.handle($0) } }
+        meter.reset() // a new putt starts from empty
         settleStart = nil
         stillSince = nil
         stage = .settling
@@ -194,8 +195,9 @@ final class SwingSession {
     /// Follows the sim: its suggested club, and the result of our last WebSocket shot.
     private func apply(_ message: GameProtocol.Incoming) {
         switch message {
-        case .state(let state): mirrorClub(of: state)
-        case .hello(let hello): hello.state.map(mirrorClub)
+        case .state(let state): follow(state)
+        case .hello(let hello): follow(hello.state)
+        case .turn: meter.reset()
         case .shotResult(let shot):
             meter.finish(shot)
             guard let id = lastShotID, lastShot != nil, result == nil else { return }
@@ -225,6 +227,11 @@ final class SwingSession {
         case .busy, .rejected, .noReply: Haptics.problem()
         case .sending: break
         }
+    }
+
+    private func follow(_ state: GameProtocol.SimState?) {
+        meter.follow(state)
+        state.map(mirrorClub)
     }
 
     private func mirrorClub(of state: GameProtocol.SimState) {

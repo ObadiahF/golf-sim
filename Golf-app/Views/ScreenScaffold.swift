@@ -1,43 +1,70 @@
 import SwiftUI
 
-/// The space a screen's content gets below its header, and the sizes that suit it: big controls on a tall
-/// phone, smaller ones on a short one (iPhone SE).
+/// The space a screen's content gets between its header and its pinned controls, and the sizes that suit it:
+/// big controls when there's room (a tall phone), smaller ones when there isn't (iPhone SE, a banner showing).
 struct ScreenFit {
-    /// Below this the screen is short: big controls shrink and the spacing tightens.
+    /// Below this the screen is short: the spacing tightens.
     static let compactHeight: CGFloat = 620
+    /// The sizes `ScreenScaffold` tries, biggest first (1 = `regular`, 0 = `small`).
+    static let levels: [CGFloat] = [1, 0.75, 0.5, 0.25, 0]
 
     let height: CGFloat
+    /// Where big controls sit between their small (0) and regular (1) sizes.
+    var level: CGFloat = 0
 
     var compact: Bool { height < Self.compactHeight }
     var spacing: CGFloat { compact ? 6 : 10 }
 
-    /// `regular` on a tall screen, `small` on a short one.
-    func size(_ regular: CGFloat, _ small: CGFloat) -> CGFloat { compact ? small : regular }
+    /// `regular` with room to spare, `small` without, or in between.
+    func size(_ regular: CGFloat, _ small: CGFloat) -> CGFloat { (small + (regular - small) * level).rounded() }
 }
 
-/// A Play or Practice screen: the header (title, status, Settings) stays at the top and the content scrolls
-/// when it doesn't fit, so nothing ends up above the screen or under the tab bar. On a phone where it fits it
-/// doesn't scroll at all, and a `Spacer` in the content still fills the free space.
-struct ScreenScaffold<Content: View>: View {
+/// A Play or Practice screen: the header (title, status, Settings) stays at the top, the `bottom` controls
+/// (Menu, Mulligan, Back…) stay pinned just above the tab bar, and the content between them gets the biggest
+/// control sizes that fit. When even the smallest don't (a banner showing, an 18-hole scorecard, a short phone)
+/// it scrolls, so nothing ends up under the tab bar. A `Spacer` in the content fills any free space.
+struct ScreenScaffold<Content: View, Bottom: View>: View {
     let title: String
     let session: SwingSession
     @ViewBuilder let content: (ScreenFit) -> Content
+    @ViewBuilder let bottom: () -> Bottom
 
     var body: some View {
         VStack(spacing: 6) {
             AppHeader(title: title, session: session)
                 .padding(.horizontal, 16)
             GeometryReader { proxy in
-                let fit = ScreenFit(height: proxy.size.height)
-                ScrollView {
-                    VStack(spacing: fit.spacing) { content(fit) }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
-                        .frame(minHeight: proxy.size.height, alignment: .top)
+                let height = proxy.size.height
+                ViewThatFits(in: .vertical) {
+                    ForEach(ScreenFit.levels, id: \.self) { level in
+                        column(ScreenFit(height: height, level: level)).frame(maxHeight: .infinity, alignment: .top)
+                    }
+                    ScrollView {
+                        column(ScreenFit(height: height)).frame(minHeight: height, alignment: .top)
+                    }
+                    .scrollBounceBehavior(.basedOnSize)
                 }
-                .scrollBounceBehavior(.basedOnSize)
+            }
+            // Laid out after the content, so the content's height (and `fit`) is what is left above it.
+            if Bottom.self != EmptyView.self {
+                VStack(spacing: 8) { bottom() }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
             }
         }
+    }
+
+    private func column(_ fit: ScreenFit) -> some View {
+        VStack(spacing: fit.spacing) { content(fit) }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+    }
+}
+
+extension ScreenScaffold where Bottom == EmptyView {
+    /// A screen without pinned controls.
+    init(title: String, session: SwingSession, @ViewBuilder content: @escaping (ScreenFit) -> Content) {
+        self.init(title: title, session: session, content: content) { EmptyView() }
     }
 }
 

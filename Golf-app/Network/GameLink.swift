@@ -62,6 +62,8 @@ final class GameLink {
     var screen: String { state?.screen ?? "menu" }
     /// Why the sim can't take a swing right now (between shots, screen still "game"); nil when it can, or no sim.
     var shotWait: String? { simReady ? state?.shotWait : nil }
+    /// The TV offers a replay of the last shot (gameplay mode's Replay button); nil state or no sim means no.
+    var offersReplay: Bool { simReady && state?.offersReplay == true }
     /// Between holes and after the last one, the sim shows the scorecard (Select continues).
     var showsScorecard: Bool { state?.showsScorecard == true }
     /// Why the server link is down, for the "Disconnected" banner; nil while connected.
@@ -236,6 +238,8 @@ final class GameLink {
     func aimReset() { send(GameProtocol.Bare.aimReset) }
     func mulligan() { send(GameProtocol.Bare.mulligan) }
     func skip() { send(GameProtocol.Bare.skip) }
+    /// Up is the sim's "replay the last shot" between turns (as on the scorecard's D-pad).
+    func replay() { nav(.up) }
 
     /// Sends a swing's shot to the sim; false (nothing sent) when no sim is listening.
     func sendShot(_ shot: Shot, id: Int) -> Bool {

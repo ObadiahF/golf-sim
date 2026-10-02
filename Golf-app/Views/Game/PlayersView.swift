@@ -6,6 +6,8 @@ struct PlayersView: View {
     @State private var draft = ""
     @State private var problem: String?
     @State private var starting = false
+    /// The in-progress game End game would abandon, while its confirmation shows.
+    @State private var confirmEnd: GameView?
     @FocusState private var typing: Bool
 
     private var settings: AppSettings { session.settings }
@@ -22,9 +24,15 @@ struct PlayersView: View {
                         Text("Game #\(current.id) is in progress. Starting a new one ends it.")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(Theme.muted)
-                        Button("End game") { call { _ = try await $0.endGame(id: current.id) } }
+                        Button("End game") { confirmEnd = current }
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .tint(Theme.warn)
+                    }
+                    .confirmationDialog("End game #\(current.id)?", isPresented: Binding { confirmEnd != nil } set: { if !$0 { confirmEnd = nil } },
+                                        titleVisibility: .visible, presenting: confirmEnd) { game in
+                        Button("End game", role: .destructive) { call { _ = try await $0.endGame(id: game.id) } }
+                    } message: { game in
+                        Text("The \(game.holesCount)-hole round is abandoned and its scores won't count. The sim goes back to the menu.")
                     }
                 }
                 if let problem {

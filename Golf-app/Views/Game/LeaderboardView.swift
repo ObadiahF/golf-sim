@@ -22,13 +22,29 @@ struct LeaderboardView: View {
                     ($0.player, "\($0.birdiesOrBetter)", "in \($0.holesPlayed) holes")
                 })
             }
-            LeaderSection(title: "Best rounds · per 18 holes", rows: board.bestRounds.map {
-                ($0.player, "\($0.total) (\(formatToPar($0.toPar)))", "\($0.holesCount) holes · game #\($0.gameId)")
-            })
+            ForEach(Self.bestRoundLengths(board.bestRounds), id: \.self) { holes in
+                LeaderSection(title: "Best \(holes)-hole rounds", rows: Self.bestRounds(board.bestRounds, holes: holes).map {
+                    ($0.player, "\($0.total) (\(formatToPar($0.toPar)))", "game #\($0.gameId)")
+                })
+            }
             LeaderSection(title: "Most wins", rows: board.mostWins.map {
                 ($0.player, "\($0.wins)", "of \($0.finishedRounds) rounds")
             })
         }
+    }
+
+    /// The round lengths to list best rounds for: 9 and 18 holes, each only once someone has such a round (just
+    /// the 9-hole list while nobody has any, for its "—").
+    static func bestRoundLengths(_ rounds: [Stats.Round]) -> [Int] {
+        let lengths = AppConfig.roundLengths.filter { holes in rounds.contains { $0.holesCount == holes } }
+        return lengths.isEmpty ? Array(AppConfig.roundLengths.prefix(1)) : lengths
+    }
+
+    /// The server's best rounds of one length, so a 9-hole total never sits in a list with an 18-hole one. The
+    /// server ranks all lengths together by score to par per 18 holes; within one length that is simply the
+    /// round's score to par, so its order is kept.
+    static func bestRounds(_ rounds: [Stats.Round], holes: Int) -> [Stats.Round] {
+        rounds.filter { $0.holesCount == holes }
     }
 
     /// Handicap first (players without one go last), then average to par, then name.

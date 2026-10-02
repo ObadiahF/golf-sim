@@ -75,7 +75,7 @@ name on the game server (Spring Boot + Postgres in `../Game-server`).
    banner shows and the controls that need it grey out until it's back.
 4. **Players tab:** add everyone's name (up to 8), drag to set the turn order, pick **9 or 18
    holes** and tap **Start Game**. The sim loads hole 1. Starting a new game ends one in progress;
-   **End game** abandons it.
+   **End game** abandons it (after a confirmation).
 5. **Play tab, remote mode** (any sim screen except a hole): a TV-remote D-pad. Arrows move,
    **OK** selects, **Back** goes back. Between holes the scorecard shows on the phone too; press OK
    to go on. During an instant replay (`screen: "replay"`) OK or Back skips it.
@@ -90,10 +90,15 @@ name on the game server (Spring Boot + Postgres in `../Game-server`).
      (`state.waitReason`) replaces the instruction and swings aren't sent. If a shot still arrives too
      early, the sim's `shotRejected` reason shows in the Last shot strip.
    - **Menu** pauses the sim, **Mulligan** retakes the last shot, **Pick up** ends the hole for the
-     player at the maximum score.
+     player at the maximum score. These stay pinned above the tab bar; the rest scrolls if it doesn't fit.
+   - **Replay last shot** shows between turns while the TV offers "▲ Replay" and sends `nav up`. The sim's
+     `state.canReplay` decides when it is present; otherwise `canShoot: false` with
+     `waitReason: "Wait for the next turn"` does.
+   - **Putting:** the power meter starts empty for each putt (new turn, new hole, Address) and clears on
+     leaving the putting view.
 7. **Scores tab:** the live or last scorecard (front 9 / OUT, back 9 / IN, total) and the
    leaderboard (handicap, average to par per 18 holes, wins, birdies, aces; Best 9 / Avg 9 /
-   Best 18 / Avg 18). Scores come from complete 9- and 18-hole rounds only; shorter games still
+   Best 18 / Avg 18; the best 9-hole and best 18-hole rounds as separate lists). Scores come from complete 9- and 18-hole rounds only; shorter games still
    count as rounds and wins.
 
 **Practice tab:** the single-player swing screen, as before.

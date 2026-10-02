@@ -26,6 +26,7 @@ struct PuttingView: View {
             .waiting(game.shotWait)
             GameAim(game: game)
             PuttResultStrip(result: meter.result, delivery: session.delivery)
+        } bottom: {
             GameActions(game: game)
             SimulateSwingButton(session: session)
         }

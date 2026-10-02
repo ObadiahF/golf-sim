@@ -1,17 +1,27 @@
 import SwiftUI
 
-/// Menu / Mulligan / Pick up, shared by the gameplay and putting views (Pick up asks first). Greyed out while
-/// the server is down, since they only work through it.
+/// Replay (while the TV offers one) and Menu / Mulligan / Pick up, shared by the gameplay and putting views
+/// (Pick up asks first). Greyed out while the server is down, since they only work through it.
 struct GameActions: View {
     let game: GameLink
     @State private var confirmPickUp = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            PillButton(title: "Menu", systemImage: "pause.fill") { game.nav(.back) }
-            PillButton(title: "Mulligan", systemImage: "arrow.uturn.backward", action: game.mulligan)
-            PillButton(title: "Pick up", systemImage: "flag.slash", tint: Theme.warn) { confirmPickUp = true }
+        VStack(spacing: 8) {
+            if game.offersReplay {
+                PillButton(title: "Replay last shot", systemImage: "play.rectangle.fill", tint: Theme.flag) {
+                    Haptics.press()
+                    game.replay()
+                }
+                .transition(.opacity)
+            }
+            HStack(spacing: 8) {
+                PillButton(title: "Menu", systemImage: "pause.fill") { game.nav(.back) }
+                PillButton(title: "Mulligan", systemImage: "arrow.uturn.backward", action: game.mulligan)
+                PillButton(title: "Pick up", systemImage: "flag.slash", tint: Theme.warn) { confirmPickUp = true }
+            }
         }
+        .animation(.default, value: game.offersReplay)
         .usable(game.isConnected)
         .confirmationDialog("Pick up on this hole?", isPresented: $confirmPickUp, titleVisibility: .visible) {
             Button("Pick up", role: .destructive, action: game.skip)
