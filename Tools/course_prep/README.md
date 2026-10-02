@@ -31,17 +31,24 @@ Then in Unity: **Golf > Course Builder**, pick the package, and click **Generate
 Check `preview.png` in the package folder: it shows shaded relief with the OSM outlines on top, so
 you can confirm the elevation and layout line up. Open the files in QGIS if you want a closer look.
 
-## Package format (`hole.json`)
+## Package format
 
-Local meters on a north-up square: `x` = east, `y`/`z` = north, origin at the south-west corner.
-`heightmap.raw` is 16-bit little-endian, row 0 = south, normalised to `minElevation..maxElevation`.
-Each `areas[]` entry has a `surface` name (rough, fairway, green, tee, bunker, water, woods) and
-rings (outer ring first, then holes). Surface names must match the entries in Unity's `SurfaceLayerSet`.
+Packages follow the hole contract in [`Docs/hole-format`](../../Docs/hole-format/README.md) (version 2):
+`hole.json`, `heightmap.raw`, `objects.bin` (every tree, shrub and rock, planted here by `vegetation.py`
+with the theme's rules from `vegetation_themes.py`) and `preview.png`. The package folder is named by its id
+(`<course>_<hole>`).
+
+```sh
+.venv/bin/python prep_hole.py validate <package folder> ...   # check against the contract
+.venv/bin/python prep_hole.py migrate <package folder> ...    # upgrade version 1 packages
+.venv/bin/python -m pytest tests
+```
 
 ## Options
 
 | flag | default | meaning |
 |---|---|---|
+| `--theme` | coastal | look and vegetation rules (`vegetation_themes.py`) |
 | `--margin` | 50 | meters of terrain kept around the hole line |
 | `--max-spacing` | 0.5 | max meters per heightmap sample (picks 513/1025/2049/4097) |
 | `--dem` | auto | local GeoTIFF paths or URLs instead of auto-finding USGS tiles |

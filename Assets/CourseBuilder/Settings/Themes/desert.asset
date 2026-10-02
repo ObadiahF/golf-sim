@@ -226,66 +226,46 @@ MonoBehaviour:
       noneTags: []
       preferTags: []
   scatter:
-  - rule:
-      name: Woods
-      surfaces:
-      - woods
-      perHectare: 60
-      slopeDegrees: {x: 0, y: 35}
-      clumping: 0.3
-      prototypes: []
+  - kind: 0
+    assets:
+      category: 0
+      allTags:
+      - conifer
+      anyTags: []
+      noneTags: []
+      preferTags: []
+  - kind: 1
+    assets:
+      category: 0
+      allTags:
+      - deciduous
+      anyTags: []
+      noneTags: []
+      preferTags: []
+  - kind: 2
+    assets:
+      category: 0
+      allTags:
+      - palm
+      anyTags: []
+      noneTags: []
+      preferTags: []
+  - kind: 3
     assets:
       category: 0
       allTags: []
-      anyTags: []
-      noneTags: []
-      preferTags:
+      anyTags:
       - cactus
-      - palm
-    scale: 1
-  - rule:
-      name: Native trees
-      surfaces:
-      - native
-      - scrub
-      perHectare: 5
-      slopeDegrees: {x: 0, y: 35}
-      clumping: 0.7
-      prototypes: []
-    assets:
-      category: 0
-      allTags: []
-      anyTags: []
       noneTags: []
-      preferTags:
-      - cactus
-      - palm
-    scale: 1
-  - rule:
-      name: Shrubs
-      surfaces:
-      - native
-      - scrub
-      perHectare: 120
-      slopeDegrees: {x: 0, y: 40}
-      clumping: 0.6
-      prototypes: []
+      preferTags: []
+  - kind: 4
     assets:
       category: 1
       allTags: []
       anyTags: []
       noneTags: []
       preferTags: []
-    scale: 1
-  - rule:
-      name: Slope boulders
-      surfaces:
-      - native
-      - scrub
-      perHectare: 90
-      slopeDegrees: {x: 25, y: 90}
-      clumping: 0.5
-      prototypes: []
+  - kind: 5
     assets:
       category: 2
       allTags: []
@@ -293,16 +273,7 @@ MonoBehaviour:
       noneTags:
       - small
       preferTags: []
-    scale: 1
-  - rule:
-      name: Loose rocks
-      surfaces:
-      - native
-      - scrub
-      perHectare: 60
-      slopeDegrees: {x: 0, y: 35}
-      clumping: 0.4
-      prototypes: []
+  - kind: 6
     assets:
       category: 2
       allTags: []
@@ -310,7 +281,6 @@ MonoBehaviour:
       noneTags:
       - large
       preferTags: []
-    scale: 1
   details:
   - rule:
       name: Rough grass
@@ -393,14 +363,6 @@ MonoBehaviour:
       preferTags: []
     scale: 1
     maxPrototypes: 4
-  mappedTrees:
-    category: 0
-    allTags: []
-    anyTags: []
-    noneTags: []
-    preferTags:
-    - cactus
-    - palm
   waterProvider: {fileID: 0}
   waterMaterial:
     category: 5
@@ -414,5 +376,4 @@ MonoBehaviour:
   - green
   - bunker
   - water
-  clearMargin: 4
   detailClearMargin: 0.75

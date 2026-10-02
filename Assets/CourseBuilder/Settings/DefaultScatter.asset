@@ -12,26 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2014fef08e41947ff87fe5e02f71f4e1, type: 3}
   m_Name: DefaultScatter
   m_EditorClassIdentifier: CourseBuilder.Editor::GolfSim.CourseEditor.ScatterSet
-  mappedTrees:
-  - prefab: {fileID: 919132149155446097, guid: 664f5d5d981c0f24ca0f9d731d77a36c, type: 3}
-    weight: 1
-    scale: {x: 0.55, y: 0.75}
-  - prefab: {fileID: 919132149155446097, guid: b8aa0ccd1fb79294da6b8f03791e27f2, type: 3}
-    weight: 1
-    scale: {x: 0.55, y: 0.75}
-  - prefab: {fileID: 919132149155446097, guid: b3da1778a10a6eb48b449d9c0bc21c2e, type: 3}
-    weight: 1
-    scale: {x: 0.55, y: 0.75}
-  - prefab: {fileID: 919132149155446097, guid: e17a253999e7e294981e5ed8ce32646f, type: 3}
-    weight: 1
-    scale: {x: 0.55, y: 0.75}
   rules:
-  - name: Woods
-    surfaces:
-    - woods
-    perHectare: 250
-    slopeDegrees: {x: 0, y: 35}
-    clumping: 0.3
+  - name: Conifer
+    kind: 0
     prototypes:
     - prefab: {fileID: 919132149155446097, guid: 664f5d5d981c0f24ca0f9d731d77a36c, type: 3}
       weight: 1
@@ -48,13 +31,8 @@ MonoBehaviour:
     - prefab: {fileID: 919132149155446097, guid: c7068782d88ce434ba35d8cf4f84f657, type: 3}
       weight: 1
       scale: {x: 0.45, y: 0.65}
-  - name: Native trees
-    surfaces:
-    - native
-    - scrub
-    perHectare: 8
-    slopeDegrees: {x: 0, y: 35}
-    clumping: 0.7
+  - name: Deciduous
+    kind: 1
     prototypes:
     - prefab: {fileID: 919132149155446097, guid: b3da1778a10a6eb48b449d9c0bc21c2e, type: 3}
       weight: 1
@@ -65,24 +43,14 @@ MonoBehaviour:
     - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
       weight: 1
       scale: {x: 0.8, y: 1.2}
-  - name: Shrubs
-    surfaces:
-    - native
-    - scrub
-    perHectare: 90
-    slopeDegrees: {x: 0, y: 40}
-    clumping: 0.6
+  - name: Shrub
+    kind: 4
     prototypes:
     - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
       weight: 1
       scale: {x: 0.25, y: 0.45}
-  - name: Slope boulders
-    surfaces:
-    - native
-    - scrub
-    perHectare: 60
-    slopeDegrees: {x: 25, y: 90}
-    clumping: 0.5
+  - name: Boulder
+    kind: 5
     prototypes:
     - prefab: {fileID: 100000, guid: 3bb55b9dc42e34c47b35dea94575a162, type: 3}
       weight: 1
@@ -96,13 +64,8 @@ MonoBehaviour:
     - prefab: {fileID: 1862941254676340, guid: 6a8a77a07da1ab74bb3d34fe70501b7d, type: 3}
       weight: 0.3
       scale: {x: 0.4, y: 0.8}
-  - name: Loose rocks
-    surfaces:
-    - native
-    - scrub
-    perHectare: 25
-    slopeDegrees: {x: 0, y: 35}
-    clumping: 0.4
+  - name: Rock
+    kind: 6
     prototypes:
     - prefab: {fileID: 100000, guid: 0347a2ca593e212468d38a00c0f15925, type: 3}
       weight: 1
@@ -113,6 +76,12 @@ MonoBehaviour:
     - prefab: {fileID: 100000, guid: 42a5fc4117eb11e4db95a975d19a76ca, type: 3}
       weight: 1
       scale: {x: 0.6, y: 1.5}
+  - name: Palm
+    kind: 2
+    prototypes: []
+  - name: Cactus
+    kind: 3
+    prototypes: []
   detailRules:
   - name: Rough grass
     surfaces:
@@ -200,4 +169,3 @@ MonoBehaviour:
   - green
   - bunker
   - water
-  clearMargin: 4

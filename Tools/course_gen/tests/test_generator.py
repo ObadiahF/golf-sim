@@ -1,10 +1,10 @@
-import json
-
 import numpy as np
 import pytest
 from shapely.geometry import box
 
 from generate import plan, write_package
+from hole_package import read_hole, read_objects, validate
+from objects_bin import KIND_CODE
 from layout import Layout
 from priors import DEFAULT_PRIORS, lerp_range
 from style import PRESETS, Style, apply_overrides
@@ -66,15 +66,31 @@ def test_grid_mask_orientation_matches_heightmap_rows():
     assert m[:15].all() and not m[30:].any()  # row 0 = south
 
 
-def test_package_matches_unity_format(tmp_path):
+def test_package_meets_the_hole_contract(tmp_path):
     style = PRESETS["lakes"].sample(np.random.default_rng(5))
     pkg_dir = write_package(style, 5, tmp_path, spacing=1.5)
-    pkg = json.loads((pkg_dir / "hole.json").read_text())
-    n = pkg["heightmapResolution"]
-    assert (pkg_dir / "heightmap.raw").stat().st_size == n * n * 2
-    assert pkg["version"] == 1 and pkg["theme"] == "lakes"
+    assert validate(pkg_dir) == []
+    pkg = read_hole(pkg_dir)
+    assert pkg["version"] == 2 and pkg["theme"] == "lakes" and pkg["id"] == pkg_dir.name
     assert {a["surface"] for a in pkg["areas"]} >= {"rough", "green", "tee"}
     for water in pkg["water"]:
-        assert pkg["minElevation"] <= water["level"] <= pkg["maxElevation"]
+        assert pkg["heightmap"]["minElevation"] <= water["level"] <= pkg["heightmap"]["maxElevation"]
         assert len(water["triangles"]["points"]) % 6 == 0
+    assert pkg["objects"]["count"] > 100
     assert (pkg_dir / "preview.png").exists() and (pkg_dir / "gen.json").exists()
+
+
+def test_packages_are_reproducible(tmp_path):
+    style = PRESETS["forest"].sample(np.random.default_rng(2))
+    a = write_package(style, 2, tmp_path / "a", spacing=2.0)
+    b = write_package(style, 2, tmp_path / "b", spacing=2.0)
+    for name in ("hole.json", "heightmap.raw", "objects.bin"):
+        assert (a / name).read_bytes() == (b / name).read_bytes(), name
+
+
+def test_tree_density_knob_plants_more_trees(tmp_path):
+    def trees(value):
+        style = apply_overrides(PRESETS["parkland"].sample(np.random.default_rng(4)), {"tree_density": value})
+        objects = read_objects(write_package(style, 4, tmp_path / str(value), spacing=2.0))
+        return int(np.isin(objects["kind"], [KIND_CODE["conifer"], KIND_CODE["deciduous"]]).sum())
+    assert trees(0.95) > 2 * trees(0.15)

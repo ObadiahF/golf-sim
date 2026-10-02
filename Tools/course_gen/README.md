@@ -14,6 +14,11 @@ Course Builder builds generated and real holes with one pipeline.
 
 The window uses `Tools/course_prep/.venv/bin/python` by default (set another path in the window if needed).
 
+## Use it from the browser
+
+`Tools/course_trainer/run.sh` serves a 3D walk-through of each generated hole with 👍 / 👎,
+quick-feedback chips and notes (see `Tools/course_trainer/README.md`).
+
 ## Use it from the command line
 
 ```sh
@@ -21,8 +26,8 @@ cd Tools/course_gen
 PY=../course_prep/.venv/bin/python
 $PY gen_hole.py presets
 $PY gen_hole.py generate --preset forest --par 4 --set water=0 tree_density=0.95
-$PY gen_hole.py rate ../../Assets/CourseData/generated/<id> up
-$PY gen_hole.py train
+$PY gen_hole.py rate ../../Assets/CourseData/generated/<id> up [--comment "nice dunes"] [--tag too_long more_trees]
+$PY gen_hole.py train                      # [--ratings votes.jsonl] [--user obi]: e.g. the trainer's export
 $PY gen_hole.py status
 $PY gallery.py --out /tmp/gallery          # 3 holes per preset on one PNG
 $PY fetch_courses.py                       # fetch reference courses + refit priors
@@ -37,12 +42,14 @@ $PY -m pytest tests
 | `priors.py` | real-course stats (length by par, fairway width, green size, bunkers) fitted from cached OSM data in `CourseSources/` → `data/priors.json` |
 | `layout.py`, `shapes.py` | route (doglegs, landing zones), tees, green, fairway, bunkers, water (front carry, lateral lake, creek, pond), rough, then woods/scrub/trees |
 | `validate.py` | rejects unplayable layouts (water on green/tees, long carries, hazards in landing zones, unreachable greens); the generator retries |
-| `terrain.py`, `noise.py` | fractal noise relief + course shaping (smoothed corridor, raised green/tee pads, dug bunkers, pond beds with banks) |
-| `generate.py` | writes `hole.json`, `heightmap.raw`, `gen.json`, `preview.png` (reuses `course_prep` water carving, RAW writer, preview) |
+| `terrain.py` (+ `course_prep/noise.py`) | fractal noise relief + course shaping (smoothed corridor, raised green/tee pads, dug bunkers, pond beds with banks) |
+| `generate.py` | writes the package per the hole contract (`Docs/hole-format`): `hole.json`, `heightmap.raw`, `objects.bin`, `gen.json`, `preview.png`. Trees, shrubs and rocks are planted by `course_prep/vegetation.py` (`tree_density` scales them), so Unity and the trainer show the same objects |
 | `preference.py` | Bayesian logistic regression on style features, shared + per-preset; Thompson sampling over 48 candidates; 10% pure exploration; no model with no ratings |
+| `feedback.py` | quick-feedback tags ("more trees", "too long" ...) -> knob + direction; each tag on a vote adds a weighted paired-comparison row to training |
+| `rating_store.py`, `pg_store.py` | where votes live: `JsonlStore` (`data/ratings.jsonl`, default) or `PostgresStore` (the shared trainer, when `TRAINER_DATABASE_URL` is set); same entries either way |
 | `gen_hole.py` | CLI used by Unity; prunes old unrated packages (keeps 12) |
 
-Data: `data/ratings.jsonl` (append-only, latest vote per hole wins, commit it to keep your taste)
+Data: `data/ratings.jsonl` (append-only, latest vote per hole (per user, for trainer exports) wins, commit it to keep your taste)
 and `data/preference_model.npz` (derived, gitignored). Generated packages are gitignored.
 
 ## Adding assets (Unity side)

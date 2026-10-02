@@ -10,14 +10,16 @@ namespace GolfSim.CourseEditor
     {
         const string ThemeFolder = "Assets/CourseBuilder/Settings/Themes";
 
-        // ScatterSet rule name -> (category, extra tags) used when migrating the existing settings.
-        static readonly Dictionary<string, (AssetCategory category, string[] tags)> RuleKinds = new Dictionary<string, (AssetCategory, string[])>
+        // Object kind -> (category, extra tags) used when migrating the default ScatterSet's models.
+        static readonly Dictionary<ObjectKind, (AssetCategory category, string[] tags)> RuleKinds = new Dictionary<ObjectKind, (AssetCategory, string[])>
         {
-            ["Woods"] = (AssetCategory.Tree, new string[0]),
-            ["Native trees"] = (AssetCategory.Tree, new string[0]),
-            ["Shrubs"] = (AssetCategory.Shrub, new[] { "shrub" }),
-            ["Slope boulders"] = (AssetCategory.Rock, new[] { "rock", "large" }),
-            ["Loose rocks"] = (AssetCategory.Rock, new[] { "rock", "small" }),
+            [ObjectKind.Conifer] = (AssetCategory.Tree, new[] { "conifer" }),
+            [ObjectKind.Deciduous] = (AssetCategory.Tree, new[] { "deciduous" }),
+            [ObjectKind.Palm] = (AssetCategory.Tree, new[] { "palm" }),
+            [ObjectKind.Cactus] = (AssetCategory.Tree, new[] { "cactus" }),
+            [ObjectKind.Shrub] = (AssetCategory.Shrub, new[] { "shrub" }),
+            [ObjectKind.Boulder] = (AssetCategory.Rock, new[] { "rock", "large" }),
+            [ObjectKind.Rock] = (AssetCategory.Rock, new[] { "rock", "small" }),
         };
 
         [MenuItem("Golf/Catalog/Build Catalog From Current Assets")]
@@ -79,13 +81,11 @@ namespace GolfSim.CourseEditor
             {
                 foreach (var proto in rule.prototypes.Where(p => p.prefab))
                 {
-                    var kind = RuleKinds.TryGetValue(rule.name, out var k) ? k : (AutoTagger.Category(proto.prefab), new string[0]);
+                    var kind = RuleKinds[rule.kind];
                     bool sizeKnown = kind.Item2.Contains("large") || kind.Item2.Contains("small");
                     catalog.Register(proto.prefab, kind.Item1, AutoTagger.Tags(proto.prefab, !sizeKnown).Concat(kind.Item2), proto.scale);
                 }
             }
-            foreach (var proto in scatter.mappedTrees.Where(p => p.prefab))
-                catalog.Register(proto.prefab, AssetCategory.Tree, AutoTagger.Tags(proto.prefab), proto.scale);
             foreach (var rule in scatter.detailRules)
                 foreach (var proto in rule.prototypes.Where(p => p.prefab))
                     catalog.Register(proto.prefab, AssetCategory.GroundCover, AutoTagger.Tags(proto.prefab), proto.scale);

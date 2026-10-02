@@ -1,0 +1,25 @@
+{
+ "version": 2,
+ "id": "forest_7_e3914f",
+ "seed": 7,
+ "attempts": 1,
+ "preset": "forest",
+ "theme": "forest",
+ "par": 4,
+ "params": {
+  "length": 0.5001,
+  "dogleg": 0.5858,
+  "relief": 0.4171,
+  "hilliness": 0.2931,
+  "slope": 0.4454,
+  "tree_density": 0.801,
+  "water": 0.1072,
+  "bunkers": 0.5108,
+  "fairway_width": 0.2909,
+  "green_size": 0.4255,
+  "rough_width": 0.3588,
+  "scrub": 0.1928
+ },
+ "modelScore": null,
+ "generatorVersion": 1
+}

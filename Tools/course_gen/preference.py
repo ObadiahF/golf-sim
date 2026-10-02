@@ -6,11 +6,13 @@ append-only ratings log. Features are shared across presets *and* duplicated per
 preset can still learn its own quirks. Generation uses Thompson sampling: draw one plausible
 weight vector from the posterior, score a batch of candidate styles, keep the best. That explores
 naturally while ratings are scarce and exploits once the model is confident. With no ratings the
-model is skipped and styles are sampled straight from the preset.
+model is skipped and styles are sampled straight from the preset. Quick-feedback tags on a vote
+("more trees") add weighted paired-comparison rows to the same fit (see feedback.py).
 """
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,10 +20,12 @@ from pathlib import Path
 import numpy as np
 
 from _prep import DATA_DIR
+from feedback import TAG_WEIGHT, comparisons, validate_tags
 from style import PARAM_NAMES, PARS, PRESETS, Style
 
 RATINGS_PATH = DATA_DIR / "ratings.jsonl"
-MODEL_PATH = DATA_DIR / "preference_model.npz"
+# The Docker deployment keeps the model in a volume (COURSE_GEN_MODEL_PATH); locally it sits next to the ratings.
+MODEL_PATH = Path(os.environ.get("COURSE_GEN_MODEL_PATH") or DATA_DIR / "preference_model.npz")
 PRIOR_STD_SHARED = 1.5
 PRIOR_STD_PRESET = 0.8
 CANDIDATES = 48
@@ -51,29 +55,58 @@ def prior_precision() -> np.ndarray:
     return 1.0 / std ** 2
 
 
-# ---- ratings log -------------------------------------------------------------------------------
-def record_rating(gen_info: dict, rating: int, path: Path = RATINGS_PATH) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    entry = {"id": gen_info["id"], "rating": int(np.sign(rating)), "time": time.time(),
+# ---- ratings log (paths default to RATINGS_PATH / MODEL_PATH at call time so tools and tests can redirect) ----
+# Other stores (rating_store.py: Postgres for the shared trainer) produce the same entry dicts.
+def make_entry(gen_info: dict, rating: int, *, comment: str | None = None, tags=None, user: str | None = None,
+               when: float | None = None) -> dict:
+    """One vote in the model's input format. Optional fields (tags, comment, user) are only present when
+    given, so older readers and lines without them keep working."""
+    entry = {"id": gen_info["id"], "rating": int(np.sign(rating)), "time": time.time() if when is None else when,
              "style": {k: gen_info[k] for k in ("preset", "theme", "par", "params")}}
+    tags = validate_tags(tags)
+    if tags:
+        entry["tags"] = tags
+    if comment and comment.strip():
+        entry["comment"] = comment.strip()
+    if user:
+        entry["user"] = user
+    return entry
+
+
+def record_rating(gen_info: dict, rating: int, path: Path | None = None, *,
+                  comment: str | None = None, tags=None, user: str | None = None) -> dict:
+    """Append one vote, with optional free-text `comment` and quick-feedback `tags` (see feedback.py)."""
+    path = path or RATINGS_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    entry = make_entry(gen_info, rating, comment=comment, tags=tags, user=user)
     with path.open("a") as f:
         f.write(json.dumps(entry) + "\n")
+    return entry
 
 
-def load_ratings(path: Path = RATINGS_PATH) -> list[dict]:
-    """Latest rating per hole id (re-rating a hole replaces the earlier vote)."""
-    if not path.exists():
-        return []
+def latest_votes(entries) -> list[dict]:
+    """Latest vote per (user, hole): re-rating a hole replaces that person's earlier vote."""
     latest = {}
-    for line in path.read_text().splitlines():
-        if line.strip():
-            entry = json.loads(line)
-            latest[entry["id"]] = entry
+    for entry in entries:
+        latest[(entry.get("user"), entry["id"])] = entry
     return list(latest.values())
 
 
-def rated_ids(path: Path = RATINGS_PATH) -> set[str]:
-    return {r["id"] for r in load_ratings(path)}
+def read_ratings_log(path: Path | None = None) -> list[dict]:
+    """Every line of the log, oldest first (full history)."""
+    path = path or RATINGS_PATH
+    if not path.exists():
+        return []
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def load_ratings(path: Path | None = None) -> list[dict]:
+    """Latest rating per hole id (per user, for exports from the shared trainer)."""
+    return latest_votes(read_ratings_log(path))
+
+
+def rated_ids(path: Path | None = None) -> set[str]:
+    return {r["id"] for r in read_ratings_log(path)}
 
 
 # ---- model -------------------------------------------------------------------------------------
@@ -93,13 +126,18 @@ class PreferenceModel:
     def draw(self, rng: np.random.Generator) -> np.ndarray:
         return rng.multivariate_normal(self.mean, self.cov, method="cholesky")
 
-    def save(self, path: Path = MODEL_PATH) -> None:
+    def save(self, path: Path | None = None) -> None:
+        path = path or MODEL_PATH
         path.parent.mkdir(parents=True, exist_ok=True)
-        np.savez(path, mean=self.mean, cov=self.cov, n=self.n_ratings, presets=np.array(PRESET_NAMES), dim=BASE_DIM,
-                 counts=np.array([self.preset_counts.get(p, 0) for p in PRESET_NAMES]))
+        tmp = path.with_name(path.name + ".tmp")  # write then rename: a server never loads a half-written model
+        with tmp.open("wb") as f:
+            np.savez(f, mean=self.mean, cov=self.cov, n=self.n_ratings, presets=np.array(PRESET_NAMES), dim=BASE_DIM,
+                     counts=np.array([self.preset_counts.get(p, 0) for p in PRESET_NAMES]))
+        os.replace(tmp, path)
 
     @staticmethod
-    def load(path: Path = MODEL_PATH) -> "PreferenceModel | None":
+    def load(path: Path | None = None) -> "PreferenceModel | None":
+        path = path or MODEL_PATH
         if not path.exists():
             return None
         data = np.load(path)
@@ -109,22 +147,37 @@ class PreferenceModel:
         return PreferenceModel(data["mean"], data["cov"], int(data["n"]), counts)
 
 
+def observations(ratings: list[dict]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Design matrix, labels and weights: one row per vote plus one paired comparison per feedback tag."""
+    rows, labels, weights = [], [], []
+    for r in ratings:
+        style = Style.from_json(r["style"])
+        rows.append(features(style))
+        labels.append(float(r["rating"] > 0))
+        weights.append(1.0)
+        for better, rated in comparisons(style, r.get("tags")):
+            rows.append(features(better) - features(rated))
+            labels.append(1.0)
+            weights.append(TAG_WEIGHT)
+    dim = len(prior_precision())
+    return np.array(rows).reshape(len(rows), dim), np.array(labels), np.array(weights)
+
+
 def train(ratings: list[dict], iterations: int = 30) -> PreferenceModel:
-    """MAP fit by Newton's method; covariance from the Hessian at the optimum (Laplace)."""
-    X = np.array([features(Style.from_json(r["style"])) for r in ratings]).reshape(len(ratings), -1)
-    y = np.array([r["rating"] > 0 for r in ratings], dtype=float)
+    """Weighted MAP fit by Newton's method; covariance from the Hessian at the optimum (Laplace)."""
+    X, y, s = observations(ratings)
     precision = prior_precision()
-    w = np.zeros(X.shape[1] if len(ratings) else len(precision))
+    w = np.zeros(len(precision))
     for _ in range(iterations):
         p = 1 / (1 + np.exp(-(X @ w)))
-        grad = X.T @ (p - y) + precision * w
-        hess = (X * (p * (1 - p))[:, None]).T @ X + np.diag(precision)
+        grad = X.T @ (s * (p - y)) + precision * w
+        hess = (X * (s * p * (1 - p))[:, None]).T @ X + np.diag(precision)
         step = np.linalg.solve(hess, grad)
         w -= step
         if np.abs(step).max() < 1e-6:
             break
     p = 1 / (1 + np.exp(-(X @ w)))
-    hess = (X * (p * (1 - p))[:, None]).T @ X + np.diag(precision)
+    hess = (X * (s * p * (1 - p))[:, None]).T @ X + np.diag(precision)
     cov = np.linalg.inv(hess)
     counts = {p: sum(r["style"]["preset"] == p for r in ratings) for p in PRESET_NAMES}
     return PreferenceModel(w, (cov + cov.T) / 2, len(ratings), counts)

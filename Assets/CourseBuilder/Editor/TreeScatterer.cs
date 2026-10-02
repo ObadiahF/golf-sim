@@ -4,82 +4,45 @@ using UnityEngine;
 
 namespace GolfSim.CourseEditor
 {
-    /// <summary>Places OSM-mapped trees and rule-based scatter (trees, shrubs, rocks) as Terrain tree instances.</summary>
+    /// <summary>
+    /// Places the package's objects.bin (every tree, shrub and rock) as Terrain tree instances, exactly where
+    /// the file says, scaled so each model's top is at the object's height. Only the model choice is ours.
+    /// </summary>
     public class TreeScatterer
     {
-        const float ClumpNoiseScale = 0.025f; // 1 / ~40 m grove size
-
         readonly TerrainData data;
         readonly float size;
-        readonly System.Random rng;
         readonly List<GameObject> prototypes = new List<GameObject>();
         readonly List<TreeInstance> instances = new List<TreeInstance>();
+        readonly Dictionary<GameObject, float> modelHeights = new Dictionary<GameObject, float>();
 
-        TreeScatterer(TerrainData data, float size, int seed)
+        TreeScatterer(TerrainData data, float size)
         {
             this.data = data;
             this.size = size;
-            rng = new System.Random(seed);
         }
 
         /// <returns>Number of instances placed.</returns>
-        public static int Apply(TerrainData data, HolePackage pkg, SurfaceLayerSet layers, ScatterSet scatter,
-                                float[,,] alpha, int seed)
+        public static int Apply(TerrainData data, HolePackage pkg, ScatterSet scatter)
         {
-            var s = new TreeScatterer(data, pkg.sizeMeters, seed);
-            var surfaces = new SurfaceSampler(alpha, layers, pkg.sizeMeters, scatter.keepClear, scatter.clearMargin);
-
-            s.PlaceMapped(pkg.trees, scatter, surfaces);
-            foreach (var rule in scatter.rules) s.PlaceRule(rule, scatter, surfaces);
+            var s = new TreeScatterer(data, pkg.sizeMeters);
+            var missing = new HashSet<ObjectKind>();
+            foreach (var obj in pkg.LoadObjects())
+            {
+                var options = scatter.PrototypesFor(obj.kind);
+                if (options == null) { missing.Add(obj.kind); continue; }
+                s.Add(ScatterSet.Pick(options, obj.variant), obj);
+            }
+            if (missing.Count > 0)
+                Debug.LogWarning($"[CourseBuilder] No models for {string.Join(", ", missing)} in {scatter.name}: those objects were skipped. " +
+                                 "Add assets with Golf > Catalog > Add Selected Assets.");
 
             data.treePrototypes = s.prototypes.Select(p => new TreePrototype { prefab = p }).ToArray();
             data.SetTreeInstances(s.instances.ToArray(), true);
             return s.instances.Count;
         }
 
-        void PlaceMapped(Vector2[] points, ScatterSet scatter, SurfaceSampler surfaces)
-        {
-            if (!scatter.mappedTrees.Any(p => p.prefab)) return;
-            foreach (var pos in points)
-                // Trust OSM, except for trees that would sit on a green, bunker etc. (mapping error).
-                if (!scatter.keepClear.Contains(surfaces.DominantSurface(pos)))
-                    Add(ScatterSet.Pick(scatter.mappedTrees, rng), pos);
-        }
-
-        void PlaceRule(ScatterSet.Rule rule, ScatterSet scatter, SurfaceSampler surfaces)
-        {
-            if (rule.perHectare <= 0 || !rule.prototypes.Any(p => p.prefab)) return;
-
-            // Jittered grid: one candidate per cell gives even coverage without overlaps.
-            float cell = Mathf.Sqrt(10000f / rule.perHectare);
-            int count = Mathf.CeilToInt(size / cell);
-            Vector2 noiseOffset = new Vector2(rng.Next(10000), rng.Next(10000));
-
-            for (int gz = 0; gz < count; gz++)
-                for (int gx = 0; gx < count; gx++)
-                {
-                    var pos = new Vector2((gx + (float)rng.NextDouble()) * cell, (gz + (float)rng.NextDouble()) * cell);
-                    if (pos.x >= size || pos.y >= size) continue;
-                    if (!PassesClumping(pos, rule.clumping, noiseOffset)) continue;
-                    if (!rule.surfaces.Contains(surfaces.DominantSurface(pos)) || surfaces.NearKeepClear(pos)) continue;
-
-                    float slope = data.GetSteepness(pos.x / size, pos.y / size);
-                    if (slope < rule.slopeDegrees.x || slope > rule.slopeDegrees.y) continue;
-
-                    Add(ScatterSet.Pick(rule.prototypes, rng), pos);
-                }
-        }
-
-        bool PassesClumping(Vector2 pos, float clumping, Vector2 offset)
-        {
-            if (clumping <= 0f) return true;
-            float noise = Mathf.PerlinNoise(offset.x + pos.x * ClumpNoiseScale, offset.y + pos.y * ClumpNoiseScale);
-            // Raise the noise to a power so high clumping leaves wide empty gaps between groves.
-            float keep = Mathf.Pow(noise, 1f + clumping * 4f) * (1f + clumping * 3f);
-            return rng.NextDouble() < keep;
-        }
-
-        void Add(ScatterSet.Prototype proto, Vector2 pos)
+        void Add(ScatterSet.Prototype proto, PlacedObject obj)
         {
             if (proto == null) return;
             int index = prototypes.IndexOf(proto.prefab);
@@ -89,17 +52,40 @@ namespace GolfSim.CourseEditor
                 prototypes.Add(proto.prefab);
             }
 
-            float scale = Mathf.Lerp(proto.scale.x, proto.scale.y, (float)rng.NextDouble());
+            float scale = obj.height / ModelHeight(proto.prefab);
             instances.Add(new TreeInstance
             {
                 prototypeIndex = index,
-                position = new Vector3(pos.x / size, 0f, pos.y / size), // y is snapped to the terrain
+                position = new Vector3(obj.position.x / size, 0f, obj.position.y / size), // y is snapped to the terrain
                 widthScale = scale,
                 heightScale = scale,
-                rotation = (float)(rng.NextDouble() * Mathf.PI * 2),
+                rotation = obj.rotation * Mathf.Deg2Rad, // Unity's yaw is clockwise from +z (north)
                 color = Color.white,
                 lightmapColor = Color.white,
             });
+        }
+
+        /// <summary>The model's own height in meters at scale 1 (LOD0 if it has LODs), measured once per prefab.</summary>
+        float ModelHeight(GameObject prefab)
+        {
+            if (modelHeights.TryGetValue(prefab, out float h)) return h;
+            var copy = Object.Instantiate(prefab);
+            copy.hideFlags = HideFlags.HideAndDontSave;
+            copy.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            try
+            {
+                var lods = copy.GetComponent<LODGroup>()?.GetLODs();
+                var renderers = lods != null && lods.Length > 0 ? lods[0].renderers.Where(r => r).ToArray()
+                                                                : copy.GetComponentsInChildren<Renderer>();
+                float top = renderers.Length > 0 ? renderers.Max(r => r.bounds.max.y) : 0f;
+                h = top > 0.01f ? top : 1f; // pivots sit at the ground, so the top is the height
+            }
+            finally
+            {
+                Object.DestroyImmediate(copy);
+            }
+            modelHeights[prefab] = h;
+            return h;
         }
     }
 }

@@ -21,6 +21,10 @@ namespace GolfSim.Course
         public Transform trackTarget;
         [Tooltip("How quickly tracking catches up with the target.")]
         public float trackSharpness = 6f;
+        [Tooltip("While tracking, also follow the target, staying at this world-space offset from it (zero = only turn to look).")]
+        public Vector3 followOffset;
+        [Tooltip("How quickly following and gliding catch up.")]
+        public float followSharpness = 2.5f;
 
         const string Help =
             "Right mouse: look   WASD: move   Q/E: down/up\n" +
@@ -28,6 +32,7 @@ namespace GolfSim.Course
 
         HoleInfo hole;
         float yaw, pitch;
+        Pose? glide;
 
         void Start()
         {
@@ -57,10 +62,11 @@ namespace GolfSim.Course
         {
             bool looking = mouse.rightButton.isPressed;
             Cursor.lockState = looking ? CursorLockMode.Locked : CursorLockMode.None;
-            if (looking) trackTarget = null; // the user takes over
+            if (looking) StopFollowing(); // the user takes over
             else
             {
                 Track();
+                Glide();
                 return;
             }
 
@@ -73,10 +79,38 @@ namespace GolfSim.Course
         void Track()
         {
             if (!trackTarget) return;
+            if (followOffset != Vector3.zero)
+                transform.position = KeepAboveGround(Vector3.Lerp(transform.position, trackTarget.position + followOffset, Blend(followSharpness)));
             var wanted = Quaternion.LookRotation(trackTarget.position - transform.position);
-            transform.rotation = Quaternion.Slerp(transform.rotation, wanted, 1f - Mathf.Exp(-trackSharpness * Time.unscaledDeltaTime));
+            transform.rotation = Quaternion.Slerp(transform.rotation, wanted, Blend(trackSharpness));
             SyncAngles();
         }
+
+        /// <summary>Smoothly flies the camera to this pose (cancelled by looking or moving).</summary>
+        public void GlideTo(Pose pose)
+        {
+            trackTarget = null;
+            glide = pose;
+        }
+
+        /// <summary>Stops tracking, following and gliding; the camera stays where it is.</summary>
+        public void StopFollowing()
+        {
+            trackTarget = null;
+            glide = null;
+        }
+
+        void Glide()
+        {
+            if (glide is not Pose target) return;
+            float k = Blend(followSharpness);
+            transform.SetPositionAndRotation(KeepAboveGround(Vector3.Lerp(transform.position, target.position, k)),
+                                             Quaternion.Slerp(transform.rotation, target.rotation, k));
+            SyncAngles();
+            if ((transform.position - target.position).sqrMagnitude < 0.01f) glide = null;
+        }
+
+        static float Blend(float sharpness) => 1f - Mathf.Exp(-sharpness * Time.unscaledDeltaTime);
 
         void Move(Keyboard kb, Mouse mouse)
         {
@@ -88,6 +122,7 @@ namespace GolfSim.Course
                 Axis(kb.dKey, kb.aKey),
                 Axis(kb.eKey, kb.qKey),
                 Axis(kb.wKey, kb.sKey));
+            if (input != Vector3.zero) StopFollowing(); // the user takes over
             float speed = moveSpeed * (kb.leftShiftKey.isPressed ? fastMultiplier : 1f) * Time.unscaledDeltaTime;
 
             Vector3 pos = transform.position
@@ -112,6 +147,7 @@ namespace GolfSim.Course
 
         public void JumpTo(Pose pose)
         {
+            glide = null;
             transform.SetPositionAndRotation(pose.position, pose.rotation);
             SyncAngles();
         }

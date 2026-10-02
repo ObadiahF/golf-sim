@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ObadiahF/golf-sim/Docs/hole-format/hole.schema.json",
+  "title": "Golf hole package (hole.json), format version 2",
+  "description": "The contract every hole producer (course_prep, course_gen) writes and every consumer (Unity, course trainer, game server) reads. See README.md in this folder for the rules that a schema can't express.",
+  "type": "object",
+  "required": [
+    "version",
+    "id",
+    "course",
+    "holeRef",
+    "par",
+    "theme",
+    "sizeMeters",
+    "heightmap",
+    "tee",
+    "pin",
+    "holePath",
+    "areas",
+    "water",
+    "objects"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 2
+    },
+    "id": {
+      "$ref": "#/$defs/id",
+      "description": "Stable package id; equals the package folder name."
+    },
+    "course": {
+      "type": "string",
+      "description": "Course name for display, e.g. 'Torrey Pines South' or 'Generated (forest)'."
+    },
+    "holeRef": {
+      "type": "string",
+      "description": "Hole number or label on its course."
+    },
+    "par": {
+      "type": "integer",
+      "minimum": 3,
+      "maximum": 6
+    },
+    "handicap": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18,
+      "description": "Stroke index; 0 = unknown."
+    },
+    "theme": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Look to dress the hole with (Unity CourseTheme name): coastal, parkland, forest, lakes, links, desert, mountain."
+    },
+    "source": {
+      "type": "object",
+      "description": "Where the layout came from. Informational only.",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "osm",
+            "generated"
+          ]
+        },
+        "crs": {
+          "type": "string",
+          "description": "osm: CRS of the original data, e.g. EPSG:32611."
+        },
+        "originEasting": {
+          "type": "number",
+          "description": "osm: easting of the tile's south-west corner in crs."
+        },
+        "originNorthing": {
+          "type": "number",
+          "description": "osm: northing of the tile's south-west corner in crs."
+        }
+      }
+    },
+    "sizeMeters": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Edge length of the square, north-up tile."
+    },
+    "heightmap": {
+      "type": "object",
+      "required": [
+        "file",
+        "resolution",
+        "minElevation",
+        "maxElevation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "const": "heightmap.raw"
+        },
+        "resolution": {
+          "enum": [
+            33,
+            65,
+            129,
+            257,
+            513,
+            1025,
+            2049,
+            4097
+          ],
+          "description": "Samples per side (2^k + 1)."
+        },
+        "minElevation": {
+          "type": "number",
+          "description": "Meters; elevation of raw value 0."
+        },
+        "maxElevation": {
+          "type": "number",
+          "description": "Meters; elevation of raw value 65535. Must be > minElevation."
+        }
+      }
+    },
+    "tee": {
+      "$ref": "#/$defs/point"
+    },
+    "pin": {
+      "$ref": "#/$defs/point"
+    },
+    "holePath": {
+      "$ref": "#/$defs/pointList",
+      "description": "Playing line from tee to pin (centre of the route)."
+    },
+    "areas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "surface",
+          "rings"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "surface": {
+            "$ref": "#/$defs/surface"
+          },
+          "sourceId": {
+            "type": "string",
+            "description": "OSM id or generator label, for debugging."
+          },
+          "rings": {
+            "type": "array",
+            "minItems": 1,
+            "description": "First ring = outer boundary, the rest = holes. Rings are closed implicitly.",
+            "items": {
+              "$ref": "#/$defs/pointList"
+            }
+          }
+        }
+      }
+    },
+    "water": {
+      "type": "array",
+      "description": "Water surfaces: a flat level plus a triangulated outline. The terrain under them is already carved below the level.",
+      "items": {
+        "type": "object",
+        "required": [
+          "level",
+          "triangles"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "type": "number",
+            "description": "Water surface elevation, meters (same datum as the heightmap)."
+          },
+          "triangles": {
+            "$ref": "#/$defs/pointList",
+            "description": "Flat triangle list: 3 points (6 numbers) per triangle."
+          }
+        }
+      }
+    },
+    "objects": {
+      "type": "object",
+      "description": "Pointer to objects.bin, which holds EVERY tree, shrub and rock on the hole (binary layout in README.md). Consumers place exactly these, never more, fewer or elsewhere.",
+      "required": [
+        "file",
+        "count"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "const": "objects.bin"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of records; must equal the count in the file header."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$"
+    },
+    "point": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false,
+      "description": "Meters from the tile's south-west corner: x = east, y = north.",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      }
+    },
+    "pointList": {
+      "type": "object",
+      "required": [
+        "points"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Flat [x0, y0, x1, y1, ...] in meters (x = east, y = north)."
+        }
+      }
+    },
+    "surface": {
+      "enum": [
+        "native",
+        "rough",
+        "scrub",
+        "woods",
+        "fairway",
+        "tee",
+        "green",
+        "bunker",
+        "water"
+      ]
+    }
+  }
+}

@@ -157,14 +157,15 @@ namespace GolfSim.CourseEditor
 
         static void DrawSummary(HolePackage pkg)
         {
-            float spacing = pkg.sizeMeters / (pkg.heightmapResolution - 1);
+            float spacing = pkg.sizeMeters / (pkg.heightmap.resolution - 1);
             var counts = pkg.areas.GroupBy(a => a.surface).OrderBy(g => g.Key).Select(g => $"{g.Key} {g.Count()}");
             EditorGUILayout.HelpBox(
                 $"{pkg.DisplayName}\n" +
                 $"Tee to pin: {Vector2.Distance(pkg.tee, pkg.pin):0} m\n" +
-                $"Terrain: {pkg.sizeMeters:0} m square, {pkg.heightmapResolution}px ({spacing:0.00} m/px)\n" +
-                $"Elevation: {pkg.minElevation:0.0} to {pkg.maxElevation:0.0} m\n" +
-                $"Areas: {string.Join(", ", counts)}",
+                $"Terrain: {pkg.sizeMeters:0} m square, {pkg.heightmap.resolution}px ({spacing:0.00} m/px)\n" +
+                $"Elevation: {pkg.heightmap.minElevation:0.0} to {pkg.heightmap.maxElevation:0.0} m\n" +
+                $"Areas: {string.Join(", ", counts)}\n" +
+                $"Trees, shrubs and rocks: {pkg.objects.count}",
                 MessageType.None);
         }
 

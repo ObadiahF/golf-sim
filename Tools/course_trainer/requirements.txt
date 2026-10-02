@@ -1,0 +1,4 @@
+# Course Trainer server (Docker image / shared deployment): course_gen + course_prep deps plus Postgres.
+-r ../course_prep/requirements.txt
+psycopg[binary]
+httpx

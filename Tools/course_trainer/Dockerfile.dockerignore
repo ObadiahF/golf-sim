@@ -1,0 +1,14 @@
+# Context is the repo root: send only what the image needs (never Library/, Assets/, CourseSources/ ...).
+*
+!Docs/hole-format
+!Tools/course_gen
+!Tools/course_prep
+!Tools/course_trainer
+**/.venv
+**/node_modules
+**/dist
+**/__pycache__
+**/.pytest_cache
+**/*.npz
+Tools/course_trainer/.env
+Tools/course_trainer/.screenshots

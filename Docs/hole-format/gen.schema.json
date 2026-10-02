@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ObadiahF/golf-sim/Docs/hole-format/gen.schema.json",
+  "title": "Generator record (gen.json), format version 2",
+  "description": "Present only in generated packages: how the hole was made, so it can be rated, learned from and reproduced.",
+  "type": "object",
+  "required": ["version", "id", "generatorVersion", "seed", "preset", "theme", "par", "params"],
+  "additionalProperties": true,
+  "properties": {
+    "version": { "const": 2 },
+    "id": { "type": "string", "description": "Same as hole.json id." },
+    "generatorVersion": { "type": "integer", "minimum": 1 },
+    "seed": { "type": "integer" },
+    "attempts": { "type": "integer", "minimum": 1 },
+    "preset": { "type": "string" },
+    "theme": { "type": "string" },
+    "par": { "type": "integer", "minimum": 3, "maximum": 6 },
+    "params": {
+      "type": "object",
+      "description": "Style knobs, each 0..1 (see Tools/course_gen/style.py).",
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "modelScore": { "type": ["number", "null"] }
+  }
+}

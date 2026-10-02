@@ -1,4 +1,4 @@
-"""Select a hole from OSM features and write a Unity hole package (hole.json + heightmap.raw)."""
+"""Select a hole from OSM features and write a hole package (Docs/hole-format)."""
 from __future__ import annotations
 
 import json
@@ -7,12 +7,14 @@ from pathlib import Path
 
 from shapely.geometry import LineString, MultiPolygon, Point, Polygon
 
-from dem_io import sample_dem, write_raw16
+from dem_io import sample_dem
 from geo import HoleFrame, Projector, frame_hole, utm_epsg
+from hole_package import area_json, flat_points, make_id, seed_from_id, write_package, xz_json
 from osm_io import Feature
+from vegetation import plant
 from water import carve_water
 
-PACKAGE_VERSION = 1
+DEFAULT_THEME = "coastal"
 PIN_SEARCH_RADIUS = 40.0  # meters from the hole line's end
 MIN_AREA = 1.0            # m^2; drop slivers left after clipping
 TREE_ROW_SPACING = 8.0    # meters between trees sampled along a tree_row
@@ -53,10 +55,6 @@ def select_hole(features: list[Feature], ref: str, course: str | None) -> HoleCh
     raise SystemExit(f"Expected exactly one hole {ref}, found {len(matches)}:\n  {detail}\n{hint}")
 
 
-def flat_points(coords) -> list[float]:
-    return [round(v, 3) for xy in coords for v in xy[:2]]
-
-
 def _polygons(geom) -> list[Polygon]:
     if isinstance(geom, Polygon):
         return [geom]
@@ -76,17 +74,7 @@ def _local_areas(features: list[Feature], frame: HoleFrame, proj: Projector) -> 
     return out
 
 
-def area_json(surface: str, source_id: str, poly: Polygon) -> dict:
-    """One hole.json area entry; shared by real (OSM) and generated holes."""
-    rings = [poly.exterior, *poly.interiors]
-    return {"surface": surface, "osmId": source_id, "rings": [{"points": flat_points(r.coords)} for r in rings]}
-
-
-def _area_json(f: Feature, poly: Polygon) -> dict:
-    return area_json(f.surface, f.osm_id, poly)
-
-
-def _trees(features: list[Feature], frame: HoleFrame, proj: Projector) -> list[dict]:
+def _trees(features: list[Feature], frame: HoleFrame, proj: Projector) -> list[tuple[float, float]]:
     """Individually mapped trees (natural=tree) plus points sampled along natural=tree_row lines."""
     tile = frame.utm_box
     points = []
@@ -98,7 +86,7 @@ def _trees(features: list[Feature], frame: HoleFrame, proj: Projector) -> list[d
             row = proj.to_utm(f.geom)
             count = max(1, int(row.length // TREE_ROW_SPACING))
             points.extend(row.interpolate(i / count, normalized=True) for i in range(count + 1))
-    return [xz_json(frame.to_local(p)) for p in points if tile.contains(p)]
+    return [(q.x, q.y) for q in (frame.to_local(p) for p in points if tile.contains(p))]
 
 
 def _pin(features: list[Feature], line_end_utm: Point, proj: Projector) -> Point:
@@ -107,45 +95,41 @@ def _pin(features: list[Feature], line_end_utm: Point, proj: Projector) -> Point
     return min(near, key=line_end_utm.distance) if near else line_end_utm
 
 
-def xz_json(p: Point) -> dict:
-    return {"x": round(p.x, 3), "y": round(p.y, 3)}
+def package_id(hole: HoleChoice) -> str:
+    return make_id(f"{hole.course or 'course'}_{hole.ref.zfill(2)}")
 
 
 def build_package(features: list[Feature], hole: HoleChoice, dem_sources: list[str], out_dir: Path,
-                  margin: float, max_spacing: float) -> dict:
+                  margin: float, max_spacing: float, theme: str = DEFAULT_THEME) -> dict:
+    """Writes the package into out_dir, whose name must be package_id(hole)."""
     lon, lat = hole.line.geom.coords[0][:2]
     proj = Projector(utm_epsg(lon, lat))
     line_utm = proj.to_utm(hole.line.geom)
     frame = frame_hole(line_utm, proj.epsg, margin, max_spacing)
 
     areas = _local_areas(features, frame, proj)
-    out_dir.mkdir(parents=True, exist_ok=True)
     heights = sample_dem(dem_sources, frame)
     water = carve_water(heights, [poly for f, poly in areas if f.surface == "water"], frame)
-    lo, hi = write_raw16(heights, out_dir / "heightmap.raw")
+    surfaces = [(f.surface, poly) for f, poly in areas]
+    hole_id = out_dir.name
+    objects = plant(surfaces, heights, frame.size, theme, seed=seed_from_id(hole_id),
+                    specimens=_trees(features, frame, proj))
 
     pin_utm = _pin(features, Point(line_utm.coords[-1]), proj)
     tags = hole.line.tags
-    package = {
-        "version": PACKAGE_VERSION,
+    return write_package(out_dir, {
+        "id": hole_id,
         "course": hole.course,
         "holeRef": hole.ref,
-        "par": int(tags["par"]) if str(tags.get("par", "")).isdigit() else 0,
+        "par": int(tags["par"]) if str(tags.get("par", "")).isdigit() else 4,
         "handicap": int(tags["handicap"]) if str(tags.get("handicap", "")).isdigit() else 0,
-        "crs": f"EPSG:{frame.epsg}",
-        "originEasting": round(frame.origin_x, 3),
-        "originNorthing": round(frame.origin_y, 3),
+        "theme": theme,
+        "source": {"kind": "osm", "crs": f"EPSG:{frame.epsg}", "originEasting": round(frame.origin_x, 3),
+                   "originNorthing": round(frame.origin_y, 3)},
         "sizeMeters": frame.size,
-        "heightmapFile": "heightmap.raw",
-        "heightmapResolution": frame.resolution,
-        "minElevation": round(lo, 3),
-        "maxElevation": round(hi, 3),
         "holePath": {"points": flat_points(frame.to_local(line_utm).coords)},
         "tee": xz_json(frame.to_local(Point(line_utm.coords[0]))),
         "pin": xz_json(frame.to_local(pin_utm)),
-        "areas": [_area_json(f, poly) for f, poly in areas],
-        "trees": _trees(features, frame, proj),
+        "areas": [area_json(f.surface, f.osm_id, poly) for f, poly in areas],
         "water": water,
-    }
-    (out_dir / "hole.json").write_text(json.dumps(package, indent=1))
-    return package
+    }, heights, objects)

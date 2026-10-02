@@ -30,7 +30,7 @@ namespace GolfSim.CourseEditor
             try
             {
                 // Save the asset before painting: CreateAsset discards alphamaps set on an unsaved TerrainData.
-                var data = new TerrainData { heightmapResolution = pkg.heightmapResolution }; // resolution before size
+                var data = new TerrainData { heightmapResolution = pkg.heightmap.resolution }; // resolution before size
                 data.size = new Vector3(pkg.sizeMeters, pkg.HeightRange, pkg.sizeMeters);
                 GeneratedAssets.SaveFresh($"{pkg.Folder}/TerrainData.asset", data);
 
@@ -43,7 +43,7 @@ namespace GolfSim.CourseEditor
                 if (layers.entries.Count > LayersPerPass * 2)
                     Debug.Log($"[CourseBuilder] {layers.entries.Count} terrain layers = {(layers.entries.Count + LayersPerPass - 1) / LayersPerPass} render passes.");
                 data.terrainLayers = layers.ResolveLayers();
-                data.alphamapResolution = pkg.heightmapResolution - 1;
+                data.alphamapResolution = pkg.heightmap.resolution - 1;
 
                 Progress("Painting surfaces", 0.5f);
                 var unknown = new HashSet<string>();
@@ -55,8 +55,8 @@ namespace GolfSim.CourseEditor
                 if (options.scatter)
                 {
                     Progress("Trees and rocks", 0.7f);
-                    int placed = TreeScatterer.Apply(data, pkg, layers, options.scatter, alpha, options.seed);
-                    Debug.Log($"[CourseBuilder] Placed {placed} trees/rocks ({pkg.trees.Length} mapped in OSM)");
+                    int placed = TreeScatterer.Apply(data, pkg, options.scatter);
+                    Debug.Log($"[CourseBuilder] Placed {placed} of {pkg.objects.count} trees, shrubs and rocks from {pkg.objects.file}");
                 }
 
                 Progress("Saving terrain", 0.8f);

@@ -21,7 +21,7 @@ namespace GolfSim.CourseEditor
 
                 var go = new GameObject($"Water {i}");
                 go.transform.SetParent(parent, false);
-                go.transform.localPosition = new Vector3(0f, body.level - pkg.minElevation, 0f);
+                go.transform.localPosition = new Vector3(0f, body.level - pkg.MinElevation, 0f);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 var renderer = go.AddComponent<MeshRenderer>();
                 renderer.sharedMaterial = material;

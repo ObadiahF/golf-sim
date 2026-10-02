@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace GolfSim.CourseEditor
 {
     /// <summary>
-    /// What to scatter on a hole: models for OSM-mapped trees, plus density rules per surface.
-    /// Everything becomes Terrain tree instances (cheap to render, LOD and billboards included).
+    /// Which models represent each object kind in a hole's objects.bin (trees, shrubs, rocks), plus ground
+    /// cover rules. Where objects go comes from the package, never from here (Docs/hole-format).
     /// </summary>
     [CreateAssetMenu(menuName = "Golf/Scatter Set", fileName = "ScatterSet")]
     public class ScatterSet : ScriptableObject
@@ -18,6 +19,7 @@ namespace GolfSim.CourseEditor
         {
             public GameObject prefab;
             [Min(0)] public float weight = 1f;
+            [Tooltip("Ground cover only: random size range. Objects are sized by the package's heights.")]
             public Vector2 scale = new Vector2(0.8f, 1.2f);
         }
 
@@ -25,27 +27,13 @@ namespace GolfSim.CourseEditor
         public class Rule
         {
             public string name;
-            [Tooltip("Surfaces (from the Surface Layer Set) this rule scatters on.")]
-            public string[] surfaces = new string[0];
-            [Min(0)] public float perHectare = 10f;
-            [Tooltip("Allowed terrain slope in degrees.")]
-            public Vector2 slopeDegrees = new Vector2(0f, 35f);
-            [Range(0, 1), Tooltip("0 = even spread, 1 = tight groves with gaps between.")]
-            public float clumping = 0.5f;
+            public ObjectKind kind;
             public List<Prototype> prototypes = new List<Prototype>();
         }
 
-        [Tooltip("Models used for trees mapped individually in OSM (natural=tree / tree_row).")]
-        public List<Prototype> mappedTrees = new List<Prototype>();
-
-        public List<Rule> rules = new List<Rule>
-        {
-            new Rule { name = "Woods",          surfaces = new[] { "woods" },           perHectare = 250, clumping = 0.3f },
-            new Rule { name = "Native trees",   surfaces = new[] { "native", "scrub" }, perHectare = 8,   clumping = 0.7f },
-            new Rule { name = "Shrubs",         surfaces = new[] { "native", "scrub" }, perHectare = 90,  clumping = 0.6f, slopeDegrees = new Vector2(0, 40) },
-            new Rule { name = "Slope boulders", surfaces = new[] { "native", "scrub" }, perHectare = 60,  clumping = 0.5f, slopeDegrees = new Vector2(25, 90) },
-            new Rule { name = "Loose rocks",    surfaces = new[] { "native", "scrub" }, perHectare = 25,  clumping = 0.4f },
-        };
+        [Tooltip("Models per object kind. A kind without models borrows another's (see Fallback).")]
+        public List<Rule> rules = Enum.GetValues(typeof(ObjectKind)).Cast<ObjectKind>()
+            .Select(k => new Rule { name = k.ToString(), kind = k }).ToList();
 
         /// <summary>Ground cover (grass, small bushes) painted as Terrain detail meshes.</summary>
         [Serializable]
@@ -74,19 +62,45 @@ namespace GolfSim.CourseEditor
         [Min(0), Tooltip("Meters of bare ground kept around keep-clear surfaces for ground cover.")]
         public float detailClearMargin = 0.75f;
 
-        [Tooltip("Surfaces nothing is scattered on (mapped trees are still allowed near them).")]
+        [Tooltip("Surfaces no ground cover grows on.")]
         public string[] keepClear = { "fairway", "tee", "green", "bunker", "water" };
-        [Min(0), Tooltip("Meters of extra clearance around keep-clear surfaces for scattered objects.")]
-        public float clearMargin = 4f;
 
         public static ScatterSet LoadOrCreateDefault() =>
             GeneratedAssets.LoadOrCreate(DefaultPath, CreateInstance<ScatterSet>);
 
-        public static Prototype Pick(List<Prototype> options, System.Random rng)
+        /// <summary>Models for a kind, borrowing from related kinds when it has none (e.g. no palms: deciduous).</summary>
+        public List<Prototype> PrototypesFor(ObjectKind kind)
+        {
+            var k = kind;
+            while (true)
+            {
+                var rule = rules.FirstOrDefault(r => r.kind == k && r.prototypes.Any(p => p.prefab));
+                if (rule != null) return rule.prototypes;
+                var next = Fallback(k);
+                if (next == null || next == kind) return null; // went round the whole cycle
+                k = next.Value;
+            }
+        }
+
+        /// <summary>Next kind to borrow models from. Trees, small plants and rocks each form a cycle.</summary>
+        static ObjectKind? Fallback(ObjectKind kind) => kind switch
+        {
+            ObjectKind.Palm => ObjectKind.Deciduous,
+            ObjectKind.Deciduous => ObjectKind.Conifer,
+            ObjectKind.Conifer => ObjectKind.Palm,
+            ObjectKind.Cactus => ObjectKind.Shrub,
+            ObjectKind.Shrub => ObjectKind.Cactus,
+            ObjectKind.Boulder => ObjectKind.Rock,
+            ObjectKind.Rock => ObjectKind.Boulder,
+            _ => null,
+        };
+
+        /// <summary>Deterministic weighted pick: the same roll (0..1) always gives the same model.</summary>
+        public static Prototype Pick(List<Prototype> options, float roll01)
         {
             float total = 0;
             foreach (var p in options) if (p.prefab) total += p.weight;
-            float roll = (float)rng.NextDouble() * total;
+            float roll = roll01 * total;
             foreach (var p in options)
             {
                 if (!p.prefab) continue;

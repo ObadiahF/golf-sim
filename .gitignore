@@ -72,3 +72,6 @@ __pycache__/
 /Assets/CourseData/generated.meta
 /Tools/course_gen/data/preference_model.npz
 .pytest_cache/
+
+# Playwright MCP scratch (screenshots, snapshots)
+/.playwright-mcp/

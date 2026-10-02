@@ -1,0 +1,74 @@
+# Course Trainer on a homelab: Postgres + the trainer (web UI + API).
+#   cp .env.example .env    # then edit it
+#   docker compose up --build -d
+#   docker compose run --rm trainer adduser <name>      # / passwd <name>
+#   docker compose run --rm -T trainer export > votes.jsonl
+#   docker compose run --rm test                        # pytest against this Postgres
+name: course-trainer
+
+x-image: &image
+  build:
+    context: ../..                               # repo root: the image needs Tools/ and Docs/hole-format
+    dockerfile: Tools/course_trainer/Dockerfile
+  image: course-trainer:latest
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: trainer
+      POSTGRES_USER: trainer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-trainer}
+    volumes:
+      - db:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${TRAINER_DB_PORT:-5433}:5432"   # localhost only: for local dev / psql from the host
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trainer -d trainer"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  trainer:
+    <<: *image
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TRAINER_DATABASE_URL: ${TRAINER_DATABASE_URL:-postgresql://trainer:${POSTGRES_PASSWORD:-trainer}@db:5432/trainer}
+      TRAINER_PORT: "8765"                         # inside the container; publish another with TRAINER_PORT in .env
+    ports:
+      - "${TRAINER_BIND:-0.0.0.0}:${TRAINER_PORT:-8765}:8765"
+    volumes:
+      - holes:/data/holes                          # generated hole packages
+      - model:/data/model                          # preference_model.npz
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/healthz', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  test:
+    <<: *image
+    profiles: [test]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TRAINER_TEST_DATABASE_URL: postgresql://trainer:${POSTGRES_PASSWORD:-trainer}@db:5432/trainer_test
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        cd /app/Tools/course_gen && python -m pytest -q -p no:cacheprovider tests &&
+        cd /app/Tools/course_trainer && python -m pytest -q -p no:cacheprovider tests
+
+volumes:
+  db:
+  holes:
+  model:

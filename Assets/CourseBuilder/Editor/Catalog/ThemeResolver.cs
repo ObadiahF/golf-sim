@@ -51,12 +51,13 @@ namespace GolfSim.CourseEditor
 
             var scatter = ScriptableObject.CreateInstance<ScatterSet>();
             scatter.name = theme.name;
-            scatter.rules = theme.scatter.Select(slot => WithPrototypes(slot.rule, Prototypes(catalog, slot.assets, tags, slot.scale))).ToList();
+            scatter.rules = theme.scatter.Select(slot => new ScatterSet.Rule
+            {
+                name = slot.kind.ToString(), kind = slot.kind, prototypes = Prototypes(catalog, slot.assets, tags, 1f),
+            }).ToList();
             scatter.detailRules = theme.details.Select(slot => WithPrototypes(slot.rule,
                 Prototypes(catalog, slot.assets, tags, slot.scale).Take(slot.maxPrototypes).ToList())).ToList();
-            scatter.mappedTrees = Prototypes(catalog, theme.mappedTrees, tags, 1f);
             scatter.keepClear = theme.keepClear;
-            scatter.clearMargin = theme.clearMargin;
             scatter.detailClearMargin = theme.detailClearMargin;
 
             var water = theme.waterProvider;
@@ -113,13 +114,6 @@ namespace GolfSim.CourseEditor
                     weight = e.weight * (1 + query.Score(e, tags)),
                     scale = e.scale * scale,
                 }).ToList();
-        }
-
-        static ScatterSet.Rule WithPrototypes(ScatterSet.Rule rule, List<ScatterSet.Prototype> prototypes)
-        {
-            var copy = JsonUtility.FromJson<ScatterSet.Rule>(JsonUtility.ToJson(rule));
-            copy.prototypes = prototypes;
-            return copy;
         }
 
         static ScatterSet.DetailRule WithPrototypes(ScatterSet.DetailRule rule, List<ScatterSet.Prototype> prototypes)
