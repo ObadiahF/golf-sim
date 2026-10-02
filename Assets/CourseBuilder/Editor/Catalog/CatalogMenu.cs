@@ -1,4 +1,6 @@
+using GolfSim.Course;
 using System.Collections.Generic;
+using GolfSim.Course;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -27,8 +29,8 @@ namespace GolfSim.CourseEditor
         {
             var catalog = AssetCatalog.LoadOrCreate();
             int before = catalog.entries.Count;
-            MigrateLayers(catalog, SurfaceLayerSet.LoadOrCreateDefault());
-            MigrateScatter(catalog, ScatterSet.LoadOrCreateDefault());
+            MigrateLayers(catalog, CourseDefaults.Layers());
+            MigrateScatter(catalog, CourseDefaults.Scatter());
             int themes = EnsureThemes(catalog);
             Save(catalog);
             Selection.activeObject = catalog;

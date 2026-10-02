@@ -1,0 +1,1752 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-9134387805932720619
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e43e48d0fb1bd465fb926122a27e4e94, type: 3}
+  m_Name: parkland layers
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.SurfaceLayerSet
+  entries:
+  - surface: native
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.55, g: 0.52, b: 0.36, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: rough
+    layer: {fileID: 8574412962073106934, guid: dfa64948ee6da4072a1c269651b862a4, type: 2}
+    placeholderColor: {r: 0.24, g: 0.42, b: 0.16, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: scrub
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.45, g: 0.44, b: 0.28, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: woods
+    layer: {fileID: 8574412962073106934, guid: 7df1222ec114943d98d65ceccb635575, type: 2}
+    placeholderColor: {r: 0.13, g: 0.25, b: 0.1, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: fairway
+    layer: {fileID: 8574412962073106934, guid: 3489d497a70f945f4a443a7a9775c52b, type: 2}
+    placeholderColor: {r: 0.36, g: 0.62, b: 0.22, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: 3094979ac48d348d98328c5877f0bbbe, type: 2}
+    stripeWidth: 4
+    stripeAngle: 90
+  - surface: tee
+    layer: {fileID: 8574412962073106934, guid: 4e07cd4221b5c40029ac54c35f859d27, type: 2}
+    placeholderColor: {r: 0.4, g: 0.66, b: 0.26, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: green
+    layer: {fileID: 8574412962073106934, guid: 2783c71fa1a4149a781d3bec57aa0de8, type: 2}
+    placeholderColor: {r: 0.3, g: 0.72, b: 0.28, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: b69bd7c2a3afd49f1bf43eabad8fb447, type: 2}
+    stripeWidth: 1
+    stripeAngle: 0
+  - surface: bunker
+    layer: {fileID: 8574412962073106934, guid: 9b389e7f3cc2c415596d6c316275361c, type: 2}
+    placeholderColor: {r: 0.9, g: 0.82, b: 0.6, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: water
+    layer: {fileID: 0}
+    placeholderColor: {r: 0.16, g: 0.32, b: 0.48, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  waterMaterial: {fileID: 0}
+--- !u!114 &-7368535160008485672
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2014fef08e41947ff87fe5e02f71f4e1, type: 3}
+  m_Name: parkland scatter
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.ScatterSet
+  rules:
+  - name: Conifer
+    kind: 0
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: 664f5d5d981c0f24ca0f9d731d77a36c, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b8aa0ccd1fb79294da6b8f03791e27f2, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b3da1778a10a6eb48b449d9c0bc21c2e, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: e17a253999e7e294981e5ed8ce32646f, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: c7068782d88ce434ba35d8cf4f84f657, type: 3}
+      weight: 1
+      scale: {x: 0.45, y: 0.65}
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Deciduous
+    kind: 1
+    prototypes: []
+  - name: Palm
+    kind: 2
+    prototypes: []
+  - name: Cactus
+    kind: 3
+    prototypes: []
+  - name: Shrub
+    kind: 4
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.25, y: 0.45}
+  - name: Boulder
+    kind: 5
+    prototypes:
+    - prefab: {fileID: 100000, guid: 3bb55b9dc42e34c47b35dea94575a162, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 8d8873bd1f85c3942bf7f961cec01074, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 9ec4ab395efae3f44b859f77742dd451, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 1862941254676340, guid: 6a8a77a07da1ab74bb3d34fe70501b7d, type: 3}
+      weight: 1
+      scale: {x: 0.4, y: 0.8}
+  - name: Rock
+    kind: 6
+    prototypes:
+    - prefab: {fileID: 100000, guid: 0347a2ca593e212468d38a00c0f15925, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: d08e58249c8b5444cb22e208478dc55f, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: 42a5fc4117eb11e4db95a975d19a76ca, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+  detailRules:
+  - name: Rough grass
+    surfaces:
+    - rough
+    coverage: 0.8
+    patchiness: 0.3
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 1245006558584958560, guid: 7b3e6db10d22f504dbc606110b2cb5e7, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 6846659341408791651, guid: 4c72217d56dcb6749a897a75cad1f34e, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 5443344685879028270, guid: 4dfd50a1f648e984f8188be70774f281, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+  - name: Native grass
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.4
+    patchiness: 0.6
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 7369509780391000685, guid: 912739ab7781de749876d674ef8dd365, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 8486787402013068894, guid: 9e8508e3025d9c844810b83c5607c09e, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 1718442328122675833, guid: 3d4dd2affe15db043a6502ae256cd0d4, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 5138664864039170994, guid: 8aa8def6286fc784ba128570ec475974, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+  - name: Native brush
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.15
+    patchiness: 0.8
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 5784118704813857101, guid: 176a42107ce66c44aa74a67424591597, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 889445777815560387, guid: 054bf5cf244ff2e4083cbf8eca205cf0, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 1565408744048187519, guid: e6fd4411c0e008642b42a086f0d297ca, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Woods floor
+    surfaces:
+    - woods
+    coverage: 0.5
+    patchiness: 0.5
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 2085449277718671952, guid: 6629880e46886724fa0107d3035304e6, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 4798742950742889349, guid: 5e7ace55a7bfd0d4f9ba3c05024e9d79, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 1647502441230210415, guid: 4786e2698ac97a949a9209febfcbd49b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  detailClearMargin: 0.75
+  keepClear:
+  - fairway
+  - tee
+  - green
+  - bunker
+  - water
+--- !u!114 &-7129798951490051548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2014fef08e41947ff87fe5e02f71f4e1, type: 3}
+  m_Name: lakes scatter
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.ScatterSet
+  rules:
+  - name: Conifer
+    kind: 0
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: 664f5d5d981c0f24ca0f9d731d77a36c, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b8aa0ccd1fb79294da6b8f03791e27f2, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b3da1778a10a6eb48b449d9c0bc21c2e, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: e17a253999e7e294981e5ed8ce32646f, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: c7068782d88ce434ba35d8cf4f84f657, type: 3}
+      weight: 1
+      scale: {x: 0.45, y: 0.65}
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Deciduous
+    kind: 1
+    prototypes: []
+  - name: Palm
+    kind: 2
+    prototypes: []
+  - name: Cactus
+    kind: 3
+    prototypes: []
+  - name: Shrub
+    kind: 4
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.25, y: 0.45}
+  - name: Boulder
+    kind: 5
+    prototypes:
+    - prefab: {fileID: 100000, guid: 3bb55b9dc42e34c47b35dea94575a162, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 8d8873bd1f85c3942bf7f961cec01074, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 9ec4ab395efae3f44b859f77742dd451, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 1862941254676340, guid: 6a8a77a07da1ab74bb3d34fe70501b7d, type: 3}
+      weight: 1
+      scale: {x: 0.4, y: 0.8}
+  - name: Rock
+    kind: 6
+    prototypes:
+    - prefab: {fileID: 100000, guid: 0347a2ca593e212468d38a00c0f15925, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: d08e58249c8b5444cb22e208478dc55f, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: 42a5fc4117eb11e4db95a975d19a76ca, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+  detailRules:
+  - name: Rough grass
+    surfaces:
+    - rough
+    coverage: 0.8
+    patchiness: 0.3
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 1245006558584958560, guid: 7b3e6db10d22f504dbc606110b2cb5e7, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 6846659341408791651, guid: 4c72217d56dcb6749a897a75cad1f34e, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 5443344685879028270, guid: 4dfd50a1f648e984f8188be70774f281, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+  - name: Native grass
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.6
+    patchiness: 0.6
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 7369509780391000685, guid: 912739ab7781de749876d674ef8dd365, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 8486787402013068894, guid: 9e8508e3025d9c844810b83c5607c09e, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 1718442328122675833, guid: 3d4dd2affe15db043a6502ae256cd0d4, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 5138664864039170994, guid: 8aa8def6286fc784ba128570ec475974, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+  - name: Native brush
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.15
+    patchiness: 0.8
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 5784118704813857101, guid: 176a42107ce66c44aa74a67424591597, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 889445777815560387, guid: 054bf5cf244ff2e4083cbf8eca205cf0, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 1565408744048187519, guid: e6fd4411c0e008642b42a086f0d297ca, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Woods floor
+    surfaces:
+    - woods
+    coverage: 0.5
+    patchiness: 0.5
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 2085449277718671952, guid: 6629880e46886724fa0107d3035304e6, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 4798742950742889349, guid: 5e7ace55a7bfd0d4f9ba3c05024e9d79, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 1647502441230210415, guid: 4786e2698ac97a949a9209febfcbd49b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  detailClearMargin: 0.75
+  keepClear:
+  - fairway
+  - tee
+  - green
+  - bunker
+  - water
+--- !u!114 &-6476218106633262716
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e43e48d0fb1bd465fb926122a27e4e94, type: 3}
+  m_Name: desert layers
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.SurfaceLayerSet
+  entries:
+  - surface: native
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.55, g: 0.52, b: 0.36, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: rough
+    layer: {fileID: 8574412962073106934, guid: dfa64948ee6da4072a1c269651b862a4, type: 2}
+    placeholderColor: {r: 0.24, g: 0.42, b: 0.16, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: scrub
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.45, g: 0.44, b: 0.28, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: woods
+    layer: {fileID: 8574412962073106934, guid: 7df1222ec114943d98d65ceccb635575, type: 2}
+    placeholderColor: {r: 0.13, g: 0.25, b: 0.1, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: fairway
+    layer: {fileID: 8574412962073106934, guid: 3489d497a70f945f4a443a7a9775c52b, type: 2}
+    placeholderColor: {r: 0.36, g: 0.62, b: 0.22, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: 3094979ac48d348d98328c5877f0bbbe, type: 2}
+    stripeWidth: 4
+    stripeAngle: 90
+  - surface: tee
+    layer: {fileID: 8574412962073106934, guid: 4e07cd4221b5c40029ac54c35f859d27, type: 2}
+    placeholderColor: {r: 0.4, g: 0.66, b: 0.26, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: green
+    layer: {fileID: 8574412962073106934, guid: 2783c71fa1a4149a781d3bec57aa0de8, type: 2}
+    placeholderColor: {r: 0.3, g: 0.72, b: 0.28, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: b69bd7c2a3afd49f1bf43eabad8fb447, type: 2}
+    stripeWidth: 1
+    stripeAngle: 0
+  - surface: bunker
+    layer: {fileID: 8574412962073106934, guid: 9b389e7f3cc2c415596d6c316275361c, type: 2}
+    placeholderColor: {r: 0.9, g: 0.82, b: 0.6, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: water
+    layer: {fileID: 0}
+    placeholderColor: {r: 0.16, g: 0.32, b: 0.48, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  waterMaterial: {fileID: 0}
+--- !u!114 &-6300806531939574654
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b29ead30669045ecb9f9591ab15cd2a, type: 3}
+  m_Name: forest water
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.MeshWaterProvider
+  material: {fileID: 2100000, guid: 606a2cf006c309d47bb99f421ada20ca, type: 2}
+--- !u!114 &-5880205860404654753
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b29ead30669045ecb9f9591ab15cd2a, type: 3}
+  m_Name: links water
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.MeshWaterProvider
+  material: {fileID: 2100000, guid: 606a2cf006c309d47bb99f421ada20ca, type: 2}
+--- !u!114 &-5876422397743922960
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b29ead30669045ecb9f9591ab15cd2a, type: 3}
+  m_Name: lakes water
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.MeshWaterProvider
+  material: {fileID: 2100000, guid: 606a2cf006c309d47bb99f421ada20ca, type: 2}
+--- !u!114 &-3898225473792386202
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e43e48d0fb1bd465fb926122a27e4e94, type: 3}
+  m_Name: mountain layers
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.SurfaceLayerSet
+  entries:
+  - surface: native
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.55, g: 0.52, b: 0.36, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: rough
+    layer: {fileID: 8574412962073106934, guid: dfa64948ee6da4072a1c269651b862a4, type: 2}
+    placeholderColor: {r: 0.24, g: 0.42, b: 0.16, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: scrub
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.45, g: 0.44, b: 0.28, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: woods
+    layer: {fileID: 8574412962073106934, guid: 7df1222ec114943d98d65ceccb635575, type: 2}
+    placeholderColor: {r: 0.13, g: 0.25, b: 0.1, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: fairway
+    layer: {fileID: 8574412962073106934, guid: 3489d497a70f945f4a443a7a9775c52b, type: 2}
+    placeholderColor: {r: 0.36, g: 0.62, b: 0.22, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: 3094979ac48d348d98328c5877f0bbbe, type: 2}
+    stripeWidth: 4
+    stripeAngle: 90
+  - surface: tee
+    layer: {fileID: 8574412962073106934, guid: 4e07cd4221b5c40029ac54c35f859d27, type: 2}
+    placeholderColor: {r: 0.4, g: 0.66, b: 0.26, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: green
+    layer: {fileID: 8574412962073106934, guid: 2783c71fa1a4149a781d3bec57aa0de8, type: 2}
+    placeholderColor: {r: 0.3, g: 0.72, b: 0.28, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: b69bd7c2a3afd49f1bf43eabad8fb447, type: 2}
+    stripeWidth: 1
+    stripeAngle: 0
+  - surface: bunker
+    layer: {fileID: 8574412962073106934, guid: 9b389e7f3cc2c415596d6c316275361c, type: 2}
+    placeholderColor: {r: 0.9, g: 0.82, b: 0.6, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: water
+    layer: {fileID: 0}
+    placeholderColor: {r: 0.16, g: 0.32, b: 0.48, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  waterMaterial: {fileID: 0}
+--- !u!114 &-3617013782227821629
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b29ead30669045ecb9f9591ab15cd2a, type: 3}
+  m_Name: parkland water
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.MeshWaterProvider
+  material: {fileID: 2100000, guid: 606a2cf006c309d47bb99f421ada20ca, type: 2}
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05933749828434f07bdde607e3390d7b, type: 3}
+  m_Name: RuntimeThemes
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.RuntimeThemeLibrary
+  themes:
+  - name: coastal
+    layers: {fileID: 5637198805174262290}
+    scatter: {fileID: 6761328185717312668}
+    water: {fileID: 6957307913506537440}
+  - name: parkland
+    layers: {fileID: -9134387805932720619}
+    scatter: {fileID: -7368535160008485672}
+    water: {fileID: -3617013782227821629}
+  - name: forest
+    layers: {fileID: 6327535917410394905}
+    scatter: {fileID: 8860769220800337936}
+    water: {fileID: -6300806531939574654}
+  - name: lakes
+    layers: {fileID: 4953137592196293075}
+    scatter: {fileID: -7129798951490051548}
+    water: {fileID: -5876422397743922960}
+  - name: links
+    layers: {fileID: 3157734830845224132}
+    scatter: {fileID: 7947257706707360159}
+    water: {fileID: -5880205860404654753}
+  - name: desert
+    layers: {fileID: -6476218106633262716}
+    scatter: {fileID: 2327721830793004598}
+    water: {fileID: 241938597666479884}
+  - name: mountain
+    layers: {fileID: -3898225473792386202}
+    scatter: {fileID: 3083246327483506084}
+    water: {fileID: 2013717370010359432}
+  defaultTheme: coastal
+--- !u!114 &241938597666479884
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b29ead30669045ecb9f9591ab15cd2a, type: 3}
+  m_Name: desert water
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.MeshWaterProvider
+  material: {fileID: 2100000, guid: 606a2cf006c309d47bb99f421ada20ca, type: 2}
+--- !u!114 &2013717370010359432
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b29ead30669045ecb9f9591ab15cd2a, type: 3}
+  m_Name: mountain water
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.MeshWaterProvider
+  material: {fileID: 2100000, guid: 606a2cf006c309d47bb99f421ada20ca, type: 2}
+--- !u!114 &2327721830793004598
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2014fef08e41947ff87fe5e02f71f4e1, type: 3}
+  m_Name: desert scatter
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.ScatterSet
+  rules:
+  - name: Conifer
+    kind: 0
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: 664f5d5d981c0f24ca0f9d731d77a36c, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b8aa0ccd1fb79294da6b8f03791e27f2, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b3da1778a10a6eb48b449d9c0bc21c2e, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: e17a253999e7e294981e5ed8ce32646f, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: c7068782d88ce434ba35d8cf4f84f657, type: 3}
+      weight: 1
+      scale: {x: 0.45, y: 0.65}
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Deciduous
+    kind: 1
+    prototypes: []
+  - name: Palm
+    kind: 2
+    prototypes: []
+  - name: Cactus
+    kind: 3
+    prototypes: []
+  - name: Shrub
+    kind: 4
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.25, y: 0.45}
+  - name: Boulder
+    kind: 5
+    prototypes:
+    - prefab: {fileID: 100000, guid: 3bb55b9dc42e34c47b35dea94575a162, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 8d8873bd1f85c3942bf7f961cec01074, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 9ec4ab395efae3f44b859f77742dd451, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 1862941254676340, guid: 6a8a77a07da1ab74bb3d34fe70501b7d, type: 3}
+      weight: 1
+      scale: {x: 0.4, y: 0.8}
+  - name: Rock
+    kind: 6
+    prototypes:
+    - prefab: {fileID: 100000, guid: 0347a2ca593e212468d38a00c0f15925, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: d08e58249c8b5444cb22e208478dc55f, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: 42a5fc4117eb11e4db95a975d19a76ca, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+  detailRules:
+  - name: Rough grass
+    surfaces:
+    - rough
+    coverage: 0.5
+    patchiness: 0.3
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 1245006558584958560, guid: 7b3e6db10d22f504dbc606110b2cb5e7, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 6846659341408791651, guid: 4c72217d56dcb6749a897a75cad1f34e, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 5443344685879028270, guid: 4dfd50a1f648e984f8188be70774f281, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+  - name: Native grass
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.3
+    patchiness: 0.6
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 7369509780391000685, guid: 912739ab7781de749876d674ef8dd365, type: 3}
+      weight: 2
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 8486787402013068894, guid: 9e8508e3025d9c844810b83c5607c09e, type: 3}
+      weight: 2
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 1718442328122675833, guid: 3d4dd2affe15db043a6502ae256cd0d4, type: 3}
+      weight: 2
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 5138664864039170994, guid: 8aa8def6286fc784ba128570ec475974, type: 3}
+      weight: 2
+      scale: {x: 0.7, y: 1.2}
+  - name: Native brush
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.3
+    patchiness: 0.8
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 5784118704813857101, guid: 176a42107ce66c44aa74a67424591597, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 889445777815560387, guid: 054bf5cf244ff2e4083cbf8eca205cf0, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 1565408744048187519, guid: e6fd4411c0e008642b42a086f0d297ca, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Woods floor
+    surfaces:
+    - woods
+    coverage: 0.5
+    patchiness: 0.5
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 2085449277718671952, guid: 6629880e46886724fa0107d3035304e6, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 4798742950742889349, guid: 5e7ace55a7bfd0d4f9ba3c05024e9d79, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 1647502441230210415, guid: 4786e2698ac97a949a9209febfcbd49b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  detailClearMargin: 0.75
+  keepClear:
+  - fairway
+  - tee
+  - green
+  - bunker
+  - water
+--- !u!114 &3083246327483506084
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2014fef08e41947ff87fe5e02f71f4e1, type: 3}
+  m_Name: mountain scatter
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.ScatterSet
+  rules:
+  - name: Conifer
+    kind: 0
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: 664f5d5d981c0f24ca0f9d731d77a36c, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b8aa0ccd1fb79294da6b8f03791e27f2, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b3da1778a10a6eb48b449d9c0bc21c2e, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: e17a253999e7e294981e5ed8ce32646f, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: c7068782d88ce434ba35d8cf4f84f657, type: 3}
+      weight: 1
+      scale: {x: 0.45, y: 0.65}
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Deciduous
+    kind: 1
+    prototypes: []
+  - name: Palm
+    kind: 2
+    prototypes: []
+  - name: Cactus
+    kind: 3
+    prototypes: []
+  - name: Shrub
+    kind: 4
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.25, y: 0.45}
+  - name: Boulder
+    kind: 5
+    prototypes:
+    - prefab: {fileID: 100000, guid: 3bb55b9dc42e34c47b35dea94575a162, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 8d8873bd1f85c3942bf7f961cec01074, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 9ec4ab395efae3f44b859f77742dd451, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 1862941254676340, guid: 6a8a77a07da1ab74bb3d34fe70501b7d, type: 3}
+      weight: 1
+      scale: {x: 0.4, y: 0.8}
+  - name: Rock
+    kind: 6
+    prototypes:
+    - prefab: {fileID: 100000, guid: 0347a2ca593e212468d38a00c0f15925, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: d08e58249c8b5444cb22e208478dc55f, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: 42a5fc4117eb11e4db95a975d19a76ca, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+  detailRules:
+  - name: Rough grass
+    surfaces:
+    - rough
+    coverage: 0.8
+    patchiness: 0.3
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 1245006558584958560, guid: 7b3e6db10d22f504dbc606110b2cb5e7, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 6846659341408791651, guid: 4c72217d56dcb6749a897a75cad1f34e, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 5443344685879028270, guid: 4dfd50a1f648e984f8188be70774f281, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+  - name: Native grass
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.6
+    patchiness: 0.6
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 7369509780391000685, guid: 912739ab7781de749876d674ef8dd365, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 8486787402013068894, guid: 9e8508e3025d9c844810b83c5607c09e, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 1718442328122675833, guid: 3d4dd2affe15db043a6502ae256cd0d4, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 5138664864039170994, guid: 8aa8def6286fc784ba128570ec475974, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+  - name: Native brush
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.25
+    patchiness: 0.8
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 5784118704813857101, guid: 176a42107ce66c44aa74a67424591597, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 889445777815560387, guid: 054bf5cf244ff2e4083cbf8eca205cf0, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 1565408744048187519, guid: e6fd4411c0e008642b42a086f0d297ca, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Woods floor
+    surfaces:
+    - woods
+    coverage: 0.5
+    patchiness: 0.5
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 2085449277718671952, guid: 6629880e46886724fa0107d3035304e6, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 4798742950742889349, guid: 5e7ace55a7bfd0d4f9ba3c05024e9d79, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 1647502441230210415, guid: 4786e2698ac97a949a9209febfcbd49b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  detailClearMargin: 0.75
+  keepClear:
+  - fairway
+  - tee
+  - green
+  - bunker
+  - water
+--- !u!114 &3157734830845224132
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e43e48d0fb1bd465fb926122a27e4e94, type: 3}
+  m_Name: links layers
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.SurfaceLayerSet
+  entries:
+  - surface: native
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.55, g: 0.52, b: 0.36, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: rough
+    layer: {fileID: 8574412962073106934, guid: dfa64948ee6da4072a1c269651b862a4, type: 2}
+    placeholderColor: {r: 0.24, g: 0.42, b: 0.16, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: scrub
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.45, g: 0.44, b: 0.28, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: woods
+    layer: {fileID: 8574412962073106934, guid: 7df1222ec114943d98d65ceccb635575, type: 2}
+    placeholderColor: {r: 0.13, g: 0.25, b: 0.1, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: fairway
+    layer: {fileID: 8574412962073106934, guid: 3489d497a70f945f4a443a7a9775c52b, type: 2}
+    placeholderColor: {r: 0.36, g: 0.62, b: 0.22, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: 3094979ac48d348d98328c5877f0bbbe, type: 2}
+    stripeWidth: 4
+    stripeAngle: 90
+  - surface: tee
+    layer: {fileID: 8574412962073106934, guid: 4e07cd4221b5c40029ac54c35f859d27, type: 2}
+    placeholderColor: {r: 0.4, g: 0.66, b: 0.26, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: green
+    layer: {fileID: 8574412962073106934, guid: 2783c71fa1a4149a781d3bec57aa0de8, type: 2}
+    placeholderColor: {r: 0.3, g: 0.72, b: 0.28, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: b69bd7c2a3afd49f1bf43eabad8fb447, type: 2}
+    stripeWidth: 1
+    stripeAngle: 0
+  - surface: bunker
+    layer: {fileID: 8574412962073106934, guid: 9b389e7f3cc2c415596d6c316275361c, type: 2}
+    placeholderColor: {r: 0.9, g: 0.82, b: 0.6, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: water
+    layer: {fileID: 0}
+    placeholderColor: {r: 0.16, g: 0.32, b: 0.48, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  waterMaterial: {fileID: 0}
+--- !u!114 &4953137592196293075
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e43e48d0fb1bd465fb926122a27e4e94, type: 3}
+  m_Name: lakes layers
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.SurfaceLayerSet
+  entries:
+  - surface: native
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.55, g: 0.52, b: 0.36, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: rough
+    layer: {fileID: 8574412962073106934, guid: dfa64948ee6da4072a1c269651b862a4, type: 2}
+    placeholderColor: {r: 0.24, g: 0.42, b: 0.16, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: scrub
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.45, g: 0.44, b: 0.28, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: woods
+    layer: {fileID: 8574412962073106934, guid: 7df1222ec114943d98d65ceccb635575, type: 2}
+    placeholderColor: {r: 0.13, g: 0.25, b: 0.1, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: fairway
+    layer: {fileID: 8574412962073106934, guid: 3489d497a70f945f4a443a7a9775c52b, type: 2}
+    placeholderColor: {r: 0.36, g: 0.62, b: 0.22, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: 3094979ac48d348d98328c5877f0bbbe, type: 2}
+    stripeWidth: 4
+    stripeAngle: 90
+  - surface: tee
+    layer: {fileID: 8574412962073106934, guid: 4e07cd4221b5c40029ac54c35f859d27, type: 2}
+    placeholderColor: {r: 0.4, g: 0.66, b: 0.26, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: green
+    layer: {fileID: 8574412962073106934, guid: 2783c71fa1a4149a781d3bec57aa0de8, type: 2}
+    placeholderColor: {r: 0.3, g: 0.72, b: 0.28, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: b69bd7c2a3afd49f1bf43eabad8fb447, type: 2}
+    stripeWidth: 1
+    stripeAngle: 0
+  - surface: bunker
+    layer: {fileID: 8574412962073106934, guid: 9b389e7f3cc2c415596d6c316275361c, type: 2}
+    placeholderColor: {r: 0.9, g: 0.82, b: 0.6, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: water
+    layer: {fileID: 0}
+    placeholderColor: {r: 0.16, g: 0.32, b: 0.48, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  waterMaterial: {fileID: 0}
+--- !u!114 &5637198805174262290
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e43e48d0fb1bd465fb926122a27e4e94, type: 3}
+  m_Name: coastal layers
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.SurfaceLayerSet
+  entries:
+  - surface: native
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.55, g: 0.52, b: 0.36, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: rough
+    layer: {fileID: 8574412962073106934, guid: dfa64948ee6da4072a1c269651b862a4, type: 2}
+    placeholderColor: {r: 0.24, g: 0.42, b: 0.16, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: scrub
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.45, g: 0.44, b: 0.28, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: woods
+    layer: {fileID: 8574412962073106934, guid: 7df1222ec114943d98d65ceccb635575, type: 2}
+    placeholderColor: {r: 0.13, g: 0.25, b: 0.1, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: fairway
+    layer: {fileID: 8574412962073106934, guid: 3489d497a70f945f4a443a7a9775c52b, type: 2}
+    placeholderColor: {r: 0.36, g: 0.62, b: 0.22, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: 3094979ac48d348d98328c5877f0bbbe, type: 2}
+    stripeWidth: 4
+    stripeAngle: 90
+  - surface: tee
+    layer: {fileID: 8574412962073106934, guid: 4e07cd4221b5c40029ac54c35f859d27, type: 2}
+    placeholderColor: {r: 0.4, g: 0.66, b: 0.26, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: green
+    layer: {fileID: 8574412962073106934, guid: 2783c71fa1a4149a781d3bec57aa0de8, type: 2}
+    placeholderColor: {r: 0.3, g: 0.72, b: 0.28, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: b69bd7c2a3afd49f1bf43eabad8fb447, type: 2}
+    stripeWidth: 1
+    stripeAngle: 0
+  - surface: bunker
+    layer: {fileID: 8574412962073106934, guid: 9b389e7f3cc2c415596d6c316275361c, type: 2}
+    placeholderColor: {r: 0.9, g: 0.82, b: 0.6, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: water
+    layer: {fileID: 0}
+    placeholderColor: {r: 0.16, g: 0.32, b: 0.48, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  waterMaterial: {fileID: 0}
+--- !u!114 &6327535917410394905
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e43e48d0fb1bd465fb926122a27e4e94, type: 3}
+  m_Name: forest layers
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.SurfaceLayerSet
+  entries:
+  - surface: native
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.55, g: 0.52, b: 0.36, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: rough
+    layer: {fileID: 8574412962073106934, guid: dfa64948ee6da4072a1c269651b862a4, type: 2}
+    placeholderColor: {r: 0.24, g: 0.42, b: 0.16, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: scrub
+    layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    placeholderColor: {r: 0.45, g: 0.44, b: 0.28, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: woods
+    layer: {fileID: 8574412962073106934, guid: 7df1222ec114943d98d65ceccb635575, type: 2}
+    placeholderColor: {r: 0.13, g: 0.25, b: 0.1, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: fairway
+    layer: {fileID: 8574412962073106934, guid: 3489d497a70f945f4a443a7a9775c52b, type: 2}
+    placeholderColor: {r: 0.36, g: 0.62, b: 0.22, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: 3094979ac48d348d98328c5877f0bbbe, type: 2}
+    stripeWidth: 4
+    stripeAngle: 90
+  - surface: tee
+    layer: {fileID: 8574412962073106934, guid: 4e07cd4221b5c40029ac54c35f859d27, type: 2}
+    placeholderColor: {r: 0.4, g: 0.66, b: 0.26, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: green
+    layer: {fileID: 8574412962073106934, guid: 2783c71fa1a4149a781d3bec57aa0de8, type: 2}
+    placeholderColor: {r: 0.3, g: 0.72, b: 0.28, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: b69bd7c2a3afd49f1bf43eabad8fb447, type: 2}
+    stripeWidth: 1
+    stripeAngle: 0
+  - surface: bunker
+    layer: {fileID: 8574412962073106934, guid: 9b389e7f3cc2c415596d6c316275361c, type: 2}
+    placeholderColor: {r: 0.9, g: 0.82, b: 0.6, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  - surface: water
+    layer: {fileID: 0}
+    placeholderColor: {r: 0.16, g: 0.32, b: 0.48, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
+  waterMaterial: {fileID: 0}
+--- !u!114 &6761328185717312668
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2014fef08e41947ff87fe5e02f71f4e1, type: 3}
+  m_Name: coastal scatter
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.ScatterSet
+  rules:
+  - name: Conifer
+    kind: 0
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: 664f5d5d981c0f24ca0f9d731d77a36c, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b8aa0ccd1fb79294da6b8f03791e27f2, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b3da1778a10a6eb48b449d9c0bc21c2e, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: e17a253999e7e294981e5ed8ce32646f, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: c7068782d88ce434ba35d8cf4f84f657, type: 3}
+      weight: 1
+      scale: {x: 0.45, y: 0.65}
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Deciduous
+    kind: 1
+    prototypes: []
+  - name: Palm
+    kind: 2
+    prototypes: []
+  - name: Cactus
+    kind: 3
+    prototypes: []
+  - name: Shrub
+    kind: 4
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.25, y: 0.45}
+  - name: Boulder
+    kind: 5
+    prototypes:
+    - prefab: {fileID: 100000, guid: 3bb55b9dc42e34c47b35dea94575a162, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 8d8873bd1f85c3942bf7f961cec01074, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 9ec4ab395efae3f44b859f77742dd451, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 1862941254676340, guid: 6a8a77a07da1ab74bb3d34fe70501b7d, type: 3}
+      weight: 1
+      scale: {x: 0.4, y: 0.8}
+  - name: Rock
+    kind: 6
+    prototypes:
+    - prefab: {fileID: 100000, guid: 0347a2ca593e212468d38a00c0f15925, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: d08e58249c8b5444cb22e208478dc55f, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: 42a5fc4117eb11e4db95a975d19a76ca, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+  detailRules:
+  - name: Rough grass
+    surfaces:
+    - rough
+    coverage: 0.8
+    patchiness: 0.3
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 1245006558584958560, guid: 7b3e6db10d22f504dbc606110b2cb5e7, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 6846659341408791651, guid: 4c72217d56dcb6749a897a75cad1f34e, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 5443344685879028270, guid: 4dfd50a1f648e984f8188be70774f281, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+  - name: Native grass
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.6
+    patchiness: 0.6
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 7369509780391000685, guid: 912739ab7781de749876d674ef8dd365, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 8486787402013068894, guid: 9e8508e3025d9c844810b83c5607c09e, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 1718442328122675833, guid: 3d4dd2affe15db043a6502ae256cd0d4, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 5138664864039170994, guid: 8aa8def6286fc784ba128570ec475974, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+  - name: Native brush
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.25
+    patchiness: 0.8
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 5784118704813857101, guid: 176a42107ce66c44aa74a67424591597, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 889445777815560387, guid: 054bf5cf244ff2e4083cbf8eca205cf0, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 1565408744048187519, guid: e6fd4411c0e008642b42a086f0d297ca, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Woods floor
+    surfaces:
+    - woods
+    coverage: 0.5
+    patchiness: 0.5
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 2085449277718671952, guid: 6629880e46886724fa0107d3035304e6, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 4798742950742889349, guid: 5e7ace55a7bfd0d4f9ba3c05024e9d79, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 1647502441230210415, guid: 4786e2698ac97a949a9209febfcbd49b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  detailClearMargin: 0.75
+  keepClear:
+  - fairway
+  - tee
+  - green
+  - bunker
+  - water
+--- !u!114 &6957307913506537440
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b29ead30669045ecb9f9591ab15cd2a, type: 3}
+  m_Name: coastal water
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.MeshWaterProvider
+  material: {fileID: 2100000, guid: 606a2cf006c309d47bb99f421ada20ca, type: 2}
+--- !u!114 &7947257706707360159
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2014fef08e41947ff87fe5e02f71f4e1, type: 3}
+  m_Name: links scatter
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.ScatterSet
+  rules:
+  - name: Conifer
+    kind: 0
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: 664f5d5d981c0f24ca0f9d731d77a36c, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b8aa0ccd1fb79294da6b8f03791e27f2, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b3da1778a10a6eb48b449d9c0bc21c2e, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: e17a253999e7e294981e5ed8ce32646f, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: c7068782d88ce434ba35d8cf4f84f657, type: 3}
+      weight: 1
+      scale: {x: 0.45, y: 0.65}
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Deciduous
+    kind: 1
+    prototypes: []
+  - name: Palm
+    kind: 2
+    prototypes: []
+  - name: Cactus
+    kind: 3
+    prototypes: []
+  - name: Shrub
+    kind: 4
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.25, y: 0.45}
+  - name: Boulder
+    kind: 5
+    prototypes:
+    - prefab: {fileID: 100000, guid: 3bb55b9dc42e34c47b35dea94575a162, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 8d8873bd1f85c3942bf7f961cec01074, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 9ec4ab395efae3f44b859f77742dd451, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 1862941254676340, guid: 6a8a77a07da1ab74bb3d34fe70501b7d, type: 3}
+      weight: 1
+      scale: {x: 0.4, y: 0.8}
+  - name: Rock
+    kind: 6
+    prototypes:
+    - prefab: {fileID: 100000, guid: 0347a2ca593e212468d38a00c0f15925, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: d08e58249c8b5444cb22e208478dc55f, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: 42a5fc4117eb11e4db95a975d19a76ca, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+  detailRules:
+  - name: Rough grass
+    surfaces:
+    - rough
+    coverage: 0.8
+    patchiness: 0.3
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 1245006558584958560, guid: 7b3e6db10d22f504dbc606110b2cb5e7, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 6846659341408791651, guid: 4c72217d56dcb6749a897a75cad1f34e, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 5443344685879028270, guid: 4dfd50a1f648e984f8188be70774f281, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+  - name: Native grass
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.85
+    patchiness: 0.6
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 7369509780391000685, guid: 912739ab7781de749876d674ef8dd365, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 8486787402013068894, guid: 9e8508e3025d9c844810b83c5607c09e, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 1718442328122675833, guid: 3d4dd2affe15db043a6502ae256cd0d4, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 5138664864039170994, guid: 8aa8def6286fc784ba128570ec475974, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+  - name: Native brush
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.35
+    patchiness: 0.8
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 5784118704813857101, guid: 176a42107ce66c44aa74a67424591597, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 889445777815560387, guid: 054bf5cf244ff2e4083cbf8eca205cf0, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 1565408744048187519, guid: e6fd4411c0e008642b42a086f0d297ca, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Woods floor
+    surfaces:
+    - woods
+    coverage: 0.5
+    patchiness: 0.5
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 2085449277718671952, guid: 6629880e46886724fa0107d3035304e6, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 4798742950742889349, guid: 5e7ace55a7bfd0d4f9ba3c05024e9d79, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 1647502441230210415, guid: 4786e2698ac97a949a9209febfcbd49b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  detailClearMargin: 0.75
+  keepClear:
+  - fairway
+  - tee
+  - green
+  - bunker
+  - water
+--- !u!114 &8860769220800337936
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2014fef08e41947ff87fe5e02f71f4e1, type: 3}
+  m_Name: forest scatter
+  m_EditorClassIdentifier: CourseBuilder.Runtime::GolfSim.Course.ScatterSet
+  rules:
+  - name: Conifer
+    kind: 0
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: 664f5d5d981c0f24ca0f9d731d77a36c, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b8aa0ccd1fb79294da6b8f03791e27f2, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: b3da1778a10a6eb48b449d9c0bc21c2e, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: e17a253999e7e294981e5ed8ce32646f, type: 3}
+      weight: 1
+      scale: {x: 0.5, y: 0.8}
+    - prefab: {fileID: 919132149155446097, guid: c7068782d88ce434ba35d8cf4f84f657, type: 3}
+      weight: 1
+      scale: {x: 0.45, y: 0.65}
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Deciduous
+    kind: 1
+    prototypes: []
+  - name: Palm
+    kind: 2
+    prototypes: []
+  - name: Cactus
+    kind: 3
+    prototypes: []
+  - name: Shrub
+    kind: 4
+    prototypes:
+    - prefab: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+      weight: 1
+      scale: {x: 0.25, y: 0.45}
+  - name: Boulder
+    kind: 5
+    prototypes:
+    - prefab: {fileID: 100000, guid: 3bb55b9dc42e34c47b35dea94575a162, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 8d8873bd1f85c3942bf7f961cec01074, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 100000, guid: 9ec4ab395efae3f44b859f77742dd451, type: 3}
+      weight: 1
+      scale: {x: 1.5, y: 4}
+    - prefab: {fileID: 1862941254676340, guid: 6a8a77a07da1ab74bb3d34fe70501b7d, type: 3}
+      weight: 1
+      scale: {x: 0.4, y: 0.8}
+  - name: Rock
+    kind: 6
+    prototypes:
+    - prefab: {fileID: 100000, guid: 0347a2ca593e212468d38a00c0f15925, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: d08e58249c8b5444cb22e208478dc55f, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+    - prefab: {fileID: 100000, guid: 42a5fc4117eb11e4db95a975d19a76ca, type: 3}
+      weight: 1
+      scale: {x: 0.6, y: 1.5}
+  detailRules:
+  - name: Rough grass
+    surfaces:
+    - rough
+    coverage: 0.8
+    patchiness: 0.3
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 1245006558584958560, guid: 7b3e6db10d22f504dbc606110b2cb5e7, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 6846659341408791651, guid: 4c72217d56dcb6749a897a75cad1f34e, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+    - prefab: {fileID: 5443344685879028270, guid: 4dfd50a1f648e984f8188be70774f281, type: 3}
+      weight: 1
+      scale: {x: 0.35, y: 0.6}
+  - name: Native grass
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.6
+    patchiness: 0.6
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 7369509780391000685, guid: 912739ab7781de749876d674ef8dd365, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 8486787402013068894, guid: 9e8508e3025d9c844810b83c5607c09e, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 1718442328122675833, guid: 3d4dd2affe15db043a6502ae256cd0d4, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+    - prefab: {fileID: 5138664864039170994, guid: 8aa8def6286fc784ba128570ec475974, type: 3}
+      weight: 1
+      scale: {x: 0.7, y: 1.2}
+  - name: Native brush
+    surfaces:
+    - native
+    - scrub
+    coverage: 0.25
+    patchiness: 0.8
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 5784118704813857101, guid: 176a42107ce66c44aa74a67424591597, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 889445777815560387, guid: 054bf5cf244ff2e4083cbf8eca205cf0, type: 3}
+      weight: 2
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 1565408744048187519, guid: e6fd4411c0e008642b42a086f0d297ca, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.3}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  - name: Woods floor
+    surfaces:
+    - woods
+    coverage: 0.7
+    patchiness: 0.5
+    slopeDegrees: {x: 0, y: 45}
+    density: 5
+    prototypes:
+    - prefab: {fileID: 2085449277718671952, guid: 6629880e46886724fa0107d3035304e6, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 4798742950742889349, guid: 5e7ace55a7bfd0d4f9ba3c05024e9d79, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 1647502441230210415, guid: 4786e2698ac97a949a9209febfcbd49b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+    - prefab: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+      weight: 1
+      scale: {x: 0.8, y: 1.2}
+  detailClearMargin: 0.75
+  keepClear:
+  - fairway
+  - tee
+  - green
+  - bunker
+  - water

@@ -1,7 +1,7 @@
 using System.Linq;
 using UnityEngine;
 
-namespace GolfSim.CourseEditor
+namespace GolfSim.Course
 {
     /// <summary>Answers "what surface is here?" and "is this too close to the playing area?" from painted alphamaps.</summary>
     public class SurfaceSampler

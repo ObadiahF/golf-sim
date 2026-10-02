@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace GolfSim.CourseEditor
+namespace GolfSim.Course
 {
     /// <summary>Turns hole areas into terrain alphamaps using the layer set's paint priority.</summary>
     public static class SplatmapBuilder

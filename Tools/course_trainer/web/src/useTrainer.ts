@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, type Catalog, type HoleSummary, type Rating, type Status } from './api';
+import { api, type Catalog, type HoleSummary, type PoolProgress, type Rating, type Status } from './api';
 import { loadHole, type HoleData } from './hole/loadHole';
 
 export interface Draft { rating: Rating | null; tags: string[]; comment: string }
 const EMPTY_DRAFT: Draft = { rating: null, tags: [], comment: '' };
+const POLL_MS = 3000;
 
-/** App state and server round-trips: load / generate holes, rate, retrain. */
+/** App state and server round-trips: next pool hole, ad-hoc generate, rate, retrain. */
 export function useTrainer() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
@@ -17,7 +18,12 @@ export function useTrainer() {
   const [busy, setBusy] = useState<string | null>('Warming up…');
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [pool, setPool] = useState<PoolProgress | null>(null);
+  /** No unseen pool hole is ready yet: the HUD shows a waiting card while `next` polls. */
+  const [waiting, setWaiting] = useState(false);
   const toastTimer = useRef<number>(0);
+  const pollTimer = useRef<number>(0);
+  useEffect(() => () => window.clearTimeout(pollTimer.current), []);
 
   const flash = useCallback((message: string) => {
     setToast(message);
@@ -45,8 +51,11 @@ export function useTrainer() {
     setRecent(r);
   }, []);
 
-  const open = useCallback((summary: HoleSummary) => task('Building the hole…', async () => {
-    const data = await loadHole(summary);
+  /** Show a hole. `peek` (leaderboard): viewing it does not count as having seen it. */
+  const open = useCallback((summary: HoleSummary, peek = false) => task('Building the hole…', async () => {
+    window.clearTimeout(pollTimer.current);
+    setWaiting(false);
+    const data = await loadHole(summary, peek);
     setHole(data);
     setPreset(summary.preset);
     setDraft({ ...EMPTY_DRAFT, rating: summary.rating });
@@ -54,6 +63,21 @@ export function useTrainer() {
     await refreshLists(summary.preset);
   }), [task, refreshLists]);
 
+  /** The main flow: your next unseen hole from the shared pool, or wait (polling) while the batch generates. */
+  const nextRef = useRef<(poll?: boolean) => Promise<void>>(async () => {});
+  const next = useCallback(async (poll = false) => {
+    window.clearTimeout(pollTimer.current);
+    const res = poll ? await api.next().catch(() => undefined) : await task('Finding your next hole…', api.next);
+    if (res) setPool(res.pool);
+    if (res?.hole) return void await open(res.hole);
+    if (res || poll) {
+      setWaiting(true);
+      pollTimer.current = window.setTimeout(() => nextRef.current(true), POLL_MS);
+    }
+  }, [task, open]);
+  nextRef.current = next;
+
+  /** Advanced: one hole made now with a chosen preset / par (still counts as seen). */
   const generate = useCallback(async (forPreset = preset, forPar = par) => {
     const label = catalog?.presets.find(p => p.name === forPreset)?.label ?? forPreset;
     const summary = await task(`Generating a ${label} hole…`, () => api.generate(forPreset, forPar));
@@ -67,15 +91,16 @@ export function useTrainer() {
     if (!done) return;
     setStatus(done.status);
     flash(`${draft.rating === 'up' ? '👍' : '👎'} saved: ${done.status.ratings} ratings so far`);
-    await generate(hole.summary.preset, par);
-  }, [hole, draft, task, flash, generate, par]);
+    await next();
+  }, [hole, draft, task, flash, next]);
 
   const retrain = useCallback(async () => {
     const s = await task('Retraining the taste model…', () => api.train(preset));
     if (s) { setStatus(s); flash(`Model retrained on ${s.trainedOn} ratings`); }
   }, [task, preset, flash]);
 
-  // First load: ?hole=<id>, else the newest unrated hole, else a fresh one. (Once, even under StrictMode.)
+  // First load: ?hole=<id>, else the hole you were last looking at if unrated, else the next pool hole.
+  // (Once, even under StrictMode.)
   const started = useRef(false);
   useEffect(() => {
     if (started.current) return;
@@ -91,18 +116,15 @@ export function useTrainer() {
       const wanted = new URLSearchParams(window.location.search).get('hole');
       // A shared ?hole= link may be someone else's hole: fetch it if it is not in my list.
       const linked = wanted ? ready.find(h => h.id === wanted) ?? await api.hole(wanted).catch(() => undefined) : undefined;
-      const start = linked ?? ready.find(h => !h.rating);
+      const start = linked ?? (ready[0] && !ready[0].rating ? ready[0] : undefined);
       if (start) await open(start);
-      else {
-        const summary = await task('Generating your first hole…', () => api.generate('parkland', null));
-        if (summary) await open(summary);
-      }
+      else await next();
     })();
   }, []);
 
   return {
-    catalog, status, hole, recent, preset, setPreset, par, setPar, draft, setDraft, busy, error, toast,
-    dismissError: () => setError(null), open, generate, submit, retrain,
+    catalog, status, hole, recent, preset, setPreset, par, setPar, draft, setDraft, busy, error, toast, pool, waiting,
+    dismissError: () => setError(null), open, next, generate, submit, retrain,
   };
 }
 

@@ -13,9 +13,10 @@ export function TrainerView({ session, name }: { session: Session; name: string 
   (window as unknown as { courseTrainer: object }).courseTrainer = { player };
   const [locked, setLocked] = useState(false);
   const [help, setHelp] = useState(false);
+  const [top, setTop] = useState(false);
   const comment = useRef<HTMLTextAreaElement>(null);
   const onLockChange = useCallback((l: boolean) => setLocked(l), []);
-  const { setDraft, submit, generate, busy } = trainer;
+  const { setDraft, submit, next, busy } = trainer;
 
   // Rating / navigation hotkeys (movement keys live in PlayerController). Never while typing.
   useEffect(() => {
@@ -28,7 +29,10 @@ export function TrainerView({ session, name }: { session: Session; name: string 
       } else if (e.code === 'Enter' && !busy && (e.target as HTMLElement).tagName !== 'BUTTON') {
         submit();
       } else if (e.code === 'KeyN' && !busy) {
-        generate();
+        next();
+      } else if (e.code === 'KeyL') {
+        document.exitPointerLock();
+        setTop(t => !t);
       } else if (e.code === 'KeyH' || e.code === 'F1') {
         e.preventDefault();
         setHelp(h => !h);
@@ -40,12 +44,12 @@ export function TrainerView({ session, name }: { session: Session; name: string 
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setDraft, submit, generate, busy]);
+  }, [setDraft, submit, next, busy]);
 
   return (
     <div className={`app ${locked ? 'is-locked' : ''}`}>
       {trainer.hole && <HoleScene hole={trainer.hole} player={player} onLockChange={onLockChange} />}
-      <Hud trainer={trainer} player={player} user={{ name, logout: session.logout }} locked={locked} help={help} setHelp={setHelp} commentRef={comment} />
+      <Hud trainer={trainer} player={player} user={{ name, logout: session.logout }} locked={locked} help={help} setHelp={setHelp} top={top} setTop={setTop} commentRef={comment} />
     </div>
   );
 }

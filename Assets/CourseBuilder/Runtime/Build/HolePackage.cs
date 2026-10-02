@@ -1,9 +1,8 @@
 using System;
 using System.IO;
-using UnityEditor;
 using UnityEngine;
 
-namespace GolfSim.CourseEditor
+namespace GolfSim.Course
 {
     /// <summary>Flat [x0, z0, x1, z1, ...] list in local terrain meters (x = east, z = north).</summary>
     [Serializable]
@@ -80,7 +79,7 @@ namespace GolfSim.CourseEditor
         public WaterBody[] water = new WaterBody[0];
         public ObjectsInfo objects;
 
-        [NonSerialized] public string assetPath;
+        [NonSerialized] public string assetPath; // path of hole.json: an asset path in the editor, any file path in the game
 
         public string Folder => Path.GetDirectoryName(assetPath)?.Replace('\\', '/');
         public float MinElevation => heightmap.minElevation;

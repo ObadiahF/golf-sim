@@ -22,7 +22,7 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 body { font: 14px/1.4 var(--body); color: var(--ink); }
 canvas { display: block; }
 
-.hud { position: fixed; inset: 0; pointer-events: none; }
+.hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }  /* above the pin label (drei Html, z 5) */
 .hud > * { pointer-events: auto; }
 .hud .column { pointer-events: none; }
 .hud .column > * { pointer-events: auto; }
@@ -167,6 +167,28 @@ textarea:focus, select:focus { outline: 2px solid var(--green-bright); outline-o
 .help dl div { display: grid; grid-template-columns: 140px 1fr; border-bottom: 1px dotted var(--rule); padding: 2px 0; }
 .help dt { font: 500 12px var(--mono); }
 .help dd { margin: 0; }
+
+.pool-line { display: block; margin-top: 6px; }
+.advanced { margin-top: 8px; font-size: 12px; }
+.advanced summary { cursor: pointer; color: var(--ink-soft); }
+
+.waiting small { max-width: 340px; text-align: center; font: 400 13px var(--body); opacity: 0.85; padding: 0 16px; }
+.waiting .btn { font-size: 13px; }
+
+/* Leaderboard: a scorecard of the most-liked holes. */
+.top-card { width: min(560px, 94vw); max-height: 86vh; display: flex; flex-direction: column; }
+.top-list { list-style: none; margin: 0 0 8px; padding: 0; overflow-y: auto; min-height: 0; }
+.top-list li + li { border-top: 1px dotted var(--rule); }
+.top-row { width: 100%; display: grid; grid-template-columns: 26px 52px 1fr auto 44px; gap: 10px; align-items: center;
+  padding: 6px 4px; background: none; border: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+.top-row:hover { background: rgba(46, 91, 52, 0.08); }
+.top-row img { width: 52px; height: 52px; border-radius: 4px; border: 1px solid var(--rule); object-fit: cover;
+  background: var(--sand); }
+.top-rank { font: 700 20px var(--display); text-align: center; }
+.top-what { display: flex; flex-direction: column; min-width: 0; }
+.top-what small { color: var(--ink-soft); font-size: 12px; }
+.top-votes { font: 500 12px var(--mono); white-space: nowrap; }
+.top-score { font: 700 18px var(--display); text-align: right; color: var(--green); }
 
 .pin-label { display: flex; gap: 4px; align-items: center; font: 500 11px var(--mono); color: #fff; white-space: nowrap;
   background: rgba(20, 28, 16, 0.6); padding: 1px 7px 1px 4px; border-radius: 999px; user-select: none; }

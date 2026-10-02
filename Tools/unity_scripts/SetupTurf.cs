@@ -2,6 +2,7 @@
 //   unity command run_script --file Tools/unity_scripts/SetupTurf.cs --entry SetupTurf.Run
 // Builds the manicured-turf TerrainLayers (green, tee, fairway + darker mowing-stripe variants)
 // from the CC0 turf textures and assigns them to the default Surface Layer Set.
+using GolfSim.Course;
 using UnityEditor;
 using UnityEngine;
 using GolfSim.CourseEditor;
@@ -23,7 +24,7 @@ public static class SetupTurf
         var tee = new Color(0.96f, 1.02f, 0.86f);
         var fairway = new Color(0.88f, 0.93f, 0.74f);
 
-        var set = SurfaceLayerSet.LoadOrCreateDefault();
+        var set = CourseDefaults.Layers();
         Assign(set, "green", Layer("Green", color, normal, mask, 1.5f, green, 0.35f), Layer("GreenStripe", color, normal, mask, 1.5f, green * StripeShade, 0.35f), 1f, 0f);
         Assign(set, "tee", Layer("Tee", color, normal, mask, 2f, tee, 0.25f), null, 0f, 0f);
         Assign(set, "fairway", Layer("Fairway", color, normal, mask, 3f, fairway, 0.2f), Layer("FairwayStripe", color, normal, mask, 3f, fairway * StripeShade, 0.2f), 4f, 90f);

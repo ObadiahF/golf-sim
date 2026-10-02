@@ -3,9 +3,9 @@ import type { Trainer } from '../useTrainer';
 
 const knobLabel = (name: string) => name.replace(/_/g, ' ');
 
-/** Scorecard header: what this hole is, plus the generator controls. */
+/** Scorecard header: what this hole is, skip to the next pool hole, and (advanced) ad-hoc generation. */
 export function HolePanel({ trainer }: { trainer: Trainer }) {
-  const { hole, catalog, preset, setPreset, par, setPar, generate, busy, recent, open } = trainer;
+  const { hole, catalog, preset, setPreset, par, setPar, generate, next, busy, recent, open, pool } = trainer;
   const s = hole?.summary;
   const presetLabel = (name: string) => catalog?.presets.find(p => p.name === name)?.label ?? name;
   const score = s?.modelScore;
@@ -43,20 +43,30 @@ export function HolePanel({ trainer }: { trainer: Trainer }) {
         </>
       )}
       <div className="gen-row">
-        <select value={preset} onChange={e => setPreset(e.target.value)} aria-label="Preset">
-          {catalog?.presets.map(p => <option key={p.name} value={p.name}>{p.label}</option>)}
-        </select>
-        <select value={par ?? ''} onChange={e => setPar(e.target.value ? Number(e.target.value) : null)} aria-label="Par">
-          <option value="">Any par</option>
-          {catalog?.pars.map(p => <option key={p} value={p}>Par {p}</option>)}
-        </select>
-      </div>
-      <div className="gen-row">
-        <button className="btn" disabled={!!busy} onClick={() => generate()}>Generate</button>
-        <button className="btn ghost" disabled={!!busy} onClick={() => generate()} title="Next hole without rating (N)">
+        <button className="btn ghost" disabled={!!busy} onClick={() => next()} title="Next pool hole without rating (N)">
           Skip <kbd>N</kbd>
         </button>
       </div>
+      {pool && (
+        <small className="muted pool-line" title="Shared pool: everyone rates the same batches, in their own order">
+          Batch {pool.batch} · {pool.ready}/{pool.size} ready · you've seen {pool.seen}
+        </small>
+      )}
+      <details className="advanced">
+        <summary>Advanced: generate a specific hole</summary>
+        <div className="gen-row">
+          <select value={preset} onChange={e => setPreset(e.target.value)} aria-label="Preset">
+            {catalog?.presets.map(p => <option key={p.name} value={p.name}>{p.label}</option>)}
+          </select>
+          <select value={par ?? ''} onChange={e => setPar(e.target.value ? Number(e.target.value) : null)} aria-label="Par">
+            <option value="">Any par</option>
+            {catalog?.pars.map(p => <option key={p} value={p}>Par {p}</option>)}
+          </select>
+        </div>
+        <div className="gen-row">
+          <button className="btn" disabled={!!busy} onClick={() => generate()}>Generate</button>
+        </div>
+      </details>
       {recent.length > 1 && (
         <select className="history" value="" aria-label="Recent holes" onChange={e => {
           const h = recent.find(r => r.id === e.target.value);

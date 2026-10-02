@@ -1,8 +1,11 @@
 """JSON API for the course trainer. Thin layer over course_gen (gen_hole / preference / feedback), with
-logins (auth.py) and every vote in Postgres (course_gen's PostgresStore) so several people can train one model."""
+logins (auth.py) and every vote in Postgres (course_gen's PostgresStore) so several people can train one model.
+The shared hole pool (pool.py, filled by pool_worker.py) serves each user holes they have not seen; ranking.py
+ranks holes by everyone's votes; game.py is the read-only, key-protected API for the Unity game."""
 from __future__ import annotations
 
 import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
@@ -13,12 +16,16 @@ from pydantic import BaseModel, Field
 
 import _paths
 import db
+import pool
 from auth import auth_router
 from config import Settings
 from feedback import catalog
-from gen_hole import generate_hole, presets_info, prune_unrated, rate_package, status, train_and_save
+from game import game_router
+from gen_hole import generate_hole, presets_info, prune_unrated, rate_package, status
 from holes import HoleNotFound, HoleStore
 from pg_store import PostgresStore
+from pool_worker import PoolWorker, train_and_log
+from ranking import FORMULA, top_holes
 from rating_store import to_jsonl
 from style import PARAMS, PARS, PRESETS
 from users import User
@@ -39,18 +46,32 @@ class RateRequest(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+def holes_file_url(hole_id: str, name: str) -> str:
+    return f"/api/holes/{hole_id}/{name}"
+
+
 def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> FastAPI:
-    app = FastAPI(title="Course Trainer")
     dsn = settings.database_url
     out_root = Path(settings.holes_dir)
     store = PostgresStore(dsn)
     holes = HoleStore(out_root)
-    generations = threading.BoundedSemaphore(settings.max_generations)  # the rest queue here
+    generations = threading.BoundedSemaphore(settings.max_generations)  # ad hoc + pool; the rest queue here
     prune_lock = threading.Lock()
     train_lock = threading.Lock()  # one retrain at a time (they all write the one model file)
+    worker = PoolWorker(settings, store, generations, train_lock)
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        worker.start()  # first batch if there is none; resumes batches a restart interrupted
+        yield
+        worker.stop()
+
+    app = FastAPI(title="Course Trainer", lifespan=lifespan)
+    app.state.pool = worker
 
     login_routes, current_user = auth_router(settings)
     app.include_router(login_routes)
+    app.include_router(game_router(settings, holes))  # bearer game key, not the session cookie
     api = APIRouter(prefix="/api", dependencies=[Depends(current_user)])  # everything below needs a login
 
     def hole_or_404(fn, *args):
@@ -66,10 +87,11 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
         return {**status(preset, store), "yours": len(store.load(user.name))}
 
     def prune(package: Path) -> list[str]:
-        """Old unrated holes go, except ones anyone voted on or opened / generated within the grace period."""
+        """Old unrated holes go, except pool holes and ones anyone voted on or opened / generated within the grace
+        period."""
         grace = settings.view_grace_hours
         with prune_lock:
-            keep = store.rated_ids() | db.viewed_since(dsn, grace)
+            keep = store.rated_ids() | db.viewed_since(dsn, grace) | pool.hole_ids(dsn)
             return prune_unrated(out_root, settings.keep_unrated, package, keep, grace * 3600)
 
     @app.get("/healthz", include_in_schema=False)
@@ -100,9 +122,10 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
         return summary
 
     @api.get("/holes/{hole_id}/{name}")
-    def package_file(hole_id: str, name: str, user: User = Depends(current_user)):
+    def package_file(hole_id: str, name: str, peek: bool = False, user: User = Depends(current_user)):
+        """`?peek=true` (opening a leaderboard hole) does not count as seeing it."""
         path = hole_or_404(holes.file, hole_id, name)
-        if name == "hole.json":  # the viewer opening this hole: keeps it off the prune list for a while
+        if name == "hole.json" and not peek:  # the viewer opening this hole: seen, and off the prune list a while
             db.touch_view(dsn, user.id, hole_id)
         return FileResponse(path, headers={"Cache-Control": "private, no-cache"})
 
@@ -118,7 +141,7 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
         with generations:
             try:
                 result, _ = generate_hole(req.preset, req.par, req.seed, req.overrides, out_root,
-                                          keep_unrated=None, use_model=req.useModel)
+                                          settings.gen_spacing, keep_unrated=None, use_model=req.useModel)
             except RuntimeError as e:  # no playable layout for these pinned knobs
                 raise HTTPException(422, str(e)) from None
         db.touch_view(dsn, user.id, result["id"])
@@ -132,18 +155,38 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
             entry = rate_package(folder, req.rating, req.comment, req.tags, store, user.name)
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
+        db.touch_view(dsn, user.id, req.id)  # rated = seen (e.g. a peeked leaderboard hole)
         return {"entry": entry, "status": my_status(user, entry["style"]["preset"])}
 
     @api.post("/train")
     def retrain(preset: str | None = None, only: str | None = None, user: User = Depends(current_user)):
         """Retrain from everyone's latest votes, or with `?only=<name>` from one person's."""
-        with train_lock:
-            trained = train_and_save(store, only)
-            if trained is not None:
-                db.log_training(dsn, user.id, only, trained["ratings"], trained)
+        trained = train_and_log(dsn, store, train_lock, user.id, only)
         if trained is None:
             raise HTTPException(409, f"No ratings{f' by {only}' if only else ''} yet: rate some holes first.")
         return my_status(user, preset if preset in PRESETS else None)
+
+    @api.get("/next")
+    def next_hole(user: User = Depends(current_user)):
+        """The next pool hole you have not seen (recorded as seen), newest batch first in your own shuffled order;
+        `state: "generating"` while none is ready yet (poll). Starts the next batch at the refill point."""
+        while (hole_id := pool.serve_next(dsn, user.id)) is not None:
+            try:
+                hole = holes.describe(hole_id, my_votes(user))
+                break
+            except (HoleNotFound, FileNotFoundError):  # deleted by hand: counted as seen, try the next one
+                continue
+        else:
+            hole = None
+        if pool.maybe_refill(dsn, settings.pool_batch_size, settings.pool_refill_at):
+            worker.kick()
+        return {"state": "ready" if hole else "generating", "hole": hole, "pool": pool.progress(dsn, user.id)}
+
+    @api.get("/top")
+    def leaderboard(limit: int = 20, user: User = Depends(current_user)):
+        """Holes ranked by everyone's latest votes (Wilson lower bound, see ranking.py); `rating` is your vote."""
+        ranked = top_holes(dsn, holes, max(1, min(limit, 100)), holes_file_url, my_votes(user))
+        return {"formula": FORMULA, "holes": ranked}
 
     @api.get("/export/votes.jsonl")
     def export(history: bool = False):

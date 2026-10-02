@@ -2,6 +2,7 @@
 //   unity command run_script --file Tools/unity_scripts/GenerateTest.cs --entry GenerateTest.Forest
 // Same path as Golf > Course Generator > Generate Random Hole: Python layout + terrain, then the
 // catalog theme build. Returns what was built.
+using GolfSim.Course;
 using System.IO;
 using GolfSim.CourseEditor;
 using UnityEditor;
@@ -23,7 +24,7 @@ public static class GenerateTest
 
         var pkg = HolePackage.Load($"{folder}/{HolePackage.FileName}");
         var catalog = AssetCatalog.Load();
-        var fallback = new HoleBuildOptions { layers = SurfaceLayerSet.LoadOrCreateDefault(), scatter = ScatterSet.LoadOrCreateDefault(), seed = last.seed };
+        var fallback = new HoleBuildOptions { layers = CourseDefaults.Layers(), scatter = CourseDefaults.Scatter(), seed = last.seed };
         var theme = ThemeResolver.ThemeFor(pkg, catalog);
         var root = ThemeResolver.Build(pkg, theme, catalog, fallback);
         var data = root.GetComponentInChildren<Terrain>().terrainData;

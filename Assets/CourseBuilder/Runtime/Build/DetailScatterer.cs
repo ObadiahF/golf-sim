@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace GolfSim.CourseEditor
+namespace GolfSim.Course
 {
     /// <summary>Paints grass and ground cover as Terrain detail meshes (the only detail type HDRP renders).</summary>
     public static class DetailScatterer

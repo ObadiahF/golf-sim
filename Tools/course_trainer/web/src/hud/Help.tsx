@@ -10,7 +10,8 @@ const CONTROLS: [string, string][] = [
   ['1 / 2', '👍 / 👎'],
   ['F', 'write feedback'],
   ['Enter', 'submit rating & next hole'],
-  ['N', 'skip to a new hole'],
+  ['N', 'skip to the next hole (no rating)'],
+  ['L', 'top holes (leaderboard)'],
   ['H', 'this help'],
 ];
 
@@ -29,7 +30,8 @@ export function Help({ onClose }: { onClose: () => void }) {
         </dl>
         <p className="muted">
           Walk the hole, judge it like a golfer, then rate it. Chips are structured hints (“more trees”) that nudge the
-          matching style knob when the model retrains; your note is stored with the rating.
+          matching style knob when the model retrains; your note is stored with the rating. Holes come from a shared
+          pool: you never see one twice, and the most-liked ones top the leaderboard.
         </p>
       </section>
     </div>

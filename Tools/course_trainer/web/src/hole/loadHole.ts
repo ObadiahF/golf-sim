@@ -22,8 +22,8 @@ export interface HoleData {
   floorAt: (x: number, north: number) => number;
 }
 
-export async function loadHole(summary: HoleSummary): Promise<HoleData> {
-  const pkg = await api.packageJson(summary.id);
+export async function loadHole(summary: HoleSummary, peek = false): Promise<HoleData> {
+  const pkg = await api.packageJson(summary.id, peek);
   if (pkg.version !== 2) throw new Error(`hole.json version ${pkg.version}; this viewer reads version 2`);
   const [raw, objectsBin] = await Promise.all([api.binary(summary.id, pkg.heightmap.file),
                                                api.binary(summary.id, pkg.objects.file)]);

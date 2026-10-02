@@ -35,6 +35,13 @@ export interface Status {
   yours: number;
 }
 
+/** The newest pool batch: `ready` holes generated of `size`, `seen` of them by you. */
+export interface PoolProgress { batch: number; size: number; status: 'generating' | 'ready'; ready: number; seen: number }
+/** /api/next: your next unseen pool hole, or `generating` (poll) while none is ready. */
+export interface NextHole { state: 'ready' | 'generating'; hole: HoleSummary | null; pool: PoolProgress | null }
+/** A leaderboard row: the summary (with your own vote) plus everyone's tallies; score = Wilson lower bound. */
+export interface TopHole extends HoleSummary { rank: number; ups: number; downs: number; score: number; previewUrl: string }
+
 export interface Session { name: string }
 
 /** Fired on any 401: the session expired or was revoked, so the app shows the login screen again. */
@@ -87,10 +94,14 @@ export const api = {
   status: (preset?: string) => request<Status>(`/api/status${preset ? `?preset=${preset}` : ''}`),
   recent: (limit = 20) => request<{ holes: HoleSummary[] }>(`/api/holes?limit=${limit}`).then(r => r.holes),
   generate: (preset: string, par: number | null) => post<HoleSummary>('/api/generate', { preset, par }),
+  next: () => request<NextHole>('/api/next'),
+  top: (limit = 30) => request<{ holes: TopHole[] }>(`/api/top?limit=${limit}`).then(r => r.holes),
   rate: (id: string, rating: Rating, comment: string, tags: string[]) =>
     post<{ status: Status }>('/api/rate', { id, rating, comment, tags }),
   train: (preset?: string) => post<Status>(`/api/train${preset ? `?preset=${preset}` : ''}`),
-  packageJson: (id: string) => request<HolePackage>(holeFileUrl(id, 'hole.json')),
+  /** `peek`: opening a leaderboard hole does not count as having seen it (it can still be served to you). */
+  packageJson: (id: string, peek = false) =>
+    request<HolePackage>(holeFileUrl(id, 'hole.json') + (peek ? '?peek=true' : '')),
   /** A binary package file (heightmap.raw, objects.bin). */
   binary: async (id: string, name: string) => {
     const res = await fetch(holeFileUrl(id, name));

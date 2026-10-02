@@ -35,8 +35,8 @@ namespace GolfSim.CourseEditor
 
         void OnEnable()
         {
-            if (!layers) layers = SurfaceLayerSet.LoadOrCreateDefault();
-            if (!scatter) scatter = ScatterSet.LoadOrCreateDefault();
+            if (!layers) layers = CourseDefaults.Layers();
+            if (!scatter) scatter = CourseDefaults.Scatter();
             catalog = AssetCatalog.Load();
             RefreshPackages();
         }

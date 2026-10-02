@@ -31,7 +31,7 @@
   /* Top bar: the hole card's scoreline only; taste, knobs, history and the minimap stay hidden. */
   .column.left { position: absolute; top: 0; left: 0; right: 0; padding: 6px 8px; }
   .hole-card { padding: 6px 10px; }
-  .hole-card .meta, .hole-card .knobs, .hole-card .history, .hole-card .gen-row:has(select),
+  .hole-card .meta, .hole-card .knobs, .hole-card .history, .hole-card .advanced, .hole-card .pool-line,
   .taste-card, .minimap { display: none; }
   .hole-card .card-head { margin-bottom: 4px; }
   .scoreline strong { font-size: 18px; }
@@ -51,6 +51,13 @@
   .topbar { left: auto; right: 14px; top: 12px; transform: none; }
   .topbar .btn:last-child { display: none; }
   .hole-card { padding-right: 140px; }
+  .topbar { flex-wrap: wrap; justify-content: flex-end; max-width: 130px; }
+
+  /* Leaderboard: a full-width sheet with a compact row. */
+  .top-card { width: 100vw; max-height: 88vh; border-radius: 14px 14px 0 0; align-self: end;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .top-row { grid-template-columns: 22px 44px 1fr auto 34px; gap: 8px; min-height: 52px; }
+  .top-row img { width: 44px; height: 44px; }
   .banner { max-width: calc(100vw - 24px); }
   .click-hint { bottom: calc(var(--sheet) + 12px); max-width: calc(100vw - 24px); }
 }

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace GolfSim.CourseEditor
+namespace GolfSim.Course
 {
     /// <summary>
     /// Builds a regulation cup without cutting the terrain: an invisible disc marks the opening in the
@@ -21,13 +21,11 @@ namespace GolfSim.CourseEditor
         static readonly Color Liner = new Color(0.90f, 0.90f, 0.88f);
         static readonly Color Floor = new Color(0.30f, 0.28f, 0.26f);
 
-        public static void Create(Transform pin, Terrain terrain, string meshFolder)
+        public static void Create(Transform pin, Terrain terrain, HoleAssets assets)
         {
             var rim = RimHeights(pin, terrain);
-            Child(pin, "Cup Mask", GeneratedAssets.SaveFresh($"{meshFolder}/CupMask.asset", MaskMesh(rim)),
-                GeneratedAssets.ShaderMaterial("CupMask", "GolfSim/CupMask"));
-            Child(pin, "Cup", GeneratedAssets.SaveFresh($"{meshFolder}/CupInterior.asset", InteriorMesh(rim)),
-                GeneratedAssets.ShaderMaterial("CupInterior", "GolfSim/CupInterior"));
+            Child(pin, "Cup Mask", assets.PerHole("CupMask.asset", MaskMesh(rim)), assets.ShaderMaterial("CupMask", "GolfSim/CupMask"));
+            Child(pin, "Cup", assets.PerHole("CupInterior.asset", InteriorMesh(rim)), assets.ShaderMaterial("CupInterior", "GolfSim/CupInterior"));
         }
 
         /// <summary>Terrain height around the rim, relative to the pin.</summary>

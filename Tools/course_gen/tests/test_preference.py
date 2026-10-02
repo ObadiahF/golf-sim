@@ -70,3 +70,11 @@ def test_model_round_trips(tmp_path):
     model.save(path)
     loaded = PreferenceModel.load(path)
     assert loaded.n_ratings == 10 and np.allclose(loaded.mean, model.mean)
+
+
+def test_no_preset_picks_among_all_presets():
+    rng = np.random.default_rng(5)
+    assert len({choose_style(None, rng, None)[0].preset for _ in range(60)}) == len(PRESETS)
+    model = train(rate_samples(60))
+    style, score = choose_style(None, np.random.default_rng(6), model)
+    assert style.preset in PRESETS and (score is None or 0 < score < 1)

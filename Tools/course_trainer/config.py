@@ -9,9 +9,14 @@ from pathlib import Path
 
 import _paths  # noqa: F401
 from gen_hole import DEFAULT_OUT
+from generate import DEFAULT_SPACING
 from rating_store import DB_ENV
 
 TRUE = {"1", "true", "yes", "on"}
+
+
+def log(message: str) -> None:
+    print(message, file=sys.stderr, flush=True)  # stdout stays clean for `export` / `top`
 
 
 def _env(name: str, default: str = "") -> str:
@@ -31,6 +36,11 @@ class Settings:
     view_grace_hours: float = 3.0    # a hole opened (or made) this recently is never pruned
     seed_users: str = ""             # "name:password,name:password", created on startup if missing
     legacy_ratings: Path | None = None  # ratings.jsonl imported as the `legacy` user (default: course_gen's)
+    gen_spacing: float = DEFAULT_SPACING  # meters per heightmap sample (tests use a coarse one: fast)
+    pool_batch_size: int = 100       # holes per shared pool batch
+    pool_refill_at: float = 0.5      # next batch starts once someone has seen this share of the newest one
+    pool_autorun: bool = True        # background thread + worker processes fill batches (tests: pool.run_pending())
+    game_key: str = ""               # bearer key for the read-only /api/game routes (empty: disabled)
 
     @classmethod
     def from_env(cls, **overrides) -> "Settings":
@@ -44,6 +54,10 @@ class Settings:
             "keep_unrated": int(_env("TRAINER_KEEP_UNRATED", "40")),
             "view_grace_hours": float(_env("TRAINER_VIEW_GRACE_HOURS", "3")),
             "seed_users": _env("TRAINER_SEED_USERS"),
+            "gen_spacing": float(_env("TRAINER_GEN_SPACING", str(DEFAULT_SPACING))),
+            "pool_batch_size": int(_env("TRAINER_POOL_BATCH_SIZE", "100")),
+            "pool_refill_at": float(_env("TRAINER_POOL_REFILL_AT", "0.5")),
+            "game_key": _env("TRAINER_GAME_KEY"),
         }
         if _env("TRAINER_SESSION_SECRET"):
             values["session_secret"] = _env("TRAINER_SESSION_SECRET")

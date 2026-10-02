@@ -6,6 +6,7 @@
   python server.py adduser NAME [--password PW]   (prompts when no --password)
   python server.py passwd NAME [--password PW]
   python server.py export [--history] > votes.jsonl
+  python server.py top [--limit 9] [--export DIR]   leaderboard; --export copies the top packages to DIR
 
 Needs TRAINER_DATABASE_URL (Postgres); other settings come from TRAINER_* variables (see .env.example).
 Serves the JSON API under /api and the built web UI (web/dist) at /. For UI development run `npm run dev`
@@ -16,6 +17,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import os
+import shutil
 import sys
 import threading
 import webbrowser
@@ -24,13 +26,11 @@ from pathlib import Path
 import _paths
 import db
 import users
-from config import Settings
+from config import Settings, log
+from holes import PACKAGE_FILES, HoleStore
 from pg_store import PostgresStore
+from ranking import FORMULA, top_holes
 from rating_store import to_jsonl
-
-
-def log(message: str) -> None:
-    print(message, file=sys.stderr, flush=True)  # stdout stays clean for `export`
 
 
 def setup(settings: Settings) -> None:
@@ -100,6 +100,28 @@ def cmd_export(args, settings: Settings):
     sys.stdout.write(to_jsonl(PostgresStore(settings.database_url).export(args.history)))
 
 
+def cmd_top(args, settings: Settings):
+    """Print the leaderboard; with --export copy each top hole's package files (the contract files only) to DIR/<id>/."""
+    holes = HoleStore(Path(settings.holes_dir))
+    ranked = top_holes(settings.database_url, holes, args.limit, lambda hole_id, name: name)
+    print(f"{'#':>2}  {'score':>5}  {'up':>3} {'down':>4}  {'preset':9} par  {'yards':>5}  id   ({FORMULA})")
+    for h in ranked:
+        print(f"{h['rank']:>2}  {h['score']:5.3f}  {h['ups']:>3} {h['downs']:>4}  {h['preset']:9} {h['par']:>3}"
+              f"  {round(h['lengthMeters'] * 1.09361):>5}  {h['id']}")
+    if not ranked:
+        log("No voted holes on disk yet.")
+    if args.export:
+        out = Path(args.export)
+        for h in ranked:
+            dest = out / h["id"]
+            dest.mkdir(parents=True, exist_ok=True)
+            for name in sorted(PACKAGE_FILES):
+                src = holes.folder(h["id"]) / name
+                if src.is_file():
+                    shutil.copy2(src, dest / name)
+        log(f"Exported {len(ranked)} hole package(s) to {out.resolve()}")
+
+
 def main(argv: list[str] | None = None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--host", default=os.environ.get("TRAINER_HOST", "127.0.0.1"))
@@ -118,6 +140,10 @@ def main(argv: list[str] | None = None):
     e = sub.add_parser("export", help="print votes as ratings.jsonl lines (+ user) to stdout")
     e.add_argument("--history", action="store_true", help="every vote ever, not just each person's latest")
     e.set_defaults(func=cmd_export)
+    t = sub.add_parser("top", help="print the leaderboard (everyone's latest votes, best first)")
+    t.add_argument("--limit", type=int, default=9)
+    t.add_argument("--export", metavar="DIR", help="copy the top holes' package folders (contract files) here")
+    t.set_defaults(func=cmd_top)
 
     args = p.parse_args(argv)
     settings = Settings.from_env(**({"holes_dir": Path(args.out)} if args.out else {}))

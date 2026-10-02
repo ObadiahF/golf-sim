@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace GolfSim.CourseEditor
+namespace GolfSim.Course
 {
     /// <summary>Scanline polygon fill and blur for square masks indexed [z, x].</summary>
     public static class PolygonRasterizer

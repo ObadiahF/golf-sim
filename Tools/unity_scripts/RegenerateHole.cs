@@ -33,7 +33,7 @@ public static class RegenerateHole
     {
         var pkg = HolePackage.Load(packagePath);
         var catalog = AssetCatalog.Load();
-        var fallback = new HoleBuildOptions { layers = SurfaceLayerSet.LoadOrCreateDefault(), scatter = ScatterSet.LoadOrCreateDefault() };
+        var fallback = new HoleBuildOptions { layers = CourseDefaults.Layers(), scatter = CourseDefaults.Scatter() };
         return ThemeResolver.Build(pkg, ThemeResolver.ThemeFor(pkg, catalog), catalog, fallback);
     }
 }

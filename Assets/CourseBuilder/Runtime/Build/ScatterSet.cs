@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace GolfSim.CourseEditor
+namespace GolfSim.Course
 {
     /// <summary>
     /// Which models represent each object kind in a hole's objects.bin (trees, shrubs, rocks), plus ground
@@ -64,9 +64,6 @@ namespace GolfSim.CourseEditor
 
         [Tooltip("Surfaces no ground cover grows on.")]
         public string[] keepClear = { "fairway", "tee", "green", "bunker", "water" };
-
-        public static ScatterSet LoadOrCreateDefault() =>
-            GeneratedAssets.LoadOrCreate(DefaultPath, CreateInstance<ScatterSet>);
 
         /// <summary>Models for a kind, borrowing from related kinds when it has none (e.g. no palms: deciduous).</summary>
         public List<Prototype> PrototypesFor(ObjectKind kind)

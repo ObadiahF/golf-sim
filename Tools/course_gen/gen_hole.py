@@ -76,11 +76,12 @@ def cmd_presets(args):
         print(f"{p.name:10} {p.label:15} theme={p.theme}")
 
 
-def generate_hole(preset: str, par: int | None = None, seed: int | None = None, overrides: dict | None = None,
+def generate_hole(preset: str | None, par: int | None = None, seed: int | None = None, overrides: dict | None = None,
                   out_root: Path = DEFAULT_OUT, spacing: float = DEFAULT_SPACING,
                   keep_unrated: int | None = KEEP_UNRATED, use_model: bool = True) -> tuple[dict, list[str]]:
     """Generate one package (steered by the learned taste) and prune old unrated ones (`keep_unrated=None`:
-    the caller prunes). Returns (result, pruned ids); `result` is the JSON line the CLI prints for Unity."""
+    the caller prunes). `preset=None` lets the model choose among all presets (preference.choose_style).
+    Returns (result, pruned ids); `result` is the JSON line the CLI prints for Unity."""
     seed = seed if seed is not None else random.randrange(1_000_000)
     rng = np.random.default_rng(seed)
     model = PreferenceModel.load() if use_model else None

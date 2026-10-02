@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using UnityEngine;
 
-namespace GolfSim.CourseEditor
+namespace GolfSim.Course
 {
     /// <summary>Object kinds in objects.bin. Append-only: values match Tools/course_prep/objects_bin.py.</summary>
     public enum ObjectKind : byte { Conifer, Deciduous, Palm, Cactus, Shrub, Boulder, Rock }

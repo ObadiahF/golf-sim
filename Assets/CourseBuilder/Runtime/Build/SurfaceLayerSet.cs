@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using UnityEditor;
 using UnityEngine;
 
-namespace GolfSim.CourseEditor
+namespace GolfSim.Course
 {
     /// <summary>
     /// Maps surface names from hole.json to TerrainLayers. Entry order is paint priority:
@@ -56,11 +54,8 @@ namespace GolfSim.CourseEditor
             new Entry { surface = "water",   placeholderColor = new Color(0.16f, 0.32f, 0.48f) },
         };
 
-        public static SurfaceLayerSet LoadOrCreateDefault() =>
-            GeneratedAssets.LoadOrCreate(DefaultPath, CreateInstance<SurfaceLayerSet>);
-
-        /// <summary>Adds surfaces introduced since this set was created, each after its default predecessor.</summary>
-        public void AddMissingDefaults()
+        /// <summary>Adds surfaces introduced since this set was created, each after its default predecessor. Returns true if any were added.</summary>
+        public bool AddMissingDefaults()
         {
             var defaults = DefaultEntries();
             bool changed = false;
@@ -71,7 +66,7 @@ namespace GolfSim.CourseEditor
                 entries.Insert(after + 1, defaults[i]);
                 changed = true;
             }
-            if (changed) EditorUtility.SetDirty(this);
+            return changed;
         }
 
         public int IndexOf(string surface) => entries.FindIndex(e => e.surface == surface);
@@ -112,44 +107,7 @@ namespace GolfSim.CourseEditor
             surface.EndsWith(StripeSuffix) ? surface.Substring(0, surface.Length - StripeSuffix.Length) : surface;
 
         /// <summary>The configured layer per entry, creating placeholder layers where none is assigned.</summary>
-        public TerrainLayer[] ResolveLayers() => entries.ConvertAll(e => e.layer ? e.layer : Placeholder(e)).ToArray();
-
-        static TerrainLayer Placeholder(Entry entry)
-        {
-            string folder = $"{GeneratedAssets.Root}/Placeholders";
-            string colorKey = ColorUtility.ToHtmlStringRGB(entry.placeholderColor);
-            string texPath = $"{folder}/{entry.surface}_{colorKey}.png";
-
-            return GeneratedAssets.LoadOrCreate($"{folder}/{entry.surface}_{colorKey}.terrainlayer", () => new TerrainLayer
-            {
-                diffuseTexture = NoiseTexture(texPath, entry.placeholderColor),
-                tileSize = Vector2.one * PlaceholderTileSize,
-            });
-        }
-
-        /// <summary>Solid colour with slight per-pixel brightness noise so slopes still read in the viewport.</summary>
-        static Texture2D NoiseTexture(string assetPath, Color color)
-        {
-            const int size = 64;
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-            var rng = new System.Random(assetPath.GetHashCode());
-            var pixels = new Color[size * size];
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                float k = 0.92f + 0.16f * (float)rng.NextDouble();
-                pixels[i] = new Color(color.r * k, color.g * k, color.b * k, 1f);
-            }
-            tex.SetPixels(pixels);
-
-            GeneratedAssets.EnsureFolder(Path.GetDirectoryName(assetPath)?.Replace('\\', '/'));
-            File.WriteAllBytes(assetPath, tex.EncodeToPNG());
-            UnityEngine.Object.DestroyImmediate(tex);
-            AssetDatabase.ImportAsset(assetPath);
-
-            var importer = (TextureImporter)AssetImporter.GetAtPath(assetPath);
-            importer.wrapMode = TextureWrapMode.Repeat;
-            importer.SaveAndReimport();
-            return AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
-        }
+        public TerrainLayer[] ResolveLayers(HoleAssets assets) =>
+            entries.ConvertAll(e => e.layer ? e.layer : assets.PlaceholderLayer(e.surface, e.placeholderColor, PlaceholderTileSize)).ToArray();
     }
 }

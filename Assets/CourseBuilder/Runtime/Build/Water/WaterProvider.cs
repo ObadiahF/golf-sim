@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace GolfSim.CourseEditor
+namespace GolfSim.Course
 {
     /// <summary>
     /// Builds the water bodies of a hole. Swap the implementation per theme to change water tech:
@@ -11,6 +11,6 @@ namespace GolfSim.CourseEditor
     {
         /// <param name="parent">The hole root; place water in its local space (x east, z north, meters).</param>
         /// <param name="pkg">Each pkg.water body has a surface level and a triangulated outline.</param>
-        public abstract void Build(Transform parent, HolePackage pkg);
+        public abstract void Build(Transform parent, HolePackage pkg, HoleAssets assets);
     }
 }

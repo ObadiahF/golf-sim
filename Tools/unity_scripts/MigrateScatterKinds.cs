@@ -3,6 +3,7 @@
 // Hole format v2 moved tree/rock placement into the hole package: ScatterSets and themes now only say which
 // models represent each object kind. Sets kinds on the default ScatterSet's old rules (by their old names),
 // adds the missing kinds, and resets every theme's scatter slots to DefaultThemes.KindQueries.
+using GolfSim.Course;
 using System.Linq;
 using GolfSim.CourseEditor;
 using UnityEditor;
@@ -11,7 +12,7 @@ public static class MigrateScatterKinds
 {
     public static string Run()
     {
-        var scatter = ScatterSet.LoadOrCreateDefault();
+        var scatter = CourseDefaults.Scatter();
         var byOldName = new System.Collections.Generic.Dictionary<string, ObjectKind>
         {
             ["Woods"] = ObjectKind.Conifer, ["Native trees"] = ObjectKind.Deciduous, ["Shrubs"] = ObjectKind.Shrub,

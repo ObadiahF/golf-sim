@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import _paths  # noqa: E402,F401
 import preference  # noqa: E402
 
-TABLES = "users, votes, hole_views, training_runs"
+TABLES = "users, votes, hole_views, training_runs, batches, pool_holes"
 PASSWORDS = {"obi": "pw-obi", "sam": "pw-sam"}
 
 
@@ -45,7 +45,8 @@ def clean_db(dsn, tmp_path, monkeypatch):
 
 @pytest.fixture
 def make_client(clean_db, tmp_path):
-    """make_client(**settings) -> (TestClient, Settings); users obi and sam exist."""
+    """make_client(**settings) -> (TestClient, Settings); users obi and sam exist. Generation is coarse (fast) and
+    the pool has no background worker: tests fill it with `client.app.state.pool.run_pending()`."""
     from fastapi.testclient import TestClient
 
     import users
@@ -60,7 +61,8 @@ def make_client(clean_db, tmp_path):
 
     def make(**overrides):
         settings = Settings(**{"database_url": clean_db, "session_secret": "test-secret",
-                               "holes_dir": tmp_path / "holes", **overrides})
+                               "holes_dir": tmp_path / "holes", "gen_spacing": 3.0, "pool_batch_size": 4,
+                               "pool_autorun": False, **overrides})
         return TestClient(create_app(settings, dist)), settings
     return make
 
@@ -81,3 +83,17 @@ def generate(client, **body):
     r = client.post("/api/generate", json={"preset": "links", "seed": 3, **body})
     assert r.status_code == 200, r.text
     return r.json()
+
+
+def next_hole(client):
+    r = client.get("/api/next")
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def fill_pool(client) -> list[str]:
+    """Generate every batch still filling (what the background worker does); returns all pool hole ids."""
+    import pool
+    worker = client.app.state.pool
+    worker.run_pending()
+    return sorted(pool.hole_ids(worker.dsn))

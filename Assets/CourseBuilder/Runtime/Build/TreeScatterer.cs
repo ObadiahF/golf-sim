@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace GolfSim.CourseEditor
+namespace GolfSim.Course
 {
     /// <summary>
     /// Places the package's objects.bin (every tree, shrub and rock) as Terrain tree instances, exactly where

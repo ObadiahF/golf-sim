@@ -183,18 +183,20 @@ def train(ratings: list[dict], iterations: int = 30) -> PreferenceModel:
     return PreferenceModel(w, (cov + cov.T) / 2, len(ratings), counts)
 
 
-def choose_style(preset_name: str, rng: np.random.Generator, model: PreferenceModel | None,
+def choose_style(preset_name: str | None, rng: np.random.Generator, model: PreferenceModel | None,
                  adjust=None) -> tuple[Style, float | None]:
     """Sample candidate styles from the preset and pick one by Thompson sampling.
 
-    `adjust(style)` applies user overrides (sliders) to every candidate before scoring.
-    Returns the style and the model's predicted like-probability (None when the model was not used).
+    `preset_name=None`: candidates come from every preset (round robin), so the model picks the preset too and
+    exploring picks one at random. `adjust(style)` applies user overrides (sliders) to every candidate before
+    scoring. Returns the style and the model's predicted like-probability (None when the model was not used).
     """
-    preset = PRESETS[preset_name]
+    presets = [PRESETS[preset_name]] if preset_name else list(PRESETS.values())
     adjust = adjust or (lambda s: s)
     if model is None or model.n_ratings == 0 or rng.random() < EXPLORE:
+        preset = presets[int(rng.integers(len(presets)))] if len(presets) > 1 else presets[0]
         return adjust(preset.sample(rng)), None
-    candidates = [adjust(preset.sample(rng)) for _ in range(CANDIDATES)]
+    candidates = [adjust(presets[i % len(presets)].sample(rng)) for i in range(CANDIDATES)]
     w = model.draw(rng)
     best = max(candidates, key=lambda s: features(s) @ w)
     return best, model.probability(best)

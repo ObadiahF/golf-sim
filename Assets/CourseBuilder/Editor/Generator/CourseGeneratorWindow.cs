@@ -1,4 +1,6 @@
+using GolfSim.Course;
 using System;
+using GolfSim.Course;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -174,8 +176,8 @@ namespace GolfSim.CourseEditor
             var catalog = AssetCatalog.Load();
             var fallback = new HoleBuildOptions
             {
-                layers = SurfaceLayerSet.LoadOrCreateDefault(),
-                scatter = scatterEnabled ? ScatterSet.LoadOrCreateDefault() : null,
+                layers = CourseDefaults.Layers(),
+                scatter = scatterEnabled ? CourseDefaults.Scatter() : null,
                 seed = last.seed,
             };
             ThemeResolver.Build(pkg, ThemeResolver.ThemeFor(pkg, catalog), catalog, fallback);

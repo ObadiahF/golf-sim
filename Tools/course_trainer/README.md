@@ -1,9 +1,11 @@
 # course_trainer
 
 A browser front end for training `course_gen`'s taste model, shared by several people. Log in, walk around
-each generated hole in 3D (Minecraft creative-mode controls), rate it 👍 / 👎, add quick-feedback chips and a
-note, and the next hole generates automatically. Every vote lands in Postgres with the voter's name and a
-snapshot of the hole's style, so the model can learn from everyone's votes (or one person's).
+each hole in 3D (Minecraft creative-mode controls), rate it 👍 / 👎, add quick-feedback chips and a note, and
+the next hole from the **shared pool** appears: you never see a hole twice, and friends rate the same holes
+in different orders. Every vote lands in Postgres with the voter's name and a snapshot of the hole's style, so
+the model learns from everyone's votes, the **Top holes** leaderboard ranks them, and the Unity game downloads
+the most-liked ones through a read-only **Game API**.
 
 Live at **https://golf-trainer.obadiahfusco.xyz** (homelab, Docker Compose, Cloudflare Tunnel).
 
@@ -18,6 +20,17 @@ cp .env.example .env        # set POSTGRES_PASSWORD and TRAINER_SESSION_SECRET (
 docker compose up --build -d
 docker compose ps           # db and trainer should turn (healthy)
 ```
+
+**Update** an existing deployment (on the server):
+
+```sh
+cd Golf-sim/Tools/course_trainer
+git pull && docker compose up --build -d   # migrations (migrations/*.sql) apply on start; volumes are kept
+docker compose logs -f trainer             # "applied migration 002_pool.sql", "pool: started batch 1 (100 holes)"
+```
+
+New settings since the first deploy (add to `.env`): `TRAINER_MAX_GENERATIONS=8`, `TRAINER_GAME_KEY=$(openssl
+rand -hex 24)`, optionally `TRAINER_POOL_BATCH_SIZE` / `TRAINER_POOL_REFILL_AT`.
 
 The compose file builds from the repo root (the image needs `Tools/course_gen`, `Tools/course_prep`,
 `Tools/course_trainer` and `Docs/hole-format`; `Dockerfile.dockerignore` sends only those). Services:
@@ -55,9 +68,9 @@ ingress:
 
 (If cloudflared runs in Docker on the same host, use `http://host.docker.internal:8765` or attach it to the
 `course-trainer_default` network and use `http://trainer:8765`, with `TRAINER_BIND=0.0.0.0`.) Nothing depends
-on the request scheme, so the `http` hop behind Cloudflare is fine. Cloudflare cuts requests after 100 s;
-generating a hole takes 1-10 s (queued behind `TRAINER_MAX_GENERATIONS` others). Keep any future long job
-(batch generation) asynchronous rather than one long request.
+on the request scheme, so the `http` hop behind Cloudflare is fine. Cloudflare cuts requests after 100 s, so
+pool batches generate in a background worker, never in a request; an ad-hoc Generate takes 1-10 s (queued
+behind `TRAINER_MAX_GENERATIONS` others).
 
 ### Users
 
@@ -95,10 +108,114 @@ Or snapshot the `course-trainer_db` volume with the stack stopped. `docker compo
 | `TRAINER_TRUST_PROXY` | `false` | client IP from `CF-Connecting-IP` / `X-Forwarded-For` |
 | `TRAINER_PORT`, `TRAINER_BIND` | `8765`, `0.0.0.0` | published port and interface |
 | `TRAINER_SEED_USERS` | | `name:pw,name:pw` |
-| `TRAINER_MAX_GENERATIONS` | `2` | concurrent generations; the rest queue |
+| `TRAINER_MAX_GENERATIONS` | `2` | concurrent generations (pool worker processes + ad-hoc Generate); the rest queue. `8` on the R730xd |
+| `TRAINER_POOL_BATCH_SIZE` | `100` | holes per pool batch |
+| `TRAINER_POOL_REFILL_AT` | `0.5` | the next batch starts once anyone has seen this share of the newest batch |
+| `TRAINER_GAME_KEY` | | bearer key for the Game API (`openssl rand -hex 24`); empty: Game API off |
+| `TRAINER_GEN_SPACING` | `0.75` | meters per heightmap sample (bigger: faster, coarser; tests use 3) |
 | `TRAINER_KEEP_UNRATED` | `40` | unrated holes kept on disk |
 | `TRAINER_VIEW_GRACE_HOURS` | `3` | holes opened or made this recently are never pruned |
 | `TRAINER_SESSION_DAYS` | `30` | |
+
+## Hole pool
+
+Everyone rates holes from one shared pool (`pool.py`, filled by `pool_worker.py`):
+
+1. **Batches.** A batch retrains the model on everyone's latest votes (if there are any; recorded as
+   `batches.trained_on_votes` and in `training_runs`), then generates `TRAINER_POOL_BATCH_SIZE` holes. Each hole
+   has a fixed seed per (batch, position) and lets the model pick preset and style (`choose_style` across all
+   presets, Thompson sampling), so each batch leans toward what people liked while still exploring (10% of holes
+   ignore the model, and the posterior draw varies per hole).
+2. **In the background.** A worker thread fills batches with up to `TRAINER_MAX_GENERATIONS` holes at a time in
+   worker processes, sharing the generation semaphore with ad-hoc Generate. Holes join `pool_holes` as they
+   finish, so people can start while the batch is still generating. A restart resumes unfinished batches.
+3. **Startup.** If there is no batch yet, the first one starts. Batch creation holds a Postgres advisory lock
+   and only ever compares against the newest batch, so it is idempotent and race-safe.
+4. **Serving** (`GET /api/next`): the next pool hole you have not seen (shown, rated or skipped; ad-hoc holes and
+   opened links count too), newest batch first, in your own shuffled order (`md5(hole id : user id)`), so
+   friends start on different holes and the leaderboard gets broad coverage. It is recorded as seen right away.
+   Nothing unseen ready yet: `state: "generating"` and the UI shows "Generating new holes… N of M ready" and
+   polls every 3 s.
+5. **Refill.** When anyone has seen `TRAINER_POOL_REFILL_AT` (50%) of the newest batch, the next batch starts:
+   once per batch. While it generates, unseen holes from older batches are served.
+6. Pool holes are **never pruned**. **Submit** and **Skip** (N) both go to the next pool hole. The old ad-hoc
+   Generate (preset / par) is under "Advanced" on the hole card.
+
+### Leaderboard (Top holes)
+
+`GET /api/top?limit=20` and the **Top holes** button (L) rank every voted hole still on disk by everyone's
+latest vote per hole. Score = the **Wilson score lower bound** (95%, z = 1.96) of the like share:
+
+```
+n = up + down,  p = up / n
+score = (p + z²/2n − z·sqrt(p(1−p)/n + z²/4n²)) / (1 + z²/n)        (0 when n = 0)
+```
+
+That is the like share the hole has at least, given how few votes it has: 1 👍 0 👎 scores 0.21, 2 👍 0.34,
+4 👍 1 👎 0.38, 9 👍 1 👎 0.60, so one lucky like never beats a hole many people liked (the raw ratio would rank
+1/1 = 100% first). Ties: more likes, then id. Opening a leaderboard hole (`hole.json?peek=true`) does not mark
+it seen, so it can still be served to you later; rating it does.
+
+### Game API
+
+Read-only, for the Unity game to download and build the top holes at runtime. Every request needs
+`Authorization: Bearer <TRAINER_GAME_KEY>` (compared in constant time); without the right key: 401; with
+`TRAINER_GAME_KEY` unset: 404. The key opens only these two routes; everything else still needs a login
+session. URLs in responses are paths: prefix them with the base URL.
+
+```sh
+KEY=...   # TRAINER_GAME_KEY from .env
+curl -H "Authorization: Bearer $KEY" https://golf-trainer.obadiahfusco.xyz/api/game/top-holes?limit=9
+curl -H "Authorization: Bearer $KEY" -O https://golf-trainer.obadiahfusco.xyz/api/game/holes/<id>/hole.json
+```
+
+`GET /api/game/top-holes?limit=9` (1-100, default 9), best first:
+
+```json
+{
+  "formula": "wilson-95",
+  "holes": [
+    {
+      "rank": 1,
+      "id": "lakes_10755824_2eca01",
+      "preset": "lakes",
+      "theme": "lakes",
+      "par": 3,
+      "lengthMeters": 187.7,
+      "ups": 2,
+      "downs": 0,
+      "score": 0.3424,
+      "previewUrl": "/api/game/holes/lakes_10755824_2eca01/preview.png",
+      "files": {
+        "gen.json": "/api/game/holes/lakes_10755824_2eca01/gen.json",
+        "heightmap.raw": "/api/game/holes/lakes_10755824_2eca01/heightmap.raw",
+        "hole.json": "/api/game/holes/lakes_10755824_2eca01/hole.json",
+        "objects.bin": "/api/game/holes/lakes_10755824_2eca01/objects.bin",
+        "preview.png": "/api/game/holes/lakes_10755824_2eca01/preview.png"
+      }
+    }
+  ]
+}
+```
+
+`GET /api/game/holes/{id}/{file}`, file one of `hole.json`, `heightmap.raw`, `objects.bin`, `gen.json`,
+`preview.png`: the package file as stored ([`Docs/hole-format`](../../Docs/hole-format/README.md), v2).
+Save them as `<dir>/<id>/<file>` and the folder is a normal hole package for the Course Builder. Packages are
+immutable, so responses carry `Cache-Control: private, max-age=86400, immutable` (private: Cloudflare never
+caches a keyed response for others). 404 for unknown holes or other file names.
+
+### `top` command (fallback for the game)
+
+```sh
+docker compose run --rm -T trainer top --limit 9                    # print the leaderboard
+mkdir -p ~/top-holes
+docker compose run --rm -T -v ~/top-holes:/export --user "$(id -u):$(id -g)" \
+  trainer top --limit 9 --export /export                             # + copy the top 9 packages
+```
+
+`--export DIR` copies each top hole's contract files (the five above, no Unity artefacts) to `DIR/<id>/`; copy
+those folders into Unity's `Assets/CourseData/Saved/`. (`--user`: so the files belong to you, not the image's
+`trainer` user.)
 
 ## Votes, training and fine-tuning
 
@@ -149,7 +266,7 @@ Unity's `Assets/CourseData/generated/` (override with `--out` or `TRAINER_HOLES_
 never need Postgres: without `TRAINER_DATABASE_URL` they use `data/ratings.jsonl` as before.
 
 Server commands: `server.py [--port 8765] [--host 127.0.0.1] [--out DIR] [--open]`, `seed`,
-`adduser NAME`, `passwd NAME`, `export [--history]`.
+`adduser NAME`, `passwd NAME`, `export [--history]`, `top [--limit 9] [--export DIR]`.
 
 ### UI development
 
@@ -184,8 +301,9 @@ cd Tools/course_trainer && TRAINER_TEST_DATABASE_URL=postgresql://trainer:traine
 | T / G / O | teleport to the tee · the green approach · an overhead view |
 | 1 / 2 | 👍 / 👎 |
 | F | jump to the feedback box (typing never moves you or triggers hotkeys) |
-| Enter (Ctrl/⌘+Enter in the box) | submit and generate the next hole |
-| N | skip: new hole without rating |
+| Enter (Ctrl/⌘+Enter in the box) | submit and go to the next pool hole |
+| N | skip: next pool hole without rating |
+| L | Top holes (leaderboard) |
 | H | controls overlay |
 
 You start hovering behind the tee, looking down the hole. The camera never goes below the terrain
@@ -197,25 +315,30 @@ captured the page asks before unloading.
 ```
 course_trainer/
   run.sh            local launcher (Postgres from compose)
-  server.py         CLI: serve (migrate + seed first), seed, adduser, passwd, export
-  api.py            FastAPI app (create_app): thin layer over course_gen; generation semaphore, pruning
+  server.py         CLI: serve (migrate + seed first), seed, adduser, passwd, export, top
+  api.py            FastAPI app (create_app): thin layer over course_gen; generation semaphore, pruning, /next, /top
+  pool.py           shared pool in Postgres: batches, serving unseen holes, refill trigger (advisory lock)
+  pool_worker.py    background batch filler: retrain, then generate in worker processes
+  ranking.py        leaderboard: Wilson lower bound over latest_votes
+  game.py           read-only Game API behind TRAINER_GAME_KEY
   auth.py           signed session cookie, login / logout / me, login throttle, client IP behind a proxy
   users.py          scrypt password hashes, accounts, seed (users + legacy ratings.jsonl import)
   db.py             migrations runner, hole views (recent holes, prune protection), training log
   config.py         Settings from TRAINER_* environment variables
   holes.py          hole packages on disk: safe lookup, per-hole summary
-  migrations/       001_init.sql (users, votes + latest_votes view, hole_views, training_runs)
+  migrations/       001_init.sql (users, votes + latest_votes view, hole_views, training_runs),
+                    002_pool.sql (batches, pool_holes)
   Dockerfile, Dockerfile.dockerignore, docker-compose.yml, .env.example, requirements.txt
-  tests/            test_api, test_auth, test_votes (+ conftest: throwaway database)
+  tests/            test_api, test_auth, test_votes, test_pool, test_ranking (+ conftest: throwaway database)
   web/              Vite + React + TypeScript + three.js (@react-three/fiber, drei)
     src/App.tsx             login gate -> TrainerView (3D scene + HUD)
     src/Login.tsx, src/useSession.ts   login card; session state (any 401 shows the login again)
     src/api.ts              typed API client + hole.json types
-    src/useTrainer.ts       app state: load / generate / rate / retrain
+    src/useTrainer.ts       app state: next pool hole (polls while generating) / generate / rate / retrain
     src/hole/               package decoding (heightmap, objects.bin, surfaces, theme, views)
     src/scene/              HoleScene, Terrain, Trees, Water, Markers
     src/controls/           Player state, PlayerController (pointer lock, fly / walk), TouchControls
-    src/hud/                HolePanel, RatePanel, TastePanel, Minimap, Help, Hud (user name + log out)
+    src/hud/                HolePanel, RatePanel, TastePanel, TopPanel (leaderboard), Minimap, Help, Hud
 ```
 
 Everything is reused from `course_gen` rather than re-implemented: `gen_hole.generate_hole` (style sampling
@@ -223,9 +346,9 @@ with Thompson sampling, writing), `gen_hole.prune_unrated`, `gen_hole.rate_packa
 `gen_hole.status` (all take a rating store), `feedback.catalog`. The Unity window keeps calling `gen_hole.py`
 exactly as before.
 
-Multi-user: at most `TRAINER_MAX_GENERATIONS` generations run at once (the rest wait), one retrain at a time.
-Pruning (keep `TRAINER_KEEP_UNRATED` unrated holes) never deletes a hole anyone voted on, or that anyone opened
-or generated within `TRAINER_VIEW_GRACE_HOURS`. "Recent holes" are per user (`hole_views`); a shared `?hole=`
+Multi-user: at most `TRAINER_MAX_GENERATIONS` generations run at once (pool and ad hoc; the rest wait), one
+retrain at a time. Pruning (keep `TRAINER_KEEP_UNRATED` unrated holes) never deletes a pool hole, a hole anyone
+voted on, or one anyone opened or generated within `TRAINER_VIEW_GRACE_HOURS`. "Recent holes" are per user (`hole_views`); a shared `?hole=`
 link opens someone else's hole and adds it to your list.
 
 Coordinates: package `x` = east, `z` = north (metres from the SW corner); three.js uses `X = x`,
@@ -233,7 +356,8 @@ Coordinates: package `x` = east, `z` = north (metres from the SW corner); three.
 
 ## API
 
-All `/api` routes except `login` / `logout` need the session cookie (401 otherwise). `/healthz` is public.
+All `/api` routes except `login` / `logout` and the [Game API](#game-api) (`/api/game/*`, bearer key) need the
+session cookie (401 otherwise). `/healthz` is public.
 
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
@@ -244,7 +368,9 @@ All `/api` routes except `login` / `logout` need the session cookie (401 otherwi
 | GET | `/api/status` | `?preset=` | `{ratings, up, yours, trainedOn, preset, likes, dislikes}` (ratings = everyone's) |
 | GET | `/api/holes` | `?limit=20` | `{holes: [summary]}`: your holes, most recently opened first |
 | GET | `/api/holes/{id}` | | summary: `id, preset, theme, par, seed, params, modelScore, lengthMeters, created, rating` (your vote) |
-| GET | `/api/holes/{id}/{file}` | `hole.json`, `heightmap.raw`, `objects.bin`, `gen.json`, `preview.png` | package file |
+| GET | `/api/holes/{id}/{file}` | `hole.json`, `heightmap.raw`, `objects.bin`, `gen.json`, `preview.png`; `?peek=true` | package file (opening `hole.json` marks the hole seen unless `peek`) |
+| GET | `/api/next` | | `{state: "ready"\|"generating", hole: summary\|null, pool: {batch, size, status, ready, seen}}`; marks the hole seen |
+| GET | `/api/top` | `?limit=20` | `{formula, holes: [summary + rank, ups, downs, score, previewUrl, files]}` |
 | POST | `/api/generate` | `{preset, par?, seed?, overrides?: {knob: 0..1}, useModel?: true}` | summary + `attempts`, `pruned` |
 | POST | `/api/rate` | `{id, rating: "up"\|"down", comment?, tags?: [chip id]}` | `{entry, status}` |
 | POST | `/api/train` | `?preset=&only=<user>` | status (409 when there are no ratings) |
