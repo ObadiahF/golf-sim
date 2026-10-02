@@ -42,7 +42,7 @@ Set in the shell or a `.env` file next to `docker-compose.yml`.
 
 | Env var | Default | Meaning |
 |---------|---------|---------|
-| `GOLF_API_TOKEN` | `golf-sim-dev-token` | shared token for the app and the sim (REST `Authorization: Bearer`, WS `?token=`) |
+| `GOLF_API_TOKEN` | `golf-sim-dev-token` | shared token for the app and the sim (REST `Authorization: Bearer`, WS `?token=`). The default is public: on a public server set a random one in `.env` (gitignored) and put the same value in the sim's and app's `ServerToken.txt` |
 | `PORT` | `8080` | host port published by compose |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` | `golf` / `golf` | database credentials (used by postgres, the app and the tests) |
 

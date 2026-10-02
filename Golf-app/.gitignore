@@ -3,3 +3,6 @@ xcuserdata/
 DerivedData/
 build/
 .DS_Store
+
+# Game server token (secret)
+Golf-app/ServerToken.txt

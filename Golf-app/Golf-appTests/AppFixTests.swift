@@ -67,7 +67,7 @@ struct AppFixTests {
         let server = try #require(URL(string: "https://golf.example"))
         let url = try #require(GameLink.socketURL(server: server, name: "Ann+Bob & Co=1/2?é"))
         let query = try #require(url.query(percentEncoded: true))
-        #expect(query == "token=golf-sim-dev-token&role=remote&name=Ann%2BBob%20%26%20Co%3D1%2F2%3F%C3%A9")
+        #expect(query == "token=\(AppConfig.serverToken)&role=remote&name=Ann%2BBob%20%26%20Co%3D1%2F2%3F%C3%A9")
         #expect(url.absoluteString.hasPrefix("wss://golf.example/ws?"))
         // Decoding it (as the server does) gives the name back, with the plus intact.
         let name = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "name" }?.value

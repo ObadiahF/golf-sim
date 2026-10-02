@@ -3,7 +3,17 @@ import Foundation
 /// Fixed app-wide configuration. The token is shared with the game server (`GOLF_API_TOKEN`) and the sim.
 nonisolated enum AppConfig {
     /// Shared secret for the game server: REST `Authorization: Bearer <token>`, WebSocket `?token=<token>`.
-    static let serverToken = "golf-sim-dev-token"
+    /// Kept out of git in Golf-app/ServerToken.txt (gitignored, bundled when present); without it, the dev token a
+    /// local docker compose server accepts.
+    static let serverToken = bundledToken ?? devToken
+    static let devToken = "golf-sim-dev-token"
+
+    private static var bundledToken: String? {
+        guard let url = Bundle.main.url(forResource: "ServerToken", withExtension: "txt"),
+              let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        let token = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return token.isEmpty ? nil : token
+    }
     /// The hosted game server, used unless Settings names another (REST here, WebSocket at `wss://…/ws`).
     static let hostedServer = "https://golf-server.obadiahfusco.xyz"
     /// The game server's default port on a PC or LAN server (docker compose publishes 8080).

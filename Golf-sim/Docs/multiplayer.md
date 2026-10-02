@@ -147,7 +147,10 @@ plays a sound or moves a replay camera.
 ## Running it
 
 1. **Server.** The sim uses the hosted server by default, `wss://golf-server.obadiahfusco.xyz`
-   (REST on `https://golf-server.obadiahfusco.xyz/api`), with the token `golf-sim-dev-token`.
+   (REST on `https://golf-server.obadiahfusco.xyz/api`), with the secret token from
+   `Assets/GolfSim/Net/Resources/ServerToken.txt` (gitignored; the app bundles the same token from
+   `Golf-app/Golf-app/ServerToken.txt`, and the live server reads it as `GOLF_API_TOKEN` from `Game-server/.env`).
+   Without those files both fall back to `golf-sim-dev-token`, which only a local dev server accepts.
    For a local server: `cd Game-server && docker compose up --build -d` (port 8080).
 2. **Sim.** Open `Assets/Scenes/MainMenu.unity` and press Play. The console shows
    `[SimConnection] Connected to ...`. To use a local server, select `GolfSim/Net/Resources/GolfServer.asset`,

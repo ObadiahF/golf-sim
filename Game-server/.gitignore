@@ -21,3 +21,6 @@ bin/
 # OS / logs
 .DS_Store
 *.log
+
+# Secrets (GOLF_API_TOKEN, POSTGRES_PASSWORD)
+.env

@@ -31,7 +31,7 @@ namespace GolfSim.Net
         {
             var config = ServerConfig.Load();
             using var request = UnityWebRequest.Get(config.HttpUrl + path);
-            request.SetRequestHeader("Authorization", "Bearer " + config.token);
+            request.SetRequestHeader("Authorization", "Bearer " + config.Token);
             request.timeout = 8;
             yield return request.SendWebRequest();
             if (request.result == UnityWebRequest.Result.Success) done(request.downloadHandler.text);

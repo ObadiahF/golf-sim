@@ -79,3 +79,6 @@ __pycache__/
 # Course Trainer game key for the sim (secret)
 /Assets/GolfSim/Net/Resources/TrainerKey.txt
 /Assets/GolfSim/Net/Resources/TrainerKey.txt.meta
+# Game server token for the sim (secret)
+/Assets/GolfSim/Net/Resources/ServerToken.txt
+/Assets/GolfSim/Net/Resources/ServerToken.txt.meta

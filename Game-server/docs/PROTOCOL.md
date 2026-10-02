@@ -6,7 +6,7 @@ The wire schema lives in one place in code: `src/main/java/com/golfsim/server/ws
 
 - Base URL: `http://<server-lan-ip>:8080` (the PC running `docker compose up`)
 - WebSocket: `ws://<server-lan-ip>:8080/ws?token=<token>&role=sim|remote&name=<device name>`
-- Token: one shared secret, `golf-sim-dev-token` by default (server env `GOLF_API_TOKEN`)
+- Token: one shared secret, server env `GOLF_API_TOKEN` (`golf-sim-dev-token` by default, for local dev only; a public server sets its own)
 - All bodies are JSON (UTF-8). Timestamps are ISO-8601 UTC strings, e.g. `"2026-10-02T07:43:47.309802Z"`.
 - JSON input is strict, on REST and WebSocket alike: integer fields take JSON integers only (`1.7` and `9.0` are
   refused, as is `"9"` for a number), numbers must be finite (`1e400` overflows to infinity and is refused), and a
