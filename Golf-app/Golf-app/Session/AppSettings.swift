@@ -10,6 +10,7 @@ final class AppSettings {
         static let scale = "swingScale"
         static let puttScale = "puttScale"
         static let flipFace = "flipFace"
+        static let shapeShots = "shapeShots"
         static let server = "server"
         static let players = "players"
         static let holes = "roundHoles"
@@ -26,6 +27,9 @@ final class AppSettings {
     var puttScale: Double { didSet { defaults.set(puttScale, forKey: Key.puttScale) } }
     /// Flip if fades and draws come out backwards (depends on how the phone is held).
     var flipFace: Bool { didSet { defaults.set(flipFace, forKey: Key.flipFace) } }
+    /// Curve and push/pull shots by the face angle the phone measured. Off by default: the phone alone can't
+    /// measure the face reliably (it turns ~20 degrees between readings at impact), so shots fly straight at the aim.
+    var shapeShots: Bool { didSet { defaults.set(shapeShots, forKey: Key.shapeShots) } }
     /// A local or LAN game server ("192.168.1.20:9000"); empty = the hosted server.
     var server: String { didSet { defaults.set(server, forKey: Key.server) } }
     /// Player names for the next round, in turn order (only kept on this phone).
@@ -42,6 +46,8 @@ final class AppSettings {
     var club: Club { Club.at(clubIndex) }
     /// The sample's default was -1 (phone screen facing the golfer); flipping makes it +1.
     var faceSign: Double { flipFace ? 1 : -1 }
+    /// What the measured face angle is multiplied by: the face sign, or 0 (straight shots) unless shaping is on.
+    var faceFactor: Double { shapeShots ? faceSign : 0 }
 
     static let scaleRange = 1.0...2.5
     static let puttScaleRange = 0.5...2.0
@@ -58,6 +64,7 @@ final class AppSettings {
         let storedPutt = defaults.double(forKey: Key.puttScale)
         puttScale = Self.puttScaleRange.contains(storedPutt) ? storedPutt : 1
         flipFace = defaults.bool(forKey: Key.flipFace)
+        shapeShots = defaults.bool(forKey: Key.shapeShots)
         server = defaults.string(forKey: Key.server) ?? ""
         players = defaults.stringArray(forKey: Key.players) ?? []
         let holes = defaults.integer(forKey: Key.holes)

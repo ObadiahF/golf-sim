@@ -77,11 +77,14 @@ struct SettingsView: View {
                         Text("Putt scale \(settings.puttScale, specifier: "%.1f")×")
                         Slider(value: $settings.puttScale, in: AppSettings.puttScaleRange, step: 0.05)
                     }
-                    Toggle("Flip face direction", isOn: $settings.flipFace)
+                    Toggle("Curve shots by face angle", isOn: $settings.shapeShots)
+                    if settings.shapeShots {
+                        Toggle("Flip face direction", isOn: $settings.flipFace)
+                    }
                 } header: {
                     Text("Swing")
                 } footer: {
-                    Text("Raise the scale to make half swings count as full ones. The putt scale does the same for putts: raise it if a normal stroke comes up short, lower it if putts race past. Flip the face direction if fades come out as draws (it depends on which way the screen faces in your grip).")
+                    Text("Raise the scale to make half swings count as full ones. The putt scale does the same for putts: raise it if a normal stroke comes up short, lower it if putts race past. Shots fly straight where you aim unless \"Curve shots by face angle\" is on; the phone's face reading is rough, so expect wild curves with it. Flip the face direction if fades come out as draws.")
                 }
 
                 Section {

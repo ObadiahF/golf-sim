@@ -193,7 +193,7 @@ final class SwingSession {
             Haptics.problem()
             return
         }
-        let shot = Shot.from(impact, club: club, scale: settings.scale(for: club), faceSign: settings.faceSign)
+        let shot = Shot.from(impact, club: club, scale: settings.scale(for: club), faceSign: settings.faceFactor)
         if club.isPutter {
             meter.strike(distance: PuttModel.rollDistance(ballSpeed: shot.ballSpeed, stimp: stimp), toHole: game.state.flatMap { $0.isPutting ? $0.puttDistance : nil })
         }

@@ -37,7 +37,7 @@ nonisolated struct Shot: Equatable, Sendable {
     var clubSpeedMph: Double { Units.mph(clubSpeed) }
 
     /// Turns a detected impact into a shot: clubhead speed = rotation rate x swing radius x scale.
-    /// `faceSign` is +1 or -1 (flip it if fades and draws come out backwards).
+    /// `faceSign` is +1 or -1 (flip it if fades and draws come out backwards), or 0 for a straight shot at the aim.
     static func from(_ impact: Impact, club: Club, scale: Double, faceSign: Double) -> Shot {
         let head = club.headSpeed(rate: impact.rate, scale: scale)
         let face = min(maxFace, max(-maxFace, impact.face * faceSign))
