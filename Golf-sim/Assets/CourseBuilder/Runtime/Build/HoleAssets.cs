@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
 
 namespace GolfSim.Course
@@ -30,8 +29,8 @@ namespace GolfSim.Course
         public Material ColorMaterial(string name, Color color, bool doubleSided = false) =>
             Shared($"Materials/{name}.mat", () =>
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"))
-                    { name = name, color = color }; // .color targets the shader's [MainColor]
+                var mat = RuntimeMaterials.Create(m => m.lit, name);
+                mat.color = color; // .color targets the shader's [MainColor]
                 if (doubleSided)
                 {
                     mat.SetFloat("_Cull", 0f); // URP Lit: render both faces
@@ -40,23 +39,16 @@ namespace GolfSim.Course
                 return mat;
             });
 
-        public Material ShaderMaterial(string name, string shaderName) =>
-            Shared($"Materials/{name}.mat", () => new Material(Shader.Find(shaderName)) { name = name });
+        /// <summary>A material from one of the RuntimeMaterials templates (e.g. the cup's shaders).</summary>
+        public Material TemplateMaterial(string name, Func<RuntimeMaterials, Material> template) =>
+            Shared($"Materials/{name}.mat", () => RuntimeMaterials.Create(template, name));
 
         /// <summary>Transparent glossy URP Lit water, used when a theme has no water material.</summary>
         public Material TransparentMaterial(string name, Color color) =>
             Shared($"Materials/{name}.mat", () =>
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = name, color = color };
-                mat.SetFloat("_Surface", 1f); // transparent
-                mat.SetFloat("_Blend", 0f);   // alpha
-                mat.SetFloat("_Smoothness", 0.95f);
-                mat.SetFloat("_ZWrite", 0f);
-                mat.SetOverrideTag("RenderType", "Transparent");
-                mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                mat.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
-                mat.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
-                mat.renderQueue = (int)RenderQueue.Transparent;
+                var mat = RuntimeMaterials.Create(m => m.litTransparent, name);
+                mat.color = color;
                 return mat;
             });
 

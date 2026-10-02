@@ -24,8 +24,8 @@ namespace GolfSim.Course
         public static void Create(Transform pin, Terrain terrain, HoleAssets assets)
         {
             var rim = RimHeights(pin, terrain);
-            Child(pin, "Cup Mask", assets.PerHole("CupMask.asset", MaskMesh(rim)), assets.ShaderMaterial("CupMask", "GolfSim/CupMask"));
-            Child(pin, "Cup", assets.PerHole("CupInterior.asset", InteriorMesh(rim)), assets.ShaderMaterial("CupInterior", "GolfSim/CupInterior"));
+            Child(pin, "Cup Mask", assets.PerHole("CupMask.asset", MaskMesh(rim)), assets.TemplateMaterial("CupMask", m => m.cupMask));
+            Child(pin, "Cup", assets.PerHole("CupInterior.asset", InteriorMesh(rim)), assets.TemplateMaterial("CupInterior", m => m.cupInterior));
         }
 
         /// <summary>Terrain height around the rim, relative to the pin.</summary>

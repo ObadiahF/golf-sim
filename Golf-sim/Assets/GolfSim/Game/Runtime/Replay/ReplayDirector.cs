@@ -208,9 +208,19 @@ namespace GolfSim.Game
                 Enter(Stage.Idle);
                 return;
             }
-            plan = new ReplayCameraman(settings, CameraSpots.For(hole, ball)).Plan(rec);
+            try
+            {
+                // Before the screen is taken over: a replay that can't start must leave the camera and ball as they are.
+                plan = new ReplayCameraman(settings, CameraSpots.For(hole, ball)).Plan(rec);
+                ghost ??= new ReplayGhost(ball, transform);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                Enter(Stage.Idle);
+                return;
+            }
             saved = ScreenState.Hide(cam, ball);
-            ghost ??= new ReplayGhost(ball, transform);
             ghost.Begin(rec);
             ghost.Show(true);
             time = plan.start;

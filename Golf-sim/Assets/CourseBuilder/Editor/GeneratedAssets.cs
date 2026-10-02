@@ -41,20 +41,8 @@ namespace GolfSim.CourseEditor
             return asset;
         }
 
+        /// <summary>The shared URP Lit colour material a hole build uses (saved under Generated/Materials).</summary>
         public static Material ColorMaterial(string name, Color color, bool doubleSided = false) =>
-            LoadOrCreate($"{Root}/Materials/{name}.mat", () =>
-            {
-                var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-                var mat = new Material(shader) { color = color }; // .color targets the shader's [MainColor]
-                if (doubleSided)
-                {
-                    mat.SetFloat("_Cull", 0f); // URP Lit: render both faces
-                    mat.doubleSidedGI = true;
-                }
-                return mat;
-            });
-
-        public static Material ShaderMaterial(string name, string shaderName) =>
-            LoadOrCreate($"{Root}/Materials/{name}.mat", () => new Material(Shader.Find(shaderName)));
+            new EditorHoleAssets(null).ColorMaterial(name, color, doubleSided);
     }
 }

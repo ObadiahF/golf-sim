@@ -1,5 +1,5 @@
+using GolfSim.Course;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace GolfSim.Ball
 {
@@ -67,16 +67,8 @@ namespace GolfSim.Ball
         public static Material DefaultMaterial(Color hdrColor)
         {
             // Alpha-blended (not additive: yellow added onto a bright sky turns white), slightly HDR so bloom glows.
-            var mat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
+            var mat = RuntimeMaterials.Create(m => m.line, "Line");
             mat.SetColor("_BaseColor", hdrColor);
-            mat.SetFloat("_Surface", 1f);   // transparent
-            mat.SetFloat("_Blend", 0f);     // alpha
-            mat.SetOverrideTag("RenderType", "Transparent");
-            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            mat.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
-            mat.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
-            mat.SetInt("_ZWrite", 0);
-            mat.renderQueue = (int)RenderQueue.Transparent;
             return mat;
         }
     }

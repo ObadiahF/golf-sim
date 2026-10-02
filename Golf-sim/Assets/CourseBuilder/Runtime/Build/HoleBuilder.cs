@@ -79,6 +79,8 @@ namespace GolfSim.Course
             terrainGo.transform.SetParent(root.transform, false);
             var terrain = terrainGo.GetComponent<Terrain>();
             terrain.heightmapPixelError = options.pixelError;
+            // The pipeline's default terrain material is editor-only: without one a built game draws the terrain magenta.
+            terrain.materialTemplate = RuntimeMaterials.Template(m => m.terrain);
             if (options.scatter)
             {
                 progress("Grass", 0.85f);
