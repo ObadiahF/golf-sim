@@ -86,9 +86,10 @@ PRESETS: dict[str, Preset] = {p.name: p for p in [
     _preset("lakes", "Water / Lakes", "lakes", water=0.88, tree_density=0.35, relief=0.2, bunkers=0.45,
             par_weights=(0.3, 0.5, 0.2)),
     _preset("links", "Links", "links", tree_density=0.04, water=0.08, bunkers=0.85, fairway_width=0.7,
-            relief=0.35, hilliness=0.85, rough_width=0.7, scrub=0.7, dogleg=0.3),
+            relief=0.35, hilliness=0.85, rough_width=0.7, scrub=0.7, dogleg=0.3,
+            spreads={"tree_density": 0.04}),
     _preset("desert", "Desert", "desert", tree_density=0.1, water=0.15, bunkers=0.4, fairway_width=0.4,
-            relief=0.4, rough_width=0.15, scrub=0.92),
+            relief=0.4, rough_width=0.15, scrub=0.92, spreads={"tree_density": 0.05}),
     _preset("mountain", "Mountain", "mountain", relief=0.95, hilliness=0.35, tree_density=0.65, water=0.2,
             bunkers=0.35, dogleg=0.5, spreads={"slope": 0.3}),
 ]}
