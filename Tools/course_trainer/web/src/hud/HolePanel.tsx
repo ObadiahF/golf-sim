@@ -3,26 +3,37 @@ import type { Trainer } from '../useTrainer';
 
 const knobLabel = (name: string) => name.replace(/_/g, ' ');
 
+interface Props {
+  trainer: Trainer;
+  /** Phones: the card shrinks to a one-line strip (name, par, yards, Skip) so more of the hole shows. */
+  minimised: boolean;
+  setMinimised: (min: boolean) => void;
+}
+
 /** Scorecard header: what this hole is, skip to the next pool hole, and (advanced) ad-hoc generation. */
-export function HolePanel({ trainer }: { trainer: Trainer }) {
+export function HolePanel({ trainer, minimised, setMinimised }: Props) {
   const { hole, catalog, preset, setPreset, par, setPar, generate, next, busy, recent, pool } = trainer;
   const s = hole?.summary;
   const presetLabel = (name: string) => catalog?.presets.find(p => p.name === name)?.label ?? name;
   const score = s?.modelScore;
 
   return (
-    <section className="panel card hole-card">
+    <section className={`panel card hole-card ${minimised ? 'min' : ''}`}>
       <header className="card-head">
         <span className="eyebrow">{s ? presetLabel(s.preset) : 'Course Trainer'}</span>
         {s?.rating && <span className={`stamp stamp-${s.rating}`}>{s.rating === 'up' ? 'Liked' : 'Disliked'}</span>}
+        {s && <span className="strip-info">Par {s.par} · {yards(s.lengthMeters)} yd</span>}
+        <button className="btn ghost small card-toggle" aria-expanded={!minimised}
+                aria-label={minimised ? 'Show the hole card' : 'Minimise the hole card'}
+                onClick={() => setMinimised(!minimised)}>{minimised ? '▾' : '▴'}</button>
       </header>
       {s && (
         <>
           <div className="scoreline">
             <div><small>Par</small><strong>{s.par}</strong></div>
             <div><small>Yards</small><strong>{yards(s.lengthMeters)}</strong></div>
-            <div title="The model's predicted chance you like this hole (blank: sampled without the model)">
-              <small>Model</small><strong>{score == null ? '—' : `${Math.round(score * 100)}%`}</strong>
+            <div title="Taste match: how much the model expects you'll like this hole, from everyone's votes so far (— : picked without the model)">
+              <small>Taste match</small><strong>{score == null ? '—' : `${Math.round(score * 100)}%`}</strong>
             </div>
           </div>
           <dl className="meta">

@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -100,9 +100,10 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
         return {**status(preset, store), "yours": len(store.load(user.name)),
                 "presetVotes": {"up": up, "down": len(votes) - up}}
 
-    def refill() -> None:
-        """Start the next pool batch if it is due (pool.refill_due)."""
-        if pool.maybe_refill(dsn, settings.pool_batch_size, settings.pool_refill_at, settings.pool_max_unrated):
+    def refill(user: User) -> None:
+        """Start the next pool batch if it is due (pool.refill_due), also when `user` is low on unseen holes."""
+        if pool.maybe_refill(dsn, settings.pool_batch_size, settings.pool_refill_at, settings.pool_max_unrated,
+                             settings.pool_min_unseen, user.id):
             worker.kick()
 
     def prune(package: Path) -> list[str]:
@@ -176,7 +177,7 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
         db.touch_view(dsn, user.id, req.id)  # rated = seen (e.g. a peeked leaderboard hole)
-        refill()  # ratings are what start the next batch
+        refill(user)  # ratings are what start the next batch
         return {"entry": entry, "status": my_status(user, entry["style"]["preset"])}
 
     @api.post("/train")
@@ -188,28 +189,36 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
         return my_status(user, preset if preset in PRESETS else None)
 
     @api.get("/next")
-    def next_hole(user: User = Depends(current_user)):
+    def next_hole(peek: bool = False, take: str | None = Query(None, max_length=inputs.MAX_ID),
+                  user: User = Depends(current_user)):
         """The next pool hole you have not seen (recorded as seen), newest batch first in your own shuffled order;
         `state: "generating"` while none is ready yet (poll). Starts the next batch when it is due. Unplayable holes
-        (hole_checks.py) are never served."""
-        while (hole_id := pool.serve_next(dsn, user.id)) is not None:
+        (hole_checks.py) are never served.
+        `?peek=true`: the hole you would get, NOT recorded as seen (the UI prefetches it while you look at the current
+        one); `?take=<that id>` then serves exactly that hole if it is still unseen, else the next one as usual."""
+        votes = my_votes(user)
+        skipped: list[str] = []
+        while (hole_id := pool.peek_next(dsn, user.id, skipped) if peek
+               else pool.serve_next(dsn, user.id, None if skipped else take)) is not None:
+            skipped.append(hole_id)
             if not checks.playable(hole_id):  # unchecked until the backfill reaches it: checked now, skipped
                 continue
             try:
-                hole = holes.describe(hole_id, my_votes(user))
+                hole = holes.describe(hole_id, votes)
                 break
-            except (HoleNotFound, FileNotFoundError):  # deleted by hand: counted as seen, try the next one
+            except (HoleNotFound, FileNotFoundError):  # deleted by hand: skipped (served: counted as seen)
                 continue
         else:
             hole = None
-        refill()
+        refill(user)
         return {"state": "ready" if hole else "generating", "hole": hole,
                 "pool": pool.progress(dsn, user.id, settings.pool_max_unrated)}
 
     @api.get("/top")
     def leaderboard(limit: int = 20, user: User = Depends(current_user)):
         """Holes ranked by everyone's latest votes (Wilson lower bound, see ranking.py); `rating` is your vote."""
-        ranked = top_holes(dsn, holes, checks, max(1, min(limit, 100)), holes_file_url, my_votes(user))
+        ranked = top_holes(dsn, holes, checks, max(1, min(limit, 100)), holes_file_url, my_votes(user),
+                           min_likes=settings.top_min_likes)
         return {"formula": FORMULA, "holes": ranked}
 
     @api.get("/export/votes.jsonl")

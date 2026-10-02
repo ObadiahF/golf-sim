@@ -144,3 +144,43 @@ def test_pool_holes_survive_pruning(make_client):
     assert pruned and not set(pruned) & set(pooled)
     for hole_id in pooled:
         assert obi.get(f"/api/holes/{hole_id}").status_code == 200
+
+
+def test_peeked_next_hole_is_not_seen_until_taken(make_client, clean_db):
+    """Prefetch: `?peek=true` names the next hole without using it up; `?take=` serves exactly that hole once."""
+    obi = login(make_client()[0])
+    next_hole(obi)
+    holes = fill_pool(obi)
+    peek = lambda: obi.get("/api/next?peek=true").json()  # noqa: E731
+    first = peek()["hole"]["id"]
+    assert peek()["hole"]["id"] == first and not rows(clean_db, "SELECT * FROM hole_views")  # nothing marked seen
+    assert obi.get(f"/api/next?take={first}").json()["hole"]["id"] == first
+    second = peek()["hole"]["id"]
+    assert second != first
+    # Taking a hole already seen (another tab took it) never repeats it: the next unseen hole comes instead.
+    assert obi.get(f"/api/next?take={first}").json()["hole"]["id"] == second
+    # Taking an id that is not an unseen pool hole falls back to the usual order.
+    rest = [obi.get("/api/next?take=nope").json()["hole"]["id"] for _ in range(2)]
+    assert sorted([first, second, *rest]) == holes  # each hole served exactly once
+    assert peek()["state"] == "generating" and peek()["hole"] is None
+    assert obi.get("/api/next?take=" + "x" * 300).status_code == 422
+
+
+def test_unseen_buffer_starts_batches_early_but_one_at_a_time_and_capped(make_client, clean_db):
+    """TRAINER_POOL_MIN_UNSEEN: a user low on unseen holes starts the next batch without rating anything, yet skipping
+    still can't stack batches (one generates at a time) or pass the unrated cap."""
+    obi = login(make_client(pool_min_unseen=3, pool_max_unrated=8)[0])
+    next_hole(obi)
+    fill_pool(obi)
+    next_hole(obi)  # 3 unseen left: not low yet
+    assert batches(clean_db) == [(1, "ready")]
+    next_hole(obi)  # 2 unseen left: batch 2 starts, though nobody has rated anything
+    assert batches(clean_db) == [(1, "ready"), (2, "generating")]
+    for _ in range(5):  # skip-spam while it generates: still one batch
+        next_hole(obi)
+    assert batches(clean_db) == [(1, "ready"), (2, "generating")]
+    fill_pool(obi)
+    for _ in range(6):  # 8 holes nobody voted on: capped, however low obi runs
+        next_hole(obi)
+    assert batches(clean_db) == [(1, "ready"), (2, "ready")]
+    assert next_hole(obi)["pool"]["capped"]

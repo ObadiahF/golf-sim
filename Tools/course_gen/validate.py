@@ -9,7 +9,9 @@ from shapely.geometry import LineString, Point, box
 from shapely.ops import unary_union
 
 from layout import TEE_MARGIN, Layout
+from objects_bin import KINDS
 from terrain import Grid
+from vegetation_themes import CROWNS
 
 MAX_SHOT = 265.0          # longest shot asked of the player into the green (m)
 MAX_CARRY = 170.0         # longest continuous water carry along the line of play (m)
@@ -26,6 +28,20 @@ GREEN_PIN_SLOPE = 0.04    # steepest grade within GREEN_PIN_RADIUS of the pin
 GREEN_PIN_RADIUS = 2.0    # meters
 GREEN_MAX_SLOPE = 0.06    # steepest grade anywhere on the putting surface...
 GREEN_EDGE = 1.0          # ...more than this many meters (or a sample) inside its edge, which blends into the collar
+
+# Landing zones (G6-4): a good drive must not roll off sideways.
+LANDING_CROSS = 0.08      # steepest side slope (across the line of play) at a landing zone
+LANDING_ALONG = 0.10      # steepest grade along it (grading.LANDING_GRADE holds 6 %; a pond bank can undo that)
+LANDING_PROBE = 6.0       # meters either side of the line the side slope is measured over...
+LANDING_SPAN = 8.0        # ...at the landing zone and this far before and after it (averaged)
+
+# Trees on the shot lines (G6-3): crowns from vegetation_themes.CROWNS, a rough ball flight above the ground.
+TEE_FAN_DEG = 8.0         # tee-shot lines this far either side of the line to the first landing zone (the pin: par 3)
+TEE_FAN_CLEAR = 0.6       # share of them that must miss every crown
+LANDING_FAN_DEG = 4.0     # lines from each landing zone to the next one (the last: to the pin); one must be open
+FAN_LINES = 17
+FLIGHT_APEX = 30.0        # meters above the straight line from the ground at the start to the ground at the target...
+FLIGHT_PEAK = 0.58        # ...reached this far along the shot (a ball climbs slowly and drops steeply)
 
 
 def problems(layout: Layout) -> list[str]:
@@ -129,3 +145,103 @@ def green_issues(pin_slope: float, max_slope: float, pin_cap: float = GREEN_PIN_
 def green_problems(green, pin: Point, heights: np.ndarray, size: float) -> list[str]:
     """Empty list = the green is puttable (see green_slopes)."""
     return green_issues(*green_slopes(green, pin, heights, size))
+
+def stops(path: LineString) -> list[tuple[float, float]]:
+    """Tee, landing zones and pin: the path's vertices (layout.LayoutBuilder.route)."""
+    return [tuple(c) for c in path.coords]
+
+
+def landing_slopes(path: LineString, heights: np.ndarray, size: float) -> list[tuple[float, float]]:
+    """(side slope across the incoming shot, grade along it) at each landing zone, as fractions. The side slope is
+    taken over 2 x LANDING_PROBE m, averaged at the zone and LANDING_SPAN m before and after it; the grade over
+    2 x LANDING_SPAN m."""
+    grid = Grid(size, heights.shape[0])
+    points = stops(path)
+    along = np.array([-LANDING_SPAN, 0.0, LANDING_SPAN])
+    out = []
+    for prev, (x, z) in zip(points, points[1:-1]):
+        heading = math.atan2(z - prev[1], x - prev[0])
+        ux, uz = math.cos(heading), math.sin(heading)
+        cx, cz = x + ux * along, z + uz * along
+        left = grid.sample(heights, cx - uz * LANDING_PROBE, cz + ux * LANDING_PROBE)
+        right = grid.sample(heights, cx + uz * LANDING_PROBE, cz - ux * LANDING_PROBE)
+        line = grid.sample(heights, cx, cz)
+        out.append((abs(float(np.mean(left - right))) / (2 * LANDING_PROBE),
+                    abs(float(line[2] - line[0])) / (2 * LANDING_SPAN)))
+    return out
+
+
+def landing_issues(slopes: list[tuple[float, float]], cap: float = LANDING_CROSS,
+                   along_cap: float = LANDING_ALONG) -> list[str]:
+    """landing_slopes over the caps, as problems."""
+    issues = []
+    for i, (side, grade) in enumerate(slopes):
+        if side > cap:
+            issues.append(f"landing zone {i + 1} on a {side:.0%} side slope (limit {cap:.0%})")
+        if grade > along_cap:
+            issues.append(f"landing zone {i + 1} on a {grade:.0%} grade along the line (limit {along_cap:.0%})")
+    return issues
+
+
+def landing_problems(path: LineString, heights: np.ndarray, size: float) -> list[str]:
+    """Empty list = every landing zone is level enough (see landing_slopes)."""
+    return landing_issues(landing_slopes(path, heights, size))
+
+
+def flight_height(u: np.ndarray) -> np.ndarray:
+    """Rough ball height (m) over the ground line at fraction `u` (0..1) of a full shot: FLIGHT_APEX at FLIGHT_PEAK."""
+    rise, fall = u / FLIGHT_PEAK, (u - FLIGHT_PEAK) / (1 - FLIGHT_PEAK)
+    return FLIGHT_APEX * np.where(u <= FLIGHT_PEAK, rise * (2 - rise), 1 - fall * fall)
+
+
+def _fan_blockers(origin, target, half_deg: float, trees: np.ndarray, crown: np.ndarray, grid: Grid,
+                  heights: np.ndarray, base: np.ndarray) -> np.ndarray:
+    """[line, tree] True where a fan line from origin toward target (FAN_LINES lines across +-half_deg, each as long
+    as origin->target) passes through the tree's crown below its top."""
+    reach = math.dist(origin, target)
+    heading = math.atan2(target[1] - origin[1], target[0] - origin[0])
+    angles = heading + np.radians(np.linspace(-half_deg, half_deg, FAN_LINES))[:, None]
+    ux, uz = np.cos(angles), np.sin(angles)
+    tx, tz = trees["x"] - origin[0], trees["y"] - origin[1]
+    s = tx * ux + tz * uz                                  # distance along each line
+    off = np.abs(tx * uz - tz * ux)                        # distance from each line
+    u = np.clip(s / max(reach, 1.0), 0.0, 1.0)
+    start, end = grid.sample(heights, *origin)[0], grid.sample(heights, *target)[0]
+    ball = start + (end - start) * u + flight_height(u)
+    return (s > 0) & (s < reach) & (off < crown) & (ball < base + trees["height"])
+
+
+def tree_line_clearance(path: LineString, objects: np.ndarray, heights: np.ndarray, size: float
+                        ) -> list[tuple[str, float, np.ndarray]]:
+    """Per shot (the tee shot, then from each landing zone): (name, share of its fan's lines that miss every crown,
+    which objects block one of them). `objects`: decoded objects.bin (objects_bin.PLACED)."""
+    grid = Grid(size, heights.shape[0])
+    crown = np.array([CROWNS.get(k, 0.0) for k in KINDS])[objects["kind"]] * objects["height"]
+    tree = crown > 0
+    trees, crown = objects[tree], crown[tree]
+    base = grid.sample(heights, trees["x"], trees["y"])
+    points = stops(path)
+    out = []
+    for i, (a, b) in enumerate(zip(points, points[1:])):
+        name = "the tee shot" if i == 0 else f"the shot from landing zone {i}"
+        blocked = _fan_blockers(a, b, TEE_FAN_DEG if i == 0 else LANDING_FAN_DEG, trees, crown, grid, heights, base)
+        mask = np.zeros(len(objects), bool)
+        mask[np.flatnonzero(tree)[blocked.any(axis=0)]] = True
+        out.append((name, float((~blocked.any(axis=1)).mean()), mask))
+    return out
+
+
+def tree_line_issues(clearance: list[tuple[str, float, np.ndarray]], tee_min: float = TEE_FAN_CLEAR) -> list[str]:
+    """tree_line_clearance as problems: the tee shot needs `tee_min` of its lines clear, later shots one."""
+    issues = []
+    for i, (name, clear, _) in enumerate(clearance):
+        if i == 0 and clear < tee_min:
+            issues.append(f"trees block {1 - clear:.0%} of the lines of {name} (limit {1 - tee_min:.0%})")
+        elif i > 0 and clear == 0:
+            issues.append(f"trees block every line of {name}")
+    return issues
+
+
+def tree_line_problems(path: LineString, objects: np.ndarray, heights: np.ndarray, size: float) -> list[str]:
+    """Empty list = the shot lines are open (see tree_line_clearance)."""
+    return tree_line_issues(tree_line_clearance(path, objects, heights, size))

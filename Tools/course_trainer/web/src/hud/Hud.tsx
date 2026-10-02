@@ -1,9 +1,10 @@
-import type { RefObject } from 'react';
+import { useState, type RefObject } from 'react';
 import type { Player } from '../controls/player';
 import { TouchControls } from '../controls/TouchControls';
 import type { Trainer } from '../useTrainer';
 import { Help } from './Help';
 import { HolePanel } from './HolePanel';
+import { useHudInsetVars } from './insets';
 import { Minimap } from './Minimap';
 import { RatePanel } from './RatePanel';
 import { TastePanel } from './TastePanel';
@@ -25,11 +26,13 @@ interface Props {
 /** React overlay on top of the 3D view. While the mouse is captured the panels dim and ignore the pointer. */
 export function Hud({ trainer, player, locked, help, setHelp, top, setTop, commentRef, user }: Props) {
   const { hole, busy, error, toast, dismissError, waiting } = trainer;
+  const [cardMin, setCardMin] = useState(false);
+  useHudInsetVars();
   return (
-    <div className="hud">
+    <div className={`hud ${cardMin ? 'card-min' : ''}`}>
       {locked && <div className="crosshair" aria-hidden />}
       <aside className="column left">
-        <HolePanel trainer={trainer} />
+        <HolePanel trainer={trainer} minimised={cardMin} setMinimised={setCardMin} />
         <TastePanel trainer={trainer} />
       </aside>
       <aside className="column right">

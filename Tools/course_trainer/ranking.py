@@ -3,7 +3,9 @@
 Score = the Wilson score lower bound (95%) of the like share up / (up + down): the like share the hole has at
 least, given how few votes it has. 1 like and 0 dislikes scores 0.21, 4 likes and 1 dislike 0.38, 9 and 1 0.60,
 so a hole needs several votes to beat a well-liked one, unlike the raw ratio (1/1 = 100%). No votes: 0.
-Unplayable holes (tee shot or green, hole_checks.py) are left out; their votes still count for training.
+Unplayable holes (tee shot or green, hole_checks.py) are left out; their votes still count for training. So are holes
+nobody really liked: a hole needs more likes than dislikes and at least `min_likes` likes (TRAINER_TOP_MIN_LIKES, 1),
+so the game never plays a hole friends disliked (with too few qualifying holes it gets fewer, and cycles them).
 """
 from __future__ import annotations
 
@@ -38,16 +40,23 @@ def tallies(dsn: str) -> list[dict]:
     return sorted(out, key=lambda t: (-t["score"], -t["ups"], t["id"]))
 
 
+def liked(tally: dict, min_likes: int = 1) -> bool:
+    """Net positive: more likes than dislikes, and at least `min_likes` likes."""
+    return tally["ups"] > tally["downs"] and tally["ups"] >= min_likes
+
+
 def top_holes(dsn: str, holes: HoleStore, checks: HoleChecks, limit: int, file_url,
-              votes: dict[str, dict] | None = None) -> list[dict]:
-    """The `limit` best playable holes still on disk: the hole summary (holes.describe; `rating` from `votes`)
-    plus rank, ups, downs, score, previewUrl and `files` ({name: url}); `file_url(id, name)` builds the URLs.
-    An unchecked candidate is checked on the spot (checks.playable)."""
+              votes: dict[str, dict] | None = None, min_likes: int = 1) -> list[dict]:
+    """Up to `limit` of the best liked (see `liked`), playable holes still on disk: the hole summary (holes.describe;
+    `rating` from `votes`) plus rank, ups, downs, score, previewUrl and `files` ({name: url}); `file_url(id, name)`
+    builds the URLs. An unchecked candidate is checked on the spot (checks.playable)."""
     out = []
     known = verdicts(dsn)
     for tally in tallies(dsn):
         if len(out) >= limit:
             break
+        if not liked(tally, min_likes):
+            continue
         try:
             summary = holes.describe(tally["id"], votes)
         except (HoleNotFound, FileNotFoundError):  # e.g. legacy votes on holes never on this server

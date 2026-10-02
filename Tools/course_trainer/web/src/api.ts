@@ -107,7 +107,9 @@ export const api = {
   status: (preset?: string) => request<Status>(`/api/status${preset ? `?preset=${preset}` : ''}`),
   recent: (limit = 20) => request<{ holes: HoleSummary[] }>(`/api/holes?limit=${limit}`).then(r => r.holes),
   generate: (preset: string, par: number | null) => post<HoleSummary>('/api/generate', { preset, par }),
-  next: () => request<NextHole>('/api/next'),
+  /** `peek`: the hole you would get, not marked seen (prefetch); `take`: serve that peeked hole if still unseen. */
+  next: (opts: { peek?: boolean; take?: string } = {}) => request<NextHole>('/api/next' + (
+    opts.peek ? '?peek=true' : opts.take ? `?take=${encodeURIComponent(opts.take)}` : '')),
   top: (limit = 30) => request<{ holes: TopHole[] }>(`/api/top?limit=${limit}`).then(r => r.holes),
   rate: (id: string, rating: Rating, comment: string, tags: string[]) =>
     post<{ status: Status }>('/api/rate', { id, rating, comment, tags }),

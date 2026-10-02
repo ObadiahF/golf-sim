@@ -1,11 +1,14 @@
 """Playability of each hole (tee shot and green), recorded in `hole_checks` (migrations 004, 005).
 
 Packages are immutable, so a hole made before the generator's launch check (GENERATOR_VERSION 3 and earlier) can
-have ground rising into the tee shot, and one made before v5 can have a green tilted ~15 % by a pond bank (Q5-1).
+have ground rising into the tee shot, one made before v5 can have a green tilted ~15 % by a pond bank (Q5-1), and
+one made before v6 can have trees right on the tee line (G6-3) or a landing zone on a steep side slope (G6-4).
 Each hole is judged with course_gen's scanner (scan_playability.py, the generator's own validate checks):
 unplayable when the ground rises more than `launch_near_max_m` above a low tee shot within `launch_near_m` of the
 tee, or more than `launch_far_max_m` within `launch_far_m`, or the green is steeper than `green_pin_max_slope`
-within validate.GREEN_PIN_RADIUS of the pin (config.py).
+within validate.GREEN_PIN_RADIUS of the pin, or fewer than `tee_line_min_clear` of the tee-shot lines
+(validate.TEE_FAN_DEG either side) miss every tree crown, or every line from a landing zone to its target is blocked,
+or a landing zone leans more than `landing_max_side_slope` across the line (config.py).
 
 - New pool holes are checked as they join the pool (pool_worker.py); they pass, the generator now rejects them.
 - On startup a background thread backfills every pool or voted hole not checked yet, or checked by older rules
@@ -29,10 +32,11 @@ from config import Settings, log
 from db import connect
 from holes import HoleNotFound, HoleStore
 from hole_package import read_hole
-from scan_playability import generator_version, green_profile, launch_profile
-from validate import green_issues
+from scan_playability import generator_version, green_profile, landing_profile, launch_profile, tree_profile
+from validate import green_issues, landing_issues, tree_line_issues
 
-CHECK_VERSION = 2  # 1: tee shot (TH-5); 2: + the green's slope at the pin (Q5-1). Older verdicts are re-checked.
+CHECK_VERSION = 3  # 1: tee shot (TH-5); 2: + the green's slope at the pin (Q5-1); 3: + trees on the shot lines (G6-3)
+                   # and landing-zone side slopes (G6-4). Older verdicts are re-checked.
 
 
 @dataclass(frozen=True)
@@ -42,10 +46,13 @@ class Limits:
     far_m: float = 100.0
     far_max_m: float = 2.5
     green_pin_max: float = 0.06
+    tee_line_min_clear: float = 0.4
+    landing_max_side_slope: float = 0.15
 
     @classmethod
     def from_settings(cls, s: Settings) -> "Limits":
-        return cls(s.launch_near_m, s.launch_near_max_m, s.launch_far_m, s.launch_far_max_m, s.green_pin_max_slope)
+        return cls(s.launch_near_m, s.launch_near_max_m, s.launch_far_m, s.launch_far_max_m, s.green_pin_max_slope,
+                   s.tee_line_min_clear, s.landing_max_side_slope)
 
 
 @dataclass(frozen=True)
@@ -85,17 +92,27 @@ def assess_green(slopes: tuple[float, float] | None, limits: Limits) -> str | No
     return issues[0] if issues else None
 
 
+def assess_lines(clearance: list, slopes: list[tuple[float, float]], limits: Limits) -> str | None:
+    """Why the shots are unplayable or None, for a scan_playability.tree_profile and landing_profile: trees on the
+    tee-shot lines or every later line, or a landing zone on a side slope (the grade along the line is not judged)."""
+    issues = (tree_line_issues(clearance, tee_min=limits.tee_line_min_clear)
+              + landing_issues(slopes, cap=limits.landing_max_side_slope, along_cap=math.inf))
+    return issues[0] if issues else None
+
+
 def judge(package_dir, hole_id: str, limits: Limits) -> Verdict:
     """The verdict on one package on disk (an unreadable package is unplayable: the game could not load it)."""
     try:
         hole = read_hole(package_dir)
         profile = launch_profile(package_dir, hole)
         slopes = green_profile(package_dir, hole)
+        clearance = tree_profile(package_dir, hole)
+        landing = landing_profile(package_dir, hole)
         version = generator_version(package_dir)
     except (OSError, KeyError, ValueError) as e:
         return Verdict(hole_id, None, False, f"unreadable package: {e}", None)
     reason, worst = assess(profile, limits)
-    reason = reason or assess_green(slopes, limits)
+    reason = reason or assess_green(slopes, limits) or assess_lines(clearance, landing, limits)
     pin_slope, max_slope = (round(v, 4) for v in slopes) if slopes else (None, None)
     return Verdict(hole_id, version, reason is None, reason, worst, pin_slope, max_slope)
 

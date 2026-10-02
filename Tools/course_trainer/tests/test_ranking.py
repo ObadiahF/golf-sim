@@ -7,7 +7,7 @@ import users
 from conftest import fill_pool, login, next_hole
 from gen_hole import rate_package
 from pg_store import PostgresStore
-from ranking import wilson_lower_bound
+from ranking import liked, wilson_lower_bound
 
 KEY = "game-key-for-tests"
 
@@ -21,7 +21,7 @@ def test_wilson_lower_bound_beats_the_raw_ratio():
 
 @pytest.fixture
 def ranked(make_client, clean_db):
-    """A pool batch with votes: B 4 up 1 down, A 1 up, C 1 up 1 down, D none. Returns (client, settings, ids)."""
+    """A pool batch with votes: B 4 up 1 down, A 1 up, C 1 up 1 down, D 1 down. Returns (client, settings, ids)."""
     client, settings = make_client(game_key=KEY)
     obi = login(client)
     next_hole(obi)
@@ -40,6 +40,7 @@ def ranked(make_client, clean_db):
     vote(b, "u3", "down")
     vote(c, "sam", "up")
     vote(c, "u1", "down")
+    vote(d, "sam", "down")
     return obi, settings, {"a": a, "b": b, "c": c, "d": d}
 
 
@@ -48,10 +49,10 @@ def test_top_ranks_by_bayesian_score(ranked):
     data = obi.get("/api/top?limit=20").json()
     holes = data["holes"]
     assert data["formula"] == "wilson-95"
-    assert [h["id"] for h in holes] == [ids["b"], ids["a"], ids["c"]]  # raw ratio would put A (1/1) first
+    assert [h["id"] for h in holes] == [ids["b"], ids["a"]]  # raw ratio would put A (1/1) first; C, D not liked
     top = holes[0]
     assert (top["rank"], top["ups"], top["downs"], top["score"]) == (1, 4, 1, pytest.approx(0.3755, abs=1e-3))
-    assert top["rating"] == "up" and holes[2]["rating"] is None  # your own vote, as in summaries
+    assert top["rating"] == "up" and holes[1]["rating"] == "up"  # your own vote, as in summaries
     assert top["previewUrl"] == f"/api/holes/{ids['b']}/preview.png" and top["par"] in (3, 4, 5)
     assert top["preset"] and top["lengthMeters"] > 50
     assert obi.get(top["previewUrl"]).headers["content-type"] == "image/png"
@@ -104,3 +105,28 @@ def test_top_cli_prints_and_exports(ranked, monkeypatch, capsys, tmp_path):
     assert sorted(p.name for p in out.iterdir()) == sorted([ids["a"], ids["b"]])
     assert {p.name for p in (out / ids["b"]).iterdir()} == {"hole.json", "heightmap.raw", "objects.bin", "gen.json",
                                                            "preview.png"}
+
+
+def test_liked_needs_more_likes_than_dislikes():
+    assert liked({"ups": 1, "downs": 0}) and liked({"ups": 4, "downs": 3})
+    assert not liked({"ups": 0, "downs": 0}) and not liked({"ups": 0, "downs": 2}) and not liked({"ups": 1, "downs": 1})
+    assert not liked({"ups": 1, "downs": 0}, min_likes=2) and liked({"ups": 2, "downs": 1}, min_likes=2)
+
+
+def test_top_holes_leave_out_disliked_holes(ranked, make_client):
+    """G6-5: holes with only 👎 (D) or no net 👍 (C) are never in Top holes or the game's round, even when the game asks
+    for more holes than qualify; TRAINER_TOP_MIN_LIKES raises the bar."""
+    obi, _, ids = ranked
+    from fastapi.testclient import TestClient
+    auth = {"Authorization": f"Bearer {KEY}"}
+
+    def game_ids(client):
+        r = TestClient(client.app).get("/api/game/top-holes?limit=100", headers=auth)
+        assert r.status_code == 200
+        return [h["id"] for h in r.json()["holes"]]
+
+    assert game_ids(obi) == [ids["b"], ids["a"]]  # 2 of the 100 asked for: what qualifies, no padding
+    assert [h["id"] for h in obi.get("/api/top?limit=100").json()["holes"]] == [ids["b"], ids["a"]]
+    strict = login(make_client(game_key=KEY, top_min_likes=2)[0])
+    assert game_ids(strict) == [ids["b"]]  # A has 1 like only
+    assert [h["id"] for h in strict.get("/api/top").json()["holes"]] == [ids["b"]]

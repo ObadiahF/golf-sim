@@ -15,14 +15,14 @@ export function TrainerView({ session, name }: { session: Session; name: string 
   const [top, setTop] = useState(false);
   const comment = useRef<HTMLTextAreaElement>(null);
   const onLockChange = useCallback((l: boolean) => setLocked(l), []);
-  const { setDraft, submit, next, busy } = trainer;
+  const { setDraft, submit, next, busy, waiting } = trainer;
 
   // Rating / navigation hotkeys (movement keys live in PlayerController). Never while typing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
       const rate = { Digit1: 'up', Digit2: 'down' } as const;
-      if (e.code in rate) {
+      if (e.code in rate && !waiting) {  // waiting: nothing to rate (RatePanel)
         const rating = rate[e.code as keyof typeof rate];
         setDraft(d => ({ ...d, rating: d.rating === rating ? null : rating }));
       } else if (e.code === 'Enter' && !busy && !isInteractive(e.target)) {
@@ -46,7 +46,7 @@ export function TrainerView({ session, name }: { session: Session; name: string 
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setDraft, submit, next, busy]);
+  }, [setDraft, submit, next, busy, waiting]);
 
   return (
     <div className={`app ${locked ? 'is-locked' : ''}`}>

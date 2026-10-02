@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import shapely
 
-from generate import plan, plan_terrain, write_package
+from generate import plan, plan_terrain, sculpt_layout, write_package
 from grading import TEE_DECK, TEE_GRADE, TEE_RUN, TEE_UPHILL, UPHILL, DOWNHILL, grade_profile
 from priors import DEFAULT_PRIORS
 from scan_launch import scan
@@ -36,8 +36,10 @@ def test_tee_shot_clears_the_ground(preset, seed):
     style = PRESETS[preset].sample(np.random.default_rng(seed))
     layout, _, heights, attempts = plan_terrain(style, seed, SPACING, DEFAULT_PRIORS)
     assert launch_problems(layout.path, heights, layout.size) == []
-    # The grading does the work: the first layout that passes the 2D checks is already playable.
-    assert attempts == plan(style, seed, DEFAULT_PRIORS)[1]
+    # The grading does the work: the first layout that passes the 2D checks already clears the ground.
+    first, first_attempts = plan(style, seed, DEFAULT_PRIORS)
+    if first_attempts != attempts:
+        assert launch_problems(first.path, sculpt_layout(first, style, seed, SPACING)[1], first.size) == []
     rise = np.diff(_profile(layout, heights, np.arange(0, min(TEE_RUN, layout.path.length), 5.0))) / 5
     assert rise.max() < 0.2, f"{rise.max():.2f} grade within {TEE_RUN:.0f} m of the tee"
 

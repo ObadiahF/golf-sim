@@ -69,6 +69,8 @@ SHAPES: dict[str, tuple[tuple[float, float], float]] = {
     "boulder": ((1.2, 3.2), 0.55),
     "rock": ((0.25, 0.9), 0.6),
 }
+# Crown (canopy) radius as a fraction of height, for the kinds a ball can hit in flight (shot-line checks).
+CROWNS: dict[str, float] = {"conifer": 0.40, "deciduous": 0.45, "palm": 0.30, "cactus": 0.15}
 
 
 def theme(name: str | None) -> Theme:

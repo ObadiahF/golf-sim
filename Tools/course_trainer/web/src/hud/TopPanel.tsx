@@ -3,6 +3,10 @@ import { api, type TopHole } from '../api';
 import { yards } from '../hole/loadHole';
 import type { Trainer } from '../useTrainer';
 
+const SCORE_DETAILS = 'Score: the Wilson score lower bound (95%) of the like share, 0-100. It is the share of likes ' +
+  'the hole has at least, given how many votes it has, so 1 👍 scores 21 and 9 👍 1 👎 scores 60. Only holes with ' +
+  'more 👍 than 👎 are listed.';
+
 /** Leaderboard overlay: the most-liked holes by everyone's votes. Opening one does not count as seeing it. */
 export function TopPanel({ trainer, onClose }: { trainer: Trainer; onClose: () => void }) {
   const [holes, setHoles] = useState<TopHole[] | null>(null);
@@ -27,7 +31,7 @@ export function TopPanel({ trainer, onClose }: { trainer: Trainer; onClose: () =
         </header>
         {error && <p className="login-error">{error}</p>}
         {!holes && !error && <p className="muted">Loading the leaderboard…</p>}
-        {holes?.length === 0 && <p className="muted">No votes yet. Rate a few holes and they show up here.</p>}
+        {holes?.length === 0 && <p className="muted">No liked holes yet. Give the ones you enjoy a 👍 and they show up here.</p>}
         <ol className="top-list">
           {holes?.map(h => (
             <li key={h.id}>
@@ -39,15 +43,15 @@ export function TopPanel({ trainer, onClose }: { trainer: Trainer; onClose: () =
                   <small>Par {h.par} · {yards(h.lengthMeters)} yd{h.rating ? ` · you ${h.rating === 'up' ? '👍' : '👎'}` : ''}</small>
                 </span>
                 <span className="top-votes">👍 {h.ups} <span className="muted">👎 {h.downs}</span></span>
-                <span className="top-score" title="Wilson lower bound of the like share (95%)">
+                <span className="top-score" title={SCORE_DETAILS}>
                   {Math.round(h.score * 100)}
                 </span>
               </button>
             </li>
           ))}
         </ol>
-        <small className="muted">
-          Score: the like share each hole has at least (Wilson 95% lower bound), so a few votes count less than many.
+        <small className="muted top-note" title={SCORE_DETAILS}>
+          Ranked by likes, with confidence: more votes count more. Only holes with more 👍 than 👎 make the list.
         </small>
       </section>
     </div>

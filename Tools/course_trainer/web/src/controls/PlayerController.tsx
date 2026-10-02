@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { northOf } from '../hole/heightField';
 import type { HoleData } from '../hole/loadHole';
+import { measureInsets } from '../hud/insets';
 import { EYE_HEIGHT, viewFor, type ViewName } from '../hole/views';
 import { isTouchDevice, isTyping, type Player } from './player';
 
@@ -71,7 +72,7 @@ export function PlayerController({ hole, player, onLockChange }: Props) {
     const onKeyDown = (e: KeyboardEvent) => {
       if (isTyping(e.target)) return;
       const view = VIEW_KEYS[e.code];
-      if (view && !e.metaKey && !e.ctrlKey) { player.place(viewFor(hole, view)); return; }
+      if (view && !e.metaKey && !e.ctrlKey) { player.place(viewFor(hole, view, measureInsets())); return; }
       if (!player.locked) return;
       if (['Space', 'ControlLeft', 'ControlRight'].includes(e.code)) e.preventDefault();
       keys.current.add(e.code);

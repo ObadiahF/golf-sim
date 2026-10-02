@@ -6,7 +6,7 @@ import pytest
 import shapely
 
 from dem_io import write_raw16
-from generate import plan, plan_terrain, write_package
+from generate import plan, plan_terrain, sculpt_layout, write_package
 from hole_package import read_heights, read_hole
 from priors import DEFAULT_PRIORS
 from scan_playability import green_profile, scan
@@ -40,8 +40,12 @@ def test_green_is_puttable(preset, seed):
     layout, _, heights, attempts = plan_terrain(style, seed, SPACING, DEFAULT_PRIORS)
     pin, anywhere = green_slopes(layout.green, layout.pin, heights, layout.size)
     assert pin <= GREEN_PIN_SLOPE and anywhere <= GREEN_MAX_SLOPE, (pin, anywhere)
-    # The shaping does the work: the first layout that passes the 2D checks already has a puttable green.
-    assert attempts == plan(style, seed, DEFAULT_PRIORS)[1]
+    # The shaping does the work: the first layout that passes the 2D checks already has a puttable green (it may
+    # still be retried for another reason, e.g. a pond bank across a landing zone).
+    first, first_attempts = plan(style, seed, DEFAULT_PRIORS)
+    if first_attempts != attempts:
+        _, first_heights = sculpt_layout(first, style, seed, SPACING)
+        assert green_problems(first.green, first.pin, first_heights, first.size) == []
 
 
 def test_pond_bank_no_longer_tilts_the_green():
@@ -73,6 +77,6 @@ def test_scan_reports_a_steep_green_on_disk(tmp_path):
     hole["heightmap"].update(minElevation=round(lo, 3), maxElevation=round(hi, 3))
     (folder / "hole.json").write_text(json.dumps(hole, indent=1))
     pin, _ = green_profile(folder)
-    assert pin == pytest.approx(0.15, abs=0.02)
+    assert pin == pytest.approx(0.15, abs=0.03)  # the green's own 2.5 % tilt adds or subtracts, by its heading
     issues = scan(tmp_path)["failing"][folder.name]["issues"]
     assert any("at the pin" in i for i in issues)

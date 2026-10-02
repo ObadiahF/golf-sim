@@ -3,7 +3,8 @@
 Rules per theme live in vegetation_themes.py. Placement: a jittered grid per rule (even coverage, no
 overlaps within a rule), thinned by clumping noise into groves, kept to the rule's surfaces and slope, and
 kept `CLEAR_MARGIN` meters away from fairways, tees, greens, bunkers and water. Specimen trees (OSM-mapped
-or placed by the generator) are kept as given unless they stand on a keep-clear surface.
+or placed by the generator) are kept as given unless they stand on a keep-clear surface. An optional `tree_clear`
+zone (the generator's shot lines) is kept free of every tree.
 """
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ from shapely.geometry import Polygon
 from noise import Fbm
 from objects_bin import KIND_CODE, PLACED
 from surfaces import KEEP_CLEAR, classify, keep_clear_zone
-from vegetation_themes import SHAPES, Rule, theme as get_theme
+from vegetation_themes import CROWNS, SHAPES, Rule, theme as get_theme
 
 CLEAR_MARGIN = 4.0      # meters between scattered objects and keep-clear surfaces
 GROVE_SIZE = 40.0       # meters; wavelength of the clumping noise
@@ -38,8 +39,10 @@ class Terrain:
 
 
 def plant(areas: list[tuple[str, Polygon]], heights: np.ndarray, size: float, theme_name: str | None, seed: int,
-          specimens: list[tuple[float, float]] = (), tree_density: float = 1.0) -> np.ndarray:
-    """All objects for a hole, decoded (objects_bin.PLACED). `tree_density` scales every tree rule."""
+          specimens: list[tuple[float, float]] = (), tree_density: float = 1.0,
+          tree_clear: Polygon | None = None) -> np.ndarray:
+    """All objects for a hole, decoded (objects_bin.PLACED). `tree_density` scales every tree rule; no tree stands
+    in `tree_clear`."""
     theme = get_theme(theme_name)
     rng = np.random.default_rng([seed, 7193])
     noise = Fbm(seed * 13 + 5, GROVE_SIZE, octaves=2)
@@ -50,7 +53,11 @@ def plant(areas: list[tuple[str, Polygon]], heights: np.ndarray, size: float, th
     for i, rule in enumerate(theme.rules()):
         density = rule.per_hectare * (tree_density if rule.trees else 1.0)
         parts.append(_scatter(rule, density, areas, terrain, zone, size, rng, noise, salt=i))
-    return np.concatenate(parts) if parts else np.zeros(0, PLACED)
+    objects = np.concatenate(parts) if parts else np.zeros(0, PLACED)
+    if tree_clear is None or tree_clear.is_empty:
+        return objects
+    trees = np.isin(objects["kind"], [KIND_CODE[k] for k in CROWNS])
+    return objects[~(trees & shapely.contains_xy(tree_clear, objects["x"], objects["y"]))]
 
 
 def _scatter(rule: Rule, per_hectare: float, areas, terrain: Terrain, zone, size: float,

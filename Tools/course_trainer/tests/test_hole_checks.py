@@ -21,7 +21,7 @@ from terrain import Grid
 from test_votes import rows
 
 KEY = "game-key-for-tests"
-VOTERS = ("u1", "u2", "u3")
+VOTERS = tuple(f"u{i}" for i in range(1, 8))
 
 
 def edit_heights(folder: Path, edit) -> None:
@@ -66,9 +66,9 @@ def pooled(make_client, clean_db):
     store = PostgresStore(clean_db)
     for name in VOTERS:
         users.create_user(clean_db, name, "pw")
-    for i, hole_id in enumerate(ids):  # first hole: 3 likes, then 2, 1, 0
+    for i, hole_id in enumerate(ids):  # first hole: 7 likes, then 6, 5, 4 (all liked, so all can rank: G6-5)
         for j, name in enumerate(VOTERS):
-            rate_package(Path(settings.holes_dir) / hole_id, "up" if j < 3 - i else "down", store=store, user=name)
+            rate_package(Path(settings.holes_dir) / hole_id, "up" if j < 7 - i else "down", store=store, user=name)
     raise_wall(Path(settings.holes_dir) / ids[1])
     with hole_checks.connect(clean_db) as conn:
         conn.execute("DELETE FROM hole_checks")  # as if made before hole_checks existed

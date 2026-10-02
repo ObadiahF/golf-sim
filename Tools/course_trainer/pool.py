@@ -4,11 +4,14 @@
 - Seen = a row in `hole_views` (shown by /api/next, opened from your recent holes, generated ad hoc, or rated).
 - Serving: unseen pool holes, newest batch first, in a per-user shuffled order (md5 of hole id + user id), so
   friends rate different holes first and the ranking gets broad coverage. Holes checked unplayable
-  (hole_checks.py) are never served and count toward no batch.
+  (hole_checks.py) are never served and count toward no batch. `peek_next` names the hole `serve_next` would
+  serve without recording it (the client prefetches it), and `serve_next(prefer=...)` then takes that very hole
+  if it is still unseen.
 - Refill (`refill_due`): the next batch starts when all of these hold:
   1. the newest batch has finished generating (so at most one batch generates at a time);
-  2. someone has *rated* `refill_at` of it, or has seen all of it. Skips count only once the batch is used up,
-     so skip-spamming makes at most one batch per finished batch, never one per half-batch;
+  2. someone has *rated* `refill_at` of it, or has seen all of it, or the user asking (on /api/next or a rating)
+     has fewer than `min_unseen` unseen holes ready (TRAINER_POOL_MIN_UNSEEN: a buffer, so the next hole is always
+     there). Skips count toward the last two, but with 1. a skipper still gets at most one batch per finished batch;
   3. fewer than `max_unrated` pool holes have no vote from anyone (the hard cap: skip-spam can't fill the disk).
   A finished batch with no holes at all (every generation failed) counts as used up after EMPTY_RETRY, so it
   can't wedge the refill, nor spin a broken generator in a loop.
@@ -29,6 +32,9 @@ MAX_SEED = 1_000_000_000
 EMPTY_RETRY_MINUTES = 10  # a finished batch with no holes: wait this long before trying another
 # Pool hole `p` is not checked unplayable (hole_checks.py): never served, and left out of the refill counts.
 PLAYABLE = "NOT EXISTS (SELECT 1 FROM hole_checks c WHERE c.hole_id = p.hole_id AND NOT c.playable)"
+# Pool hole `p` is unseen by user %(u)s and not checked unplayable; NEXT_ORDER is the order holes are served in.
+UNSEEN = f"NOT EXISTS (SELECT 1 FROM hole_views v WHERE v.user_id = %(u)s AND v.hole_id = p.hole_id) AND {PLAYABLE}"
+NEXT_ORDER = "p.batch_id DESC, md5(p.hole_id || ':' || %(u)s::text)"
 
 
 @dataclass(frozen=True)
@@ -89,32 +95,48 @@ def _used_up(conn, batch: Batch, refill_at: float) -> bool:
     return best["rated"] >= min(need_rated, ready) or best["seen"] >= ready
 
 
-def refill_due(conn, refill_at: float, max_unrated: int) -> bool:
+def unseen_count(conn, user_id: int) -> int:
+    """Ready, playable pool holes this user has not seen."""
+    return conn.execute(f"SELECT count(*) AS n FROM pool_holes p WHERE {UNSEEN}", {"u": user_id}).fetchone()["n"]
+
+
+def refill_due(conn, refill_at: float, max_unrated: int, min_unseen: int = 0, user_id: int | None = None) -> bool:
     newest = _newest(conn)
-    return newest is None or (newest.status == "ready" and _used_up(conn, newest, refill_at)
-                              and unrated_count(conn) < max_unrated)
+    if newest is None:
+        return True
+    low = user_id is not None and min_unseen > 0 and unseen_count(conn, user_id) < min_unseen
+    return (newest.status == "ready" and (low or _used_up(conn, newest, refill_at))
+            and unrated_count(conn) < max_unrated)
 
 
-def maybe_refill(dsn: str, size: int, refill_at: float, max_unrated: int) -> Batch | None:
-    """Start the next batch if `refill_due`. Returns the new batch, else None."""
+def maybe_refill(dsn: str, size: int, refill_at: float, max_unrated: int, min_unseen: int = 0,
+                 user_id: int | None = None) -> Batch | None:
+    """Start the next batch if `refill_due` (for `user_id`'s buffer too). Returns the new batch, else None."""
     with connect(dsn) as conn:
         conn.execute("SELECT pg_advisory_xact_lock(%s)", [_LOCK])
-        return _create(conn, size) if refill_due(conn, refill_at, max_unrated) else None
+        return _create(conn, size) if refill_due(conn, refill_at, max_unrated, min_unseen, user_id) else None
 
 
-def serve_next(dsn: str, user_id: int) -> str | None:
-    """The next pool hole this user has not seen, recorded as seen. None when nothing unseen is ready."""
+def peek_next(dsn: str, user_id: int, exclude: list[str] = ()) -> str | None:
+    """The hole serve_next would serve (leaving out `exclude`), without recording it as seen."""
+    with connect(dsn) as conn:
+        row = conn.execute(f"""SELECT p.hole_id FROM pool_holes p WHERE {UNSEEN} AND p.hole_id <> ALL(%(x)s)
+                               ORDER BY {NEXT_ORDER} LIMIT 1""", {"u": user_id, "x": list(exclude)}).fetchone()
+    return row and row["hole_id"]
+
+
+def serve_next(dsn: str, user_id: int, prefer: str | None = None) -> str | None:
+    """The next pool hole this user has not seen, recorded as seen; `prefer` (a hole peek_next named) first, if it is
+    still an unseen, playable pool hole. None when nothing unseen is ready."""
     with connect(dsn) as conn:
         for _ in range(3):  # ON CONFLICT: the same user's other tab took that hole a moment ago
             row = conn.execute(f"""
                 WITH pick AS (
-                    SELECT p.hole_id FROM pool_holes p
-                    WHERE NOT EXISTS (SELECT 1 FROM hole_views v WHERE v.user_id = %(u)s AND v.hole_id = p.hole_id)
-                      AND {PLAYABLE}
-                    ORDER BY p.batch_id DESC, md5(p.hole_id || ':' || %(u)s::text)
+                    SELECT p.hole_id FROM pool_holes p WHERE {UNSEEN}
+                    ORDER BY p.hole_id = %(want)s DESC, {NEXT_ORDER}
                     LIMIT 1)
                 INSERT INTO hole_views (user_id, hole_id) SELECT %(u)s, hole_id FROM pick
-                ON CONFLICT DO NOTHING RETURNING hole_id""", {"u": user_id}).fetchone()
+                ON CONFLICT DO NOTHING RETURNING hole_id""", {"u": user_id, "want": prefer or ""}).fetchone()
             if row:
                 return row["hole_id"]
     return None

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { HoleData } from '../hole/loadHole';
+import { measureInsets } from '../hud/insets';
 import { viewFor, type ViewName } from '../hole/views';
 import { isTouchDevice, type Player } from './player';
 
@@ -32,7 +33,7 @@ export function TouchControls({ hole, player }: { hole: HoleData | null; player:
     <div className="touch-controls">
       <div className="touch-views">
         {VIEWS.map(v => (
-          <button key={v.name} className="btn small" onClick={() => player.place(viewFor(hole, v.name))}>{v.label}</button>
+          <button key={v.name} className="btn small" onClick={() => player.place(viewFor(hole, v.name, measureInsets()))}>{v.label}</button>
         ))}
       </div>
       <Stick player={player} />

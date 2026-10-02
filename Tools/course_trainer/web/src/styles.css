@@ -65,7 +65,8 @@ kbd { font: 500 10px var(--mono); border: 1px solid currentColor; border-radius:
   overflow: hidden; margin-bottom: 8px; }
 .scoreline > div { display: flex; flex-direction: column; align-items: center; padding: 4px 0 2px; }
 .scoreline > div + div { border-left: 1px solid var(--rule); }
-.scoreline small { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-soft); }
+.scoreline small { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft);
+  white-space: nowrap; }
 .scoreline strong { font: 700 26px/1.1 var(--display); }
 
 .meta { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0 0 8px; font-size: 12px; }
@@ -171,6 +172,11 @@ textarea:focus, select:focus { outline: 2px solid var(--green-bright); outline-o
 .help dd { margin: 0; }
 
 .pool-line { display: block; margin-top: 6px; }
+/* Phone-only collapse controls (mobile.css shows them). */
+.strip-info, .card-toggle, .sheet-handle { display: none; }
+.rate-paused { display: flex; flex-direction: column; gap: 4px; }
+.rate-paused strong { font: 700 17px/1.2 var(--display); }
+.top-note { cursor: help; }
 .advanced { margin-top: 8px; font-size: 12px; }
 .advanced summary { cursor: pointer; color: var(--ink-soft); }
 

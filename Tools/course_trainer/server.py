@@ -106,13 +106,14 @@ def cmd_top(args, settings: Settings):
     """Print the leaderboard; with --export copy each top hole's package files (the contract files only) to DIR/<id>/."""
     holes = HoleStore(Path(settings.holes_dir))
     checks = HoleChecks.from_settings(settings, holes)
-    ranked = top_holes(settings.database_url, holes, checks, args.limit, lambda hole_id, name: name)
+    ranked = top_holes(settings.database_url, holes, checks, args.limit, lambda hole_id, name: name,
+                       min_likes=settings.top_min_likes)
     print(f"{'#':>2}  {'score':>5}  {'up':>3} {'down':>4}  {'preset':9} par  {'yards':>5}  id   ({FORMULA})")
     for h in ranked:
         print(f"{h['rank']:>2}  {h['score']:5.3f}  {h['ups']:>3} {h['downs']:>4}  {h['preset']:9} {h['par']:>3}"
               f"  {round(h['lengthMeters'] * 1.09361):>5}  {h['id']}")
     if not ranked:
-        log("No voted holes on disk yet.")
+        log("No liked holes on disk yet (a hole needs more 👍 than 👎).")
     if args.export:
         out = Path(args.export)
         for h in ranked:

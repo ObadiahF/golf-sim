@@ -37,7 +37,8 @@ def game_router(settings: Settings, holes: HoleStore, checks: HoleChecks) -> API
 
     @router.get("/top-holes")
     def top(limit: int = 9):
-        ranked = top_holes(settings.database_url, holes, checks, max(1, min(limit, MAX_LIMIT)), game_file_url)
+        ranked = top_holes(settings.database_url, holes, checks, max(1, min(limit, MAX_LIMIT)), game_file_url,
+                           min_likes=settings.top_min_likes)
         return {"formula": FORMULA, "holes": [
             {k: h[k] for k in ("rank", "id", "preset", "theme", "par", "lengthMeters", "ups", "downs", "score",
                                "previewUrl", "files")} for h in ranked]}

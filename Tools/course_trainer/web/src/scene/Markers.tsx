@@ -8,8 +8,19 @@ import { yards, type HoleData } from '../hole/loadHole';
 const POLE_HEIGHT = 2.6;
 const FLAG_W = 0.95, FLAG_H = 0.62;
 const CUP_RADIUS = 0.054;
+const LABEL_HIDE_M = 45;  // the label hides this close to the pin
+const AT_TEE_M = 40;      // within this of the tee (the start and Tee views) the label shows the hole's yardage only
 
-/** Flagstick, waving flag, cup, and a floating distance marker (hidden once you are close). */
+/** The flag label: the hole's yardage from the tee (as on the hole card), plus "to pin" once you have moved away. */
+function pinLabel(hole: HoleData, camera: THREE.Vector3): string | null {
+  const flat = (p: [number, number]) => Math.hypot(camera.x - p[0], camera.z - worldZ(p[1]));
+  const toPin = flat(hole.pin);
+  if (toPin <= LABEL_HIDE_M) return null;
+  const length = `${yards(hole.summary.lengthMeters)} yd`;
+  return flat(hole.tee) <= AT_TEE_M ? length : `${length} · ${yards(toPin)} yd to pin`;
+}
+
+/** Flagstick, waving flag, cup, and a floating distance marker (pinLabel; hidden once you are close). */
 export function Pin({ hole }: { hole: HoleData }) {
   const [x, north] = hole.pin;
   const ground = hole.field.heightAt(x, north);
@@ -30,8 +41,7 @@ export function Pin({ hole }: { hole: HoleData }) {
     pos.needsUpdate = true;
     flag.computeVertexNormals();
 
-    const d = Math.hypot(camera.position.x - x, camera.position.z - worldZ(north));
-    const text = d > 45 ? `${yards(d)} yd` : null;
+    const text = pinLabel(hole, camera.position);
     if (text !== lastLabel.current) { lastLabel.current = text; setLabel(text); }
   });
 

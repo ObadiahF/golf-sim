@@ -115,6 +115,7 @@ Or snapshot the `course-trainer_db` volume with the stack stopped. `docker compo
 | `TRAINER_POOL_BATCH_SIZE` | `100` | holes per pool batch |
 | `TRAINER_POOL_REFILL_AT` | `0.5` | the next batch starts once anyone has *rated* this share of the newest batch (see Hole pool) |
 | `TRAINER_POOL_MAX_UNRATED` | `300` | no new batch while this many pool holes have no vote from anyone |
+| `TRAINER_POOL_MIN_UNSEEN` | `15` | ... and the next batch also starts when the person asking has fewer unseen holes ready (`0`: off) |
 | `TRAINER_API_DOCS` | `false` | serve `/docs`, `/redoc`, `/openapi.json` (`run.sh` turns it on for local dev) |
 | `TRAINER_GAME_KEY` | | bearer key for the Game API (`openssl rand -hex 24`); empty: Game API off |
 | `TRAINER_GEN_SPACING` | `0.75` | meters per heightmap sample (bigger: faster, coarser; tests use 3) |
@@ -124,6 +125,9 @@ Or snapshot the `course-trainer_db` volume with the stack stopped. `docker compo
 | `TRAINER_LAUNCH_NEAR_M`, `TRAINER_LAUNCH_NEAR_MAX_M` | `60`, `1.0` | a hole is unplayable when the ground rises more than 1.0 m above the tee shot within 60 m (see Playability) |
 | `TRAINER_LAUNCH_FAR_M`, `TRAINER_LAUNCH_FAR_MAX_M` | `100`, `2.5` | ... or more than 2.5 m within 100 m (the scanner's reach) |
 | `TRAINER_GREEN_PIN_MAX_SLOPE` | `0.06` | ... or the green is steeper than 6 % within 2 m of the pin |
+| `TRAINER_TEE_LINE_MIN_CLEAR` | `0.4` | ... or fewer than 40 % of the tee-shot lines miss every tree crown |
+| `TRAINER_LANDING_MAX_SIDE_SLOPE` | `0.15` | ... or a landing zone leans more than 15 % across the line |
+| `TRAINER_TOP_MIN_LIKES` | `1` | Top holes and the Game API list a hole only with more 👍 than 👎 and at least this many 👍 |
 
 ## Hole pool
 
@@ -142,13 +146,23 @@ Everyone rates holes from one shared pool (`pool.py`, filled by `pool_worker.py`
 4. **Serving** (`GET /api/next`): the next pool hole you have not seen (shown, rated or skipped; ad-hoc holes count
    too, peeked links do not), newest batch first, in your own shuffled order (`md5(hole id : user id)`), so
    friends start on different holes and the leaderboard gets broad coverage. It is recorded as seen right away.
+   **Prefetch:** while you look at a hole, the UI asks `GET /api/next?peek=true` for the hole it would get next (not
+   recorded as seen) and downloads and decodes its files (`hole.json?peek=true`, `heightmap.raw`, `objects.bin`). On
+   Submit or Skip that hole appears at once and the UI claims it with `GET /api/next?take=<id>`, which records it as
+   seen if it is still unseen, or else serves the next unseen hole as usual (another tab of yours took it), so a hole
+   is never served twice and a prefetched hole you never see stays unseen. Submit saves the vote in the background;
+   a failed save shows in the error banner.
    Nothing unseen ready yet: `state: "generating"` and the UI shows a "Generating new holes… N of M ready" card
    (the rest of the HUD stays usable) and polls every 3 s, until the view unmounts (logout, 401).
 5. **Refill** (`pool.refill_due`, checked on `/api/next` and on every rating). The next batch starts when the
    newest batch has **finished** generating (so one batch generates at a time), someone has **rated**
    `TRAINER_POOL_REFILL_AT` (50%) of it **or seen all of it** (skips only count once the batch is used up, so
-   skip-spam earns at most one batch per finished batch), and fewer than `TRAINER_POOL_MAX_UNRATED` pool holes
-   have no vote from anyone. At the cap (`pool.capped`) the waiting card asks people to rate holes they skipped.
+   skip-spam earns at most one batch per finished batch) **or** the person asking (on `/api/next`, `?peek` too, or a
+   rating) has fewer than `TRAINER_POOL_MIN_UNSEEN` (15) unseen holes ready, so the next hole is always waiting; and
+   fewer than `TRAINER_POOL_MAX_UNRATED` pool holes have no vote from anyone. Skipping can trigger the buffer refill
+   too, but still only one batch at a time and never past the unrated cap. At the cap (`pool.capped`) the waiting
+   card asks people to rate holes they skipped (rating is off on the waiting card itself: the hole behind it is one
+   you already passed, so revisit it from the recent holes list to rate it).
    A finished batch with 0 holes (every generation failed) counts as used up after 10 minutes, so it can't wedge
    the refill. While a batch generates, unseen holes from older batches are served.
 6. Pool holes are **never pruned**. **Submit** and **Skip** (N) both go to the next pool hole. The old ad-hoc
@@ -166,6 +180,14 @@ with course_gen's scanner (`scan_playability.py`, the generator's own checks):
   more than `TRAINER_LAUNCH_FAR_MAX_M` (2.5 m) within 100 m.
 - **Green** (`green_profile`): **unplayable** when the green is steeper than `TRAINER_GREEN_PIN_MAX_SLOPE` (6 %)
   within 2 m of the pin. The generator itself keeps it under 4 % (and the rest of the putting surface under 6 %).
+- **Trees on the shot lines** (`tree_profile`, G6-3: before v6 single trees could stand on the tee line, e.g.
+  `forest_870462187_c3bfa9`): 17 straight lines fan out 8° either side of the tee shot, as far as the first landing
+  zone (the pin on a par 3), and a rough ball flight (30 m apex) is tested against every tree crown. **Unplayable**
+  when fewer than `TRAINER_TEE_LINE_MIN_CLEAR` (40 %) of them clear, or every line from a landing zone to its next
+  target (±4°) is blocked. The generator itself keeps 60 % clear.
+- **Landing zones** (`landing_profile`, G6-4): **unplayable** when a landing zone leans more than
+  `TRAINER_LANDING_MAX_SIDE_SLOPE` (15 %) across the line of play (measured 6 m either side, averaged over 16 m
+  along). The generator itself keeps them under 8 %.
 
 The verdict goes into `hole_checks` (migrations `004_hole_checks.sql`, `005_hole_check_version.sql`: generator
 version, playable, reason, worst overshoot, green slope at the pin and anywhere, and the `check_version` of the rules
@@ -179,12 +201,14 @@ that judged it, `hole_checks.CHECK_VERSION`).
 - Unplayable holes leave the Top holes ranking (`/api/top`, the Game API, `top`) and are never served by
   `/api/next` (nor counted toward a batch's refill). Their **votes stay** and still train the model.
 - `docker compose run --rm -T trainer check-holes` checks the unchecked holes and lists every unplayable one;
-  `--all` re-checks them all (needed after changing the `TRAINER_LAUNCH_*` or `TRAINER_GREEN_PIN_MAX_SLOPE` limits).
+  `--all` re-checks them all (needed after changing the `TRAINER_LAUNCH_*`, `TRAINER_GREEN_PIN_MAX_SLOPE`,
+  `TRAINER_TEE_LINE_MIN_CLEAR` or `TRAINER_LANDING_MAX_SIDE_SLOPE` limits).
 
 ### Leaderboard (Top holes)
 
-`GET /api/top?limit=20` and the **Top holes** button (L) rank every playable voted hole still on disk by everyone's
-latest vote per hole. Score = the **Wilson score lower bound** (95%, z = 1.96) of the like share:
+`GET /api/top?limit=20` and the **Top holes** button (L) rank every playable, **liked** hole still on disk by
+everyone's latest vote per hole. Liked: more 👍 than 👎 and at least `TRAINER_TOP_MIN_LIKES` (1) 👍, so a hole with
+only 👎 (or 1 👍 1 👎) never makes the list. Score = the **Wilson score lower bound** (95%, z = 1.96) of the like share:
 
 ```
 n = up + down,  p = up / n
@@ -210,7 +234,10 @@ curl -H "Authorization: Bearer $KEY" https://golf-trainer.obadiahfusco.xyz/api/g
 curl -H "Authorization: Bearer $KEY" -O https://golf-trainer.obadiahfusco.xyz/api/game/holes/<id>/hole.json
 ```
 
-`GET /api/game/top-holes?limit=9` (1-100, default 9), best first, unplayable holes left out (see Playability):
+`GET /api/game/top-holes?limit=9` (1-100, default 9), best first. Only **liked** holes (more 👍 than 👎, and at least
+`TRAINER_TOP_MIN_LIKES` 👍, default 1) that are playable (see Playability). When fewer holes qualify than `limit`, the
+list is shorter (it can be empty early on): the game cycles the holes it gets, so a round never includes a hole
+friends disliked.
 
 ```json
 {
@@ -254,7 +281,7 @@ docker compose run --rm -T -v ~/top-holes:/export --user "$(id -u):$(id -g)" \
   trainer top --limit 9 --export /export                             # + copy the top 9 packages
 ```
 
-Like the API, it skips unplayable holes. `--export DIR` copies each top hole's contract files (the five above, no Unity artefacts) to `DIR/<id>/`; copy
+Like the API, it lists only liked, playable holes. `--export DIR` copies each top hole's contract files (the five above, no Unity artefacts) to `DIR/<id>/`; copy
 those folders into Unity's `Assets/CourseData/Saved/`. (`--user`: so the files belong to you, not the image's
 `trainer` user.)
 
@@ -360,7 +387,7 @@ course_trainer/
   api.py            FastAPI app (create_app): thin layer over course_gen; generation semaphore, pruning, /next, /top
   pool.py           shared pool in Postgres: batches, serving unseen holes, refill trigger (advisory lock)
   pool_worker.py    background batch filler: retrain, then generate in worker processes
-  ranking.py        leaderboard: Wilson lower bound over latest_votes, playable holes only
+  ranking.py        leaderboard: Wilson lower bound over latest_votes, liked + playable holes only
   hole_checks.py    tee-shot playability per hole (course_gen's scan_launch), startup backfill
   game.py           read-only Game API behind TRAINER_GAME_KEY
   auth.py           signed session cookie, login / logout / me, login throttle, client IP behind a proxy

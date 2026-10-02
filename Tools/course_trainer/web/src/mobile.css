@@ -25,13 +25,15 @@
 }
 
 @media (max-width: 760px), (max-height: 500px) {
-  :root { --top-bar: 146px; --sheet: 46vh; }  /* hole card measured at 140px tall on a 390px phone */
+  /* --hud-top / --hud-bottom: the hole card's and rating sheet's measured edges (hud/insets.ts); before the first
+     measurement, the hole card's 140px on a 390px phone and the sheet's full height. */
+  :root { --top-bar: var(--hud-top, 146px); --sheet-max: 46vh; --sheet: var(--hud-bottom, var(--sheet-max)); }
 
   .column { position: static; width: auto; gap: 0; }
   .column.right { width: auto; }
 
   /* Top bar: the hole card's scoreline only; taste, knobs, history and the minimap stay hidden. */
-  .column.left { position: absolute; top: 0; left: 0; right: 0; padding: 6px 8px; }
+  .column.left { position: absolute; top: 0; bottom: auto; left: 0; right: 0; padding: 6px 8px; }
   .hole-card { padding: 6px 10px; }
   .hole-card .meta, .hole-card .knobs, .hole-card .history, .hole-card .advanced, .hole-card .pool-line,
   .taste-card, .minimap { display: none; }
@@ -39,14 +41,32 @@
   .scoreline strong { font-size: 18px; }
 
   /* Bottom sheet: thumbs, chips in one scrolling row, comment and submit. */
-  .column.right { position: absolute; left: 0; right: 0; bottom: 0; }
-  .rate-card { border-radius: 14px 14px 0 0; max-height: var(--sheet); overflow-y: auto; padding: 10px 12px 14px;
+  .column.right { position: absolute; top: auto; left: 0; right: 0; bottom: 0; }
+  .rate-card { border-radius: 14px 14px 0 0; max-height: var(--sheet-max); overflow-y: auto; padding: 10px 12px 14px;
     padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
   .thumb { padding: 6px 0; }
   .thumb-icon { font-size: 26px; }
   .chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
   .chip { flex: 0 0 auto; padding: 6px 10px; }
   .rate-card textarea, .login input { font-size: 16px; } /* 16px stops iOS zooming on focus */
+  /* The sheet's handle: tap or swipe down to collapse it to the thumbs (and Submit once you picked one), up to open. */
+  .sheet-handle { display: block; width: 100%; height: 20px; margin: -6px 0 4px; padding: 0; border: 0; background: none;
+    cursor: grab; touch-action: none; }
+  .sheet-handle::before { content: ''; display: block; width: 44px; height: 5px; margin: 0 auto; border-radius: 3px;
+    background: var(--rule); }
+  .rate-card.collapsed .chips, .rate-card.collapsed textarea, .rate-card.collapsed .submit:disabled { display: none; }
+  .rate-card.collapsed .submit { margin-top: 8px; }
+
+  /* Hole card: ▴ minimises it to a one-line strip (name, par, yards, Skip); the top bar hides until it opens again. */
+  .card-toggle { display: inline-block; margin-left: auto; min-width: 36px; }
+  .hole-card.min { display: flex; align-items: center; gap: 8px; padding: 4px 8px; }
+  .hole-card.min .scoreline { display: none; }
+  .hole-card.min .card-head { flex: 1; min-width: 0; margin: 0; padding: 0; border: 0; }
+  .hole-card.min .eyebrow { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .hole-card.min .strip-info { display: inline; font: 500 12px var(--mono); white-space: nowrap; }
+  .hole-card.min .gen-row { margin: 0; flex: none; }
+  .hud.card-min .topbar { display: none; }
+  .hud.card-min .hole-card { padding-right: 8px; }
   .btn, .chip { min-height: 36px; }
 
   /* Name + log out ride in the top bar's right corner; the controls help is for keyboards. */
@@ -62,8 +82,8 @@
   .top-row img { width: 44px; height: 44px; }
   .banner { max-width: calc(100vw - 24px); }
   .click-hint { bottom: calc(var(--sheet) + 12px); max-width: calc(100vw - 24px); }
-  /* Below the Tee / Green / Overhead row, scrolling if the free area is short. */
-  .waiting-card { padding: 10px 12px; gap: 6px; top: calc(var(--top-bar) + 44px); overflow-y: auto;
+  /* Right below the Tee / Green / Overhead row (clear of the stick), scrolling if the free area is short. */
+  .waiting-card { padding: 10px 12px; gap: 6px; top: calc(var(--top-bar) + 44px); bottom: auto; overflow-y: auto;
     max-height: calc(100% - var(--top-bar) - 44px - var(--sheet)); }
   .waiting-card .ball { display: none; }
 }

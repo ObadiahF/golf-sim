@@ -21,6 +21,16 @@ MAX_DOGLEG_DEG = 50.0
 FRAME_MARGIN = 45.0       # meters of terrain beyond the course area
 CELL = 12.0               # woods/scrub mask cell size (meters)
 TEE_MARGIN = 1.5          # min distance from the tee point (path start) to the back tee box edge (m)
+DRIVE = (215.0, 235.0, 250.0)   # first landing zone: (shortest, typical, longest) m; the Driver carries ~251 m
+PAR5_LAYUP = (130.0, 230.0)     # the par 5 second shot (m)...
+PAR5_LEFT = (55.0, 130.0)       # ...aims to leave this much into the green
+# Where a par 5 bends (share of the style's dogleg at the first, second corner): first, second, both ways, S, straight.
+PAR5_CORNERS = ((1.0, 0.15), (0.15, 1.0), (0.6, 0.6), (0.8, -0.8), (0.15, 0.1))
+PAR5_CORNER_WEIGHTS = (0.3, 0.25, 0.15, 0.15, 0.15)
+# Shot lines kept free of trees (G6-3): validate.tree_line_problems checks narrower fans, so crowns stay off them.
+TEE_CONE_DEG = 12.0       # either side of the tee shot, out to the first landing zone (the pin on a par 3)...
+LANDING_CONE_DEG = 8.0    # ...and of each shot from a landing zone to the next one (the last: to the green)
+CONE_MARGIN = 6.0         # meters beyond the cones
 
 
 @dataclass
@@ -61,30 +71,24 @@ class LayoutBuilder:
 
     # ---- route -------------------------------------------------------------------------------
     def route(self) -> tuple[LineString, list[float]]:
-        """Centre line and the distances of the landing zones along it."""
+        """Centre line and the distances of the landing zones along it (G6-2: the drive lands where a good
+        drive finishes, not at the longest carry; par 5s vary their lay-up and where they bend)."""
         length = lerp_range(self.par_priors["length"], self.s.length)
         par, rng = self.s.par, self.rng
         if par == 3:
             return LineString([(0, 0), (0, length)]), []
 
-        side = rng.choice([-1, 1])
-        bend = math.radians(self.s.dogleg * MAX_DOGLEG_DEG) * side
-        d1 = float(np.clip(length * rng.uniform(0.56, 0.66), 200, 275))
+        bend = math.radians(self.s.dogleg * MAX_DOGLEG_DEG) * rng.choice([-1, 1])
         if par == 4:
-            legs = [(d1, 0.0), (length - d1, bend)]
-            landings = [d1]
-        else:
-            d2 = float(np.clip(d1 + rng.uniform(190, 230), 0, length - 120))
-            second = bend * rng.uniform(-0.6, 0.6)
-            legs = [(d1, 0.0), (d2 - d1, bend), (length - d2, bend + second)]
-            landings = [d1, d2]
-
-        points, x, y, h = [(0.0, 0.0)], 0.0, 0.0, math.pi / 2
-        for dist, turn in legs:
-            h = math.pi / 2 + turn
-            x, y = x + math.cos(h) * dist, y + math.sin(h) * dist
-            points.append((x, y))
-        return LineString(points), landings
+            d1 = float(np.clip(length * rng.uniform(0.56, 0.66), DRIVE[0], DRIVE[2]))
+            return _polyline([(d1, 0.0), (length - d1, bend)]), [d1]
+        d1 = float(np.clip(rng.normal(DRIVE[1], 10), DRIVE[0], DRIVE[2]))
+        second = float(np.clip(length - d1 - rng.uniform(*PAR5_LEFT), *PAR5_LAYUP))
+        d2 = d1 + second
+        corners = PAR5_CORNERS[rng.choice(len(PAR5_CORNERS), p=PAR5_CORNER_WEIGHTS)]
+        turn1 = bend * corners[0]
+        turn2 = turn1 + bend * corners[1] * rng.uniform(0.6, 1.0)
+        return _polyline([(d1, 0.0), (second, turn1), (length - d2, turn2)]), [d1, d2]
 
     # ---- features ----------------------------------------------------------------------------
     def tees(self, path: LineString) -> list[Polygon]:
@@ -234,6 +238,16 @@ class LayoutBuilder:
 QUAD_SEGS_CREEK = 4
 
 
+def _polyline(legs: list[tuple[float, float]]) -> LineString:
+    """A path from the origin playing north: (leg length, heading change from north in radians) per leg."""
+    points, x, y = [(0.0, 0.0)], 0.0, 0.0
+    for dist, turn in legs:
+        h = math.pi / 2 + turn
+        x, y = x + math.cos(h) * dist, y + math.sin(h) * dist
+        points.append((x, y))
+    return LineString(points)
+
+
 def _ray_exit(poly: Polygon, angle: float) -> Point:
     """Where a ray from the polygon's centroid at `angle` leaves the polygon."""
     c = poly.centroid
@@ -265,7 +279,8 @@ def dress(layout: Layout, style: Style, rng: np.random.Generator, noise) -> Layo
                    .difference(layout.green.buffer(28)).difference(unary_union(layout.tees).buffer(14)))
 
     woods_mask = _noise_cells(layout.size, noise, style.tree_density ** 0.8, salt=0)
-    layout.woods = [p for p in polygons(smooth(woods_mask, 9).simplify(1.0).intersection(open_ground)) if p.area > 300]
+    woods_ground = open_ground.difference(shot_zone(layout.path))
+    layout.woods = [p for p in polygons(smooth(woods_mask, 9).simplify(1.0).intersection(woods_ground)) if p.area > 300]
     scrub_ground = open_ground.difference(unary_union(layout.woods)) if layout.woods else open_ground
     scrub_mask = _noise_cells(layout.size, noise, style.scrub * 0.9, salt=1)
     layout.scrub = [p for p in polygons(smooth(scrub_mask, 9).simplify(1.0).intersection(scrub_ground)) if p.area > 200]
@@ -288,9 +303,10 @@ def _noise_cells(size: float, noise, coverage: float, salt: int):
 
 
 def _specimen_trees(layout: Layout, style: Style, rng: np.random.Generator) -> list[Point]:
-    """Individual trees dotted through the rough, lining the hole."""
+    """Individual trees dotted through the rough, lining the hole (never on a shot line: shot_zone)."""
     count = int(style.tree_density * layout.path.length / 14 * rng.uniform(0.7, 1.3))
     blocked = unary_union([layout.fairway.buffer(6), layout.green.buffer(18), unary_union(layout.tees).buffer(12),
+                           shot_zone(layout.path),
                            *[b.buffer(4) for b in layout.bunkers], *[w.buffer(5) for w in layout.water]])
     band = layout.rough.difference(blocked)
     if band.is_empty:
@@ -304,3 +320,20 @@ def _specimen_trees(layout: Layout, style: Style, rng: np.random.Generator) -> l
         if band.contains(p) and all(p.distance(t) > 9 for t in trees):
             trees.append(p)
     return trees
+
+
+def shot_zone(path: LineString) -> Polygon:
+    """Where no tree may stand (G6-3): a TEE_CONE_DEG cone from the tee to the first stop (landing zone, or the pin on
+    a par 3) and a LANDING_CONE_DEG cone from each landing zone to the next stop, grown by CONE_MARGIN."""
+    stops = list(path.coords)
+    cones = [_cone(a, b, TEE_CONE_DEG if i == 0 else LANDING_CONE_DEG)
+             for i, (a, b) in enumerate(zip(stops, stops[1:]))]
+    return unary_union(cones).buffer(CONE_MARGIN)
+
+
+def _cone(a, b, half_deg: float, steps: int = 8) -> Polygon:
+    """The sector from `a` reaching |ab| either side of the direction to `b`, half_deg wide each way."""
+    reach = math.dist(a, b)
+    heading = math.atan2(b[1] - a[1], b[0] - a[0])
+    arc = [heading + math.radians(half_deg) * t for t in np.linspace(-1, 1, steps)]
+    return Polygon([a, *[(a[0] + math.cos(h) * reach, a[1] + math.sin(h) * reach) for h in arc]])

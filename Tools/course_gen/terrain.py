@@ -81,7 +81,7 @@ def sculpt(layout: Layout, style: Style, grid: Grid, seed: int) -> np.ndarray:
         h += Fbm(seed + 1, 28)(grid.x, grid.z) * 0.9 * (style.hilliness - 0.5) * (1 - 0.8 * fairway)
 
     # TH-5: a playable line of play (grade-limited from the tee).
-    h = grade_corridor(h, grid, layout.path, rough_dist)
+    h = grade_corridor(h, grid, layout.path, rough_dist, [layout.path.project(p) for p in layout.landings])
     # Ponds before the pads: their ~15% banks must never tilt a tee or the green (Q5-1), and the pads leave the
     # water alone so each pond keeps its one level.
     for pond in layout.water:

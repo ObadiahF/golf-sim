@@ -6,6 +6,9 @@ export interface Draft { rating: Rating | null; tags: string[]; comment: string 
 const EMPTY_DRAFT: Draft = { rating: null, tags: [], comment: '' };
 const POLL_MS = 3000;
 
+/** A next hole fetched and decoded in the background (not marked seen); `data` undefined: nothing to prefetch. */
+interface Prefetch { data: Promise<HoleData | undefined>; done: boolean }
+
 /** App state and server round-trips: next pool hole, ad-hoc generate, rate, retrain. */
 export function useTrainer() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -57,23 +60,65 @@ export function useTrainer() {
     setRecent(r);
   }, []);
 
-  /** Show a hole. `peek` (leaderboard): viewing it does not count as having seen it. */
+  /** The next pool hole, loaded while you look at this one, so Submit / Skip swap at once (see `next`). */
+  const ahead = useRef<Prefetch | null>(null);
+  const prefetch = useCallback(() => {
+    if (ahead.current) return;
+    const entry: Prefetch = { done: false, data: api.next({ peek: true })
+      .then(res => (res.hole ? loadHole(res.hole, true) : undefined)).catch(() => undefined) };
+    ahead.current = entry;
+    entry.data.then(data => {
+      entry.done = true;
+      if (!data && ahead.current === entry) ahead.current = null;  // nothing unseen yet: try again after the next hole
+    });
+  }, []);
+
+  /** Put a loaded hole on screen. */
+  const show = useCallback((data: HoleData) => {
+    window.clearTimeout(pollTimer.current);
+    setWaiting(false);
+    setHole(data);
+    setPreset(data.summary.preset);
+    setDraft({ ...EMPTY_DRAFT, rating: data.summary.rating });
+    window.history.replaceState(null, '', `?hole=${encodeURIComponent(data.summary.id)}`);
+  }, []);
+
+  /** Load and show a hole. `peek` (leaderboard): viewing it does not count as having seen it. */
   const open = useCallback((summary: HoleSummary, peek = false) => task('Building the hole…', async () => {
     window.clearTimeout(pollTimer.current);
     setWaiting(false);
     const data = await loadHole(summary, peek);
     if (!alive.current) return;
-    setHole(data);
-    setPreset(summary.preset);
-    setDraft({ ...EMPTY_DRAFT, rating: summary.rating });
-    window.history.replaceState(null, '', `?hole=${encodeURIComponent(summary.id)}`);
+    show(data);
     await refreshLists(summary.preset);
-  }), [task, refreshLists]);
+    prefetch();
+  }), [task, show, refreshLists, prefetch]);
+
+  /** Show the prefetched hole now, then claim it on the server (`take`: marks it seen). Another tab of yours took it
+   *  meanwhile (rare): the server serves the next unseen hole instead, and that one opens. False: nothing prefetched. */
+  const showPrefetched = useCallback(async () => {
+    const entry = ahead.current;
+    ahead.current = null;
+    const data = entry && (entry.done ? await entry.data : await task('Finding your next hole…', () => entry.data));
+    if (!data || !alive.current) return false;
+    show(data);
+    const res = await api.next({ take: data.summary.id }).catch(() => undefined);
+    if (!alive.current) return true;
+    if (res) setPool(res.pool);
+    if (res?.hole && res.hole.id !== data.summary.id) {
+      await open(res.hole);
+      return true;
+    }
+    prefetch();
+    await refreshLists(data.summary.preset).catch(() => undefined);  // after the take: the hole is in your recent list
+    return true;
+  }, [task, show, refreshLists, open, prefetch]);
 
   /** The main flow: your next unseen hole from the shared pool, or wait (polling) while the batch generates. */
   const nextRef = useRef<(poll?: boolean) => Promise<void>>(async () => {});
   const next = useCallback(async (poll = false) => {
     window.clearTimeout(pollTimer.current);
+    if (!poll && await showPrefetched()) return;
     const res = poll ? await api.next().catch(() => undefined) : await task('Finding your next hole…', api.next);
     if (!alive.current) return;
     if (res) setPool(res.pool);
@@ -82,7 +127,7 @@ export function useTrainer() {
       setWaiting(true);
       pollTimer.current = window.setTimeout(() => nextRef.current(true), POLL_MS);
     }
-  }, [task, open]);
+  }, [task, open, showPrefetched]);
   nextRef.current = next;
 
   /** Advanced: one hole made now with a chosen preset / par (still counts as seen). */
@@ -92,15 +137,22 @@ export function useTrainer() {
     if (summary) await open(summary);
   }, [catalog, preset, par, task, open]);
 
+  /** Saves the vote while the next hole is already showing (no wait); a failed save says so in the banner. */
   const submit = useCallback(async () => {
-    if (!hole || !draft.rating) return;
-    const done = await task('Saving your rating…', () =>
-      api.rate(hole.summary.id, draft.rating!, draft.comment, draft.tags));
-    if (!done) return;
-    setStatus(done.status);
-    flash(`${draft.rating === 'up' ? '👍' : '👎'} saved: ${done.status.ratings} ratings so far`);
-    await next();
-  }, [hole, draft, task, flash, next]);
+    if (!hole || !draft.rating || waiting) return;  // waiting: the hole on screen was already skipped / rated (T6-4)
+    const icon = draft.rating === 'up' ? '👍' : '👎';
+    const saving = api.rate(hole.summary.id, draft.rating, draft.comment, draft.tags);
+    const advancing = next();
+    try {
+      const done = await saving;
+      if (!alive.current) return;
+      setStatus(s => (!s || s.preset === done.status.preset ? done.status : s));  // the next hole's preset may differ
+      flash(`${icon} saved: ${done.status.ratings} ratings so far`);
+    } catch (e) {
+      if (alive.current) setError(`Your ${icon} on the last hole was not saved: ${e instanceof Error ? e.message : e}`);
+    }
+    await advancing;
+  }, [hole, draft, waiting, flash, next]);
 
   const retrain = useCallback(async () => {
     const s = await task('Retraining the taste model…', () => api.train(preset));
