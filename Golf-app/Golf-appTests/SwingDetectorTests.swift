@@ -29,7 +29,7 @@ struct SwingDetectorTests {
         try #require(hits.count == 1)
         #expect(abs(hits[0].rate - 22) / 22 < 0.1)
         #expect(abs(hits[0].face - 3) < 1)
-        #expect(hits[0].angle < 15)
+        #expect(hits[0].angle < 20) // the fastest sample: within one 100 Hz sample (13 degrees at 22 rad/s) of address
         #expect(events.first == .started)
         #expect(events.last == .rearmed)
     }
@@ -87,6 +87,33 @@ struct SwingDetectorTests {
         let hits = impacts(run(a + b))
         #expect(hits.count == 2)
         #expect(hits.count == 2 && hits[1].rate > hits[0].rate)
+    }
+
+    /// A full-speed swing saturates the gyro: from the fast part of the downswing on, the fused angle is 70
+    /// degrees off (never back near address), while the accelerometer's tilt stays true.
+    private func saturated(_ spec: SyntheticSwing.Spec, start: Double = 0) -> [MotionSample] {
+        var drifted = false
+        return SyntheticSwing.samples(spec, start: start).map { sample in
+            var s = sample
+            s.tilt = sample.angle
+            if s.rate > 30 { drifted = true }
+            if drifted { s.angle += 70 }
+            return s
+        }
+    }
+
+    @Test func saturatedSwingStillFiresAndReArms() throws {
+        let events = run(saturated(.full(impactRate: 34)))
+        let hits = impacts(events)
+        try #require(hits.count == 1)
+        #expect(hits[0].rate > 30)
+        #expect(events.last == .rearmed)
+    }
+
+    @Test func saturatedSwingsBackToBack() {
+        let a = saturated(.full(impactRate: 34))
+        let b = SyntheticSwing.samples(.full(impactRate: 25), start: a.last!.time + 0.01)
+        #expect(impacts(run(a + b)).count == 2)
     }
 
     @Test func puttFiresWithPutterThresholds() throws {

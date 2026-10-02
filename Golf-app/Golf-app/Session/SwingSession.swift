@@ -145,6 +145,7 @@ final class SwingSession {
         case .fired(let impact): fire(impact)
         case .aborted: stage = .returning
         case .rearmed:
+            motion.captureAddress() // a fresh pose: a fast swing can leave the old one drifted
             stage = .ready
             Haptics.addressSet() // the buzz that says "swing again"
         }

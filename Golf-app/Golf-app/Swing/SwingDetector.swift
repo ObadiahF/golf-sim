@@ -10,15 +10,19 @@ nonisolated struct MotionSample: Equatable, Sendable {
     var angle: Double
     /// Yaw relative to address, degrees (the face angle at impact).
     var face: Double
+    /// Degrees between gravity now and at address, straight from the accelerometer, so it never drifts the way
+    /// `angle` can after a fast swing saturates the gyro. Only meaningful while the phone is still. Nil in
+    /// synthetic streams, where `angle` stands in.
+    var tilt: Double? = nil
 }
 
 /// Finds swings in a stream of motion samples. Pure value type: no CoreMotion, no clock,
 /// so it can be driven by synthetic streams in tests and the simulator.
 ///
-/// A swing must start fast (debounced), take the phone away from address (the backswing),
-/// come back through address fast (impact), and slow down again (the finish). Impact is the
-/// fast sample closest to the address pose. After a shot it ignores motion for a cooldown and
-/// re-arms only once the phone is held still back near address.
+/// A swing must start fast (debounced), take the phone away from address (the backswing), come at least halfway
+/// back before its fastest moment (the downswing), and slow down again (the finish). Impact is the fastest
+/// sample. After a shot it ignores motion for a cooldown and re-arms once the phone is held still back near
+/// address, judged by tilt: a full-speed swing can saturate the gyro, and then `angle` drifts.
 nonisolated struct SwingDetector: Sendable {
     enum Phase: Equatable, Sendable {
         /// At address, waiting for a swing to start.
@@ -54,8 +58,6 @@ nonisolated struct SwingDetector: Sendable {
     var waggleTimeout = 0.35
     /// Finish detection: the rate must fall below this fraction of the swing's peak.
     var finishFraction = 0.3
-    /// Impact candidates: samples at least this fraction of the peak rate.
-    var impactFraction = 0.6
 
     private(set) var phase: Phase = .armed
     private var history: [MotionSample] = []
@@ -121,7 +123,7 @@ nonisolated struct SwingDetector: Sendable {
     }
 
     private mutating func processReturn(_ s: MotionSample, stillSince since: Double?) -> Event? {
-        let settled = s.angle <= thresholds.rearmAngle && s.rate <= thresholds.stillRate
+        let settled = (s.tilt ?? s.angle) <= thresholds.rearmAngle && s.rate <= thresholds.stillRate
         guard settled else {
             phase = .waitingForReturn(stillSince: nil)
             return nil
@@ -145,18 +147,18 @@ nonisolated struct SwingDetector: Sendable {
 
     private var wentAway: Bool { swing.contains { $0.angle >= thresholds.awayAngle } }
 
-    /// The impact, if the swing has gone away, come back through address fast, and is now finishing.
+    /// The impact (the fastest sample), if the swing went away, came at least halfway back from the top before
+    /// that fastest moment (so a quick takeaway isn't a swing), and is now finishing. No check on how close to
+    /// address impact is: after the gyro saturates, `angle` near impact can't be trusted.
     private func finishedImpact(current s: MotionSample) -> Impact? {
-        guard let away = swing.firstIndex(where: { $0.angle >= thresholds.awayAngle }) else { return nil }
-        let afterAway = swing[away...]
-        guard let peak = afterAway.map(\.rate).max(),
-              peak >= thresholds.startRate * thresholds.peakFactor,
-              s.rate < finishFraction * peak
+        guard let away = swing.firstIndex(where: { $0.angle >= thresholds.awayAngle }),
+              let peak = swing[away...].indices.max(by: { swing[$0].rate < swing[$1].rate })
         else { return nil }
-        let hit = afterAway
-            .filter { $0.rate >= impactFraction * peak }
-            .min { $0.angle < $1.angle }
-        guard let hit, hit.angle <= thresholds.impactAngle else { return nil }
+        let hit = swing[peak]
+        guard hit.rate >= thresholds.startRate * thresholds.peakFactor, s.rate < finishFraction * hit.rate,
+              let top = swing[away...peak].indices.max(by: { swing[$0].angle < swing[$1].angle }),
+              swing[top...peak].contains(where: { $0.angle <= swing[top].angle / 2 })
+        else { return nil }
         return Impact(rate: hit.rate, face: hit.face, angle: hit.angle, time: hit.time)
     }
 }

@@ -16,6 +16,8 @@ final class DeviceMotionSource: MotionSource {
 
     private let manager = CMMotionManager()
     private var address: CMAttitude?
+    /// The accelerometer's reading at address (gravity, as the phone was held still).
+    private var addressDown: CMAcceleration?
 
     var isAvailable: Bool { manager.isDeviceMotionAvailable }
 
@@ -25,9 +27,12 @@ final class DeviceMotionSource: MotionSource {
         manager.deviceMotionUpdateInterval = 1 / Self.hz
         manager.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: .main) { [weak self] motion, _ in
             guard let self, let motion else { return }
-            if address == nil { address = motion.attitude.copy() as? CMAttitude }
-            guard let address else { return }
-            handler(Self.sample(motion, relativeTo: address))
+            if address == nil {
+                address = motion.attitude.copy() as? CMAttitude
+                addressDown = Self.down(motion)
+            }
+            guard let address, let addressDown else { return }
+            handler(Self.sample(motion, relativeTo: address, down: addressDown))
         }
     }
 
@@ -39,7 +44,21 @@ final class DeviceMotionSource: MotionSource {
         address = nil
     }
 
-    static func sample(_ motion: CMDeviceMotion, relativeTo address: CMAttitude) -> MotionSample {
+    /// What the accelerometer reads: gravity plus the user's acceleration (the raw, drift-free signal).
+    static func down(_ motion: CMDeviceMotion) -> CMAcceleration {
+        let g = motion.gravity, a = motion.userAcceleration
+        return CMAcceleration(x: g.x + a.x, y: g.y + a.y, z: g.z + a.z)
+    }
+
+    /// Degrees between two accelerometer readings.
+    static func degrees(between a: CMAcceleration, _ b: CMAcceleration) -> Double {
+        let dot = a.x * b.x + a.y * b.y + a.z * b.z
+        let lengths = (a.x * a.x + a.y * a.y + a.z * a.z).squareRoot() * (b.x * b.x + b.y * b.y + b.z * b.z).squareRoot()
+        guard lengths > 0 else { return 0 }
+        return acos(max(-1, min(1, dot / lengths))) * 180 / .pi
+    }
+
+    static func sample(_ motion: CMDeviceMotion, relativeTo address: CMAttitude, down addressDown: CMAcceleration) -> MotionSample {
         let r = motion.rotationRate
         let relative = motion.attitude.copy() as! CMAttitude
         relative.multiply(byInverseOf: address)
@@ -48,7 +67,8 @@ final class DeviceMotionSource: MotionSource {
             time: motion.timestamp,
             rate: (r.x * r.x + r.y * r.y + r.z * r.z).squareRoot(),
             angle: angle * 180 / .pi,
-            face: relative.yaw * 180 / .pi
+            face: relative.yaw * 180 / .pi,
+            tilt: degrees(between: down(motion), addressDown)
         )
     }
 }

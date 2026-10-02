@@ -9,18 +9,16 @@ nonisolated struct SwingThresholds: Hashable, Sendable {
     var peakFactor: Double
     /// The backswing must take the phone at least this far from address.
     var awayAngle: Double
-    /// Impact must come back at least this close to address.
-    var impactAngle: Double
-    /// After a shot, the phone must be back within this of address (and still) to re-arm.
+    /// After a shot, the phone must be tilted back within this of address (and still) to re-arm.
     var rearmAngle: Double
     /// Below this rotation rate the phone counts as held still.
     var stillRate: Double
 
-    static let fullSwing = SwingThresholds(startRate: 6, peakFactor: 1.6, awayAngle: 45, impactAngle: 30, rearmAngle: 25, stillRate: 0.8)
-    static let wedge = SwingThresholds(startRate: 5, peakFactor: 1.6, awayAngle: 35, impactAngle: 25, rearmAngle: 25, stillRate: 0.8)
+    static let fullSwing = SwingThresholds(startRate: 6, peakFactor: 1.6, awayAngle: 45, rearmAngle: 25, stillRate: 0.8)
+    static let wedge = SwingThresholds(startRate: 5, peakFactor: 1.6, awayAngle: 35, rearmAngle: 25, stillRate: 0.8)
     /// Putts are slow and short: low rates, small angles.
     /// startRate 0.45 lets a ~1 m putt fire (peak 0.68 rad/s); tremor at address stays under 0.25.
-    static let putter = SwingThresholds(startRate: 0.45, peakFactor: 1.5, awayAngle: 4, impactAngle: 3, rearmAngle: 6, stillRate: 0.25)
+    static let putter = SwingThresholds(startRate: 0.45, peakFactor: 1.5, awayAngle: 4, rearmAngle: 6, stillRate: 0.25)
 }
 
 /// One club in the bag. The phone measures speed and face angle; launch and spin come from
