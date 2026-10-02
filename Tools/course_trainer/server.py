@@ -7,6 +7,7 @@
   python server.py passwd NAME [--password PW]
   python server.py export [--history] > votes.jsonl
   python server.py top [--limit 9] [--export DIR]   leaderboard; --export copies the top packages to DIR
+  python server.py check-holes [--all]        tee-shot check of unchecked (--all: every) hole; lists unplayable
 
 Needs TRAINER_DATABASE_URL (Postgres); other settings come from TRAINER_* variables (see .env.example).
 Serves the JSON API under /api and the built web UI (web/dist) at /. For UI development run `npm run dev`
@@ -27,6 +28,7 @@ import _paths
 import db
 import users
 from config import Settings, log
+from hole_checks import HoleChecks, failures
 from holes import PACKAGE_FILES, HoleStore
 from pg_store import PostgresStore
 from ranking import FORMULA, top_holes
@@ -103,7 +105,8 @@ def cmd_export(args, settings: Settings):
 def cmd_top(args, settings: Settings):
     """Print the leaderboard; with --export copy each top hole's package files (the contract files only) to DIR/<id>/."""
     holes = HoleStore(Path(settings.holes_dir))
-    ranked = top_holes(settings.database_url, holes, args.limit, lambda hole_id, name: name)
+    checks = HoleChecks.from_settings(settings, holes)
+    ranked = top_holes(settings.database_url, holes, checks, args.limit, lambda hole_id, name: name)
     print(f"{'#':>2}  {'score':>5}  {'up':>3} {'down':>4}  {'preset':9} par  {'yards':>5}  id   ({FORMULA})")
     for h in ranked:
         print(f"{h['rank']:>2}  {h['score']:5.3f}  {h['ups']:>3} {h['downs']:>4}  {h['preset']:9} {h['par']:>3}"
@@ -120,6 +123,17 @@ def cmd_top(args, settings: Settings):
                 if src.is_file():
                     shutil.copy2(src, dest / name)
         log(f"Exported {len(ranked)} hole package(s) to {out.resolve()}")
+
+
+def cmd_check_holes(args, settings: Settings):
+    """Check the pool and voted holes not checked yet (--all: re-check every one), then list the unplayable ones."""
+    db.migrate(settings.database_url)
+    checks = HoleChecks.from_settings(settings, HoleStore(Path(settings.holes_dir)))
+    done = checks.backfill(recheck=args.all)
+    bad = failures(settings.database_url)
+    for f in bad:
+        print(f"{f['hole_id']}  v{f['generator_version']}  {f['reason']}")
+    log(f"Checked {len(done)} hole(s); {len(bad)} unplayable in all (kept out of Top holes, the game API, /next).")
 
 
 def main(argv: list[str] | None = None):
@@ -144,6 +158,9 @@ def main(argv: list[str] | None = None):
     t.add_argument("--limit", type=int, default=9)
     t.add_argument("--export", metavar="DIR", help="copy the top holes' package folders (contract files) here")
     t.set_defaults(func=cmd_top)
+    c = sub.add_parser("check-holes", help="tee-shot check of unchecked pool / voted holes; prints the unplayable")
+    c.add_argument("--all", action="store_true", help="re-check every hole (e.g. after changing TRAINER_LAUNCH_*)")
+    c.set_defaults(func=cmd_check_holes)
 
     args = p.parse_args(argv)
     settings = Settings.from_env(**({"holes_dir": Path(args.out)} if args.out else {}))

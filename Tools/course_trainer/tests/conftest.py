@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import _paths  # noqa: E402,F401
 import preference  # noqa: E402
 
-TABLES = "users, votes, hole_views, training_runs, batches, pool_holes, sessions"
+TABLES = "users, votes, hole_views, training_runs, batches, pool_holes, sessions, hole_checks"
 PASSWORDS = {"obi": "pw-obi", "sam": "pw-sam"}
 
 

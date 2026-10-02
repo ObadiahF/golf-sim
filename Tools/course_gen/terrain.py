@@ -9,8 +9,9 @@ import math
 
 import numpy as np
 from PIL import Image, ImageDraw
-from scipy.ndimage import distance_transform_edt, gaussian_filter
+from scipy.ndimage import distance_transform_edt, gaussian_filter, map_coordinates
 
+from grading import grade_corridor, tee_levels
 from layout import Layout
 from noise import Fbm
 from shapes import polygons
@@ -47,6 +48,11 @@ class Grid:
     def dist_inside(self, mask: np.ndarray) -> np.ndarray:
         return distance_transform_edt(mask) * self.d
 
+    def sample(self, h: np.ndarray, x, z) -> np.ndarray:
+        """Bilinear heights at world points (x east, z north); points off the tile clamp to its edge."""
+        coords = np.array([np.atleast_1d(z) / self.d, np.atleast_1d(x) / self.d], dtype=float)
+        return map_coordinates(h, coords, order=1, mode="nearest")
+
 
 def smoothstep(t):
     t = np.clip(t, 0.0, 1.0)
@@ -64,12 +70,16 @@ def sculpt(layout: Layout, style: Style, grid: Grid, seed: int) -> np.ndarray:
     rough = grid.mask([layout.rough])
     fairway = grid.mask([layout.fairway])
     soft = gaussian_filter(h, 22 / grid.d)
-    blend = 0.65 * smoothstep(1 - grid.dist_outside(rough) / 25) + 0.25 * smoothstep(1 - grid.dist_outside(fairway) / 15)
+    rough_dist = grid.dist_outside(rough)
+    blend = 0.65 * smoothstep(1 - rough_dist / 25) + 0.25 * smoothstep(1 - grid.dist_outside(fairway) / 15)
     h = h + (soft - h) * np.clip(blend, 0, 0.9)
     if style.hilliness > 0.6:  # links: small dune bumps survive in the rough
         h += Fbm(seed + 1, 28)(grid.x, grid.z) * 0.9 * (style.hilliness - 0.5) * (1 - 0.8 * fairway)
 
-    h = _pad(h, grid, layout.tees, TEE_RAISE, slope=0.0, transition=5.0)
+    # TH-5: a playable line of play (grade-limited from the tee) and tee boxes that never form terraces.
+    h = grade_corridor(h, grid, layout.path, rough_dist)
+    h = _pad(h, grid, layout.tees, TEE_RAISE, slope=0.0, transition=5.0,
+             levels=tee_levels(h, grid, layout.path, layout.tees, TEE_RAISE))
     h = _pad(h, grid, [layout.green], GREEN_RAISE, slope=0.025, transition=7.0, layout=layout,
              undulation=Fbm(seed + 2, 14))
     for bunker in layout.bunkers:
@@ -89,13 +99,14 @@ def _tilt(layout: Layout, style: Style, grid: Grid, relief: float) -> np.ndarray
 
 
 def _pad(h, grid: Grid, shapes, raise_m: float, slope: float, transition: float, layout: Layout | None = None,
-         undulation: Fbm | None = None):
-    """Flatten each shape into a plane (optionally tilted back-to-front) raised above its surroundings."""
-    for shape in shapes:
+         undulation: Fbm | None = None, levels: list[float | None] | None = None):
+    """Flatten each shape into a plane (optionally tilted back-to-front) raised above its surroundings.
+    `levels`: a fixed pad height per shape instead of its own median ground + raise_m."""
+    for i, shape in enumerate(shapes):
         m = grid.mask([shape])
         if not m.any():
             continue
-        base = float(np.median(h[m])) + raise_m
+        base = levels[i] if levels is not None else float(np.median(h[m])) + raise_m
         surface = np.full_like(h, base)
         if layout is not None and slope:
             # Greens tilt toward the approach: back higher than front.

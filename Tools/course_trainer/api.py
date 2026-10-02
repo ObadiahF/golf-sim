@@ -23,6 +23,7 @@ from config import Settings
 from feedback import catalog
 from game import game_router
 from gen_hole import generate_hole, presets_info, prune_unrated, rate_package, status
+from hole_checks import HoleChecks
 from holes import HoleNotFound, HoleStore
 from inputs import FiniteFloat, HoleId, Text
 from pg_store import PostgresStore
@@ -60,11 +61,13 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
     generations = threading.BoundedSemaphore(settings.max_generations)  # ad hoc + pool; the rest queue here
     prune_lock = threading.Lock()
     train_lock = threading.Lock()  # one retrain at a time (they all write the one model file)
-    worker = PoolWorker(settings, store, generations, train_lock)
+    checks = HoleChecks.from_settings(settings, holes)
+    worker = PoolWorker(settings, store, generations, train_lock, checks)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         worker.start()  # first batch if there is none; resumes batches a restart interrupted
+        checks.start_backfill()  # tee-shot check of holes from before hole_checks, in the background
         yield
         worker.stop()
 
@@ -73,11 +76,12 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
                   docs_url="/docs" if docs else None, redoc_url="/redoc" if docs else None,
                   openapi_url="/openapi.json" if docs else None)
     app.state.pool = worker
+    app.state.checks = checks
     inputs.install(app)  # malformed input: 4xx, never 500
 
     login_routes, current_user = auth_router(settings)
     app.include_router(login_routes)
-    app.include_router(game_router(settings, holes))  # bearer game key, not the session cookie
+    app.include_router(game_router(settings, holes, checks))  # bearer game key, not the session cookie
     api = APIRouter(prefix="/api", dependencies=[Depends(current_user)])  # everything below needs a login
 
     def hole_or_404(fn, *args):
@@ -186,8 +190,11 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
     @api.get("/next")
     def next_hole(user: User = Depends(current_user)):
         """The next pool hole you have not seen (recorded as seen), newest batch first in your own shuffled order;
-        `state: "generating"` while none is ready yet (poll). Starts the next batch when it is due."""
+        `state: "generating"` while none is ready yet (poll). Starts the next batch when it is due. Unplayable holes
+        (hole_checks.py) are never served."""
         while (hole_id := pool.serve_next(dsn, user.id)) is not None:
+            if not checks.playable(hole_id):  # unchecked until the backfill reaches it: checked now, skipped
+                continue
             try:
                 hole = holes.describe(hole_id, my_votes(user))
                 break
@@ -202,7 +209,7 @@ def create_app(settings: Settings, web_dist: Path | None = _paths.WEB_DIST) -> F
     @api.get("/top")
     def leaderboard(limit: int = 20, user: User = Depends(current_user)):
         """Holes ranked by everyone's latest votes (Wilson lower bound, see ranking.py); `rating` is your vote."""
-        ranked = top_holes(dsn, holes, max(1, min(limit, 100)), holes_file_url, my_votes(user))
+        ranked = top_holes(dsn, holes, checks, max(1, min(limit, 100)), holes_file_url, my_votes(user))
         return {"formula": FORMULA, "holes": ranked}
 
     @api.get("/export/votes.jsonl")

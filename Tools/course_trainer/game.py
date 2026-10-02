@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from config import Settings
+from hole_checks import HoleChecks
 from holes import HoleNotFound, HoleStore
 from ranking import FORMULA, top_holes
 
@@ -22,7 +23,7 @@ def game_file_url(hole_id: str, name: str) -> str:
     return f"{PREFIX}/holes/{hole_id}/{name}"
 
 
-def game_router(settings: Settings, holes: HoleStore) -> APIRouter:
+def game_router(settings: Settings, holes: HoleStore, checks: HoleChecks) -> APIRouter:
     key = settings.game_key.encode()
 
     def game_key(request: Request) -> None:
@@ -36,7 +37,7 @@ def game_router(settings: Settings, holes: HoleStore) -> APIRouter:
 
     @router.get("/top-holes")
     def top(limit: int = 9):
-        ranked = top_holes(settings.database_url, holes, max(1, min(limit, MAX_LIMIT)), game_file_url)
+        ranked = top_holes(settings.database_url, holes, checks, max(1, min(limit, MAX_LIMIT)), game_file_url)
         return {"formula": FORMULA, "holes": [
             {k: h[k] for k in ("rank", "id", "preset", "theme", "par", "lengthMeters", "ups", "downs", "score",
                                "previewUrl", "files")} for h in ranked]}

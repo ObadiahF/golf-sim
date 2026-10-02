@@ -30,6 +30,7 @@ $PY gen_hole.py rate ../../Assets/CourseData/generated/<id> up [--comment "nice 
 $PY gen_hole.py train                      # [--ratings votes.jsonl] [--user obi]: e.g. the trainer's export
 $PY gen_hole.py status
 $PY gallery.py --out /tmp/gallery          # 3 holes per preset on one PNG
+$PY scan_launch.py <holes_dir>              # list existing packages whose tee shot hits the ground (read-only)
 $PY fetch_courses.py                       # fetch reference courses + refit priors
 $PY -m pytest tests
 ```
@@ -41,7 +42,8 @@ $PY -m pytest tests
 | `style.py` | 12 normalised knobs (0..1) and presets as distributions over them; each preset names a Unity theme |
 | `priors.py` | real-course stats (length by par, fairway width, green size, bunkers) fitted from cached OSM data in `CourseSources/` → `data/priors.json` |
 | `layout.py`, `shapes.py` | route (doglegs, landing zones), tees, green, fairway, bunkers, water (front carry, lateral lake, creek, pond), rough, then woods/scrub/trees |
-| `validate.py` | rejects unplayable layouts (water on green/tees, long carries, hazards in landing zones, unreachable greens); the generator retries |
+| `validate.py` | rejects unplayable layouts (water on green/tees, long carries, hazards in landing zones, unreachable greens) and, after sculpting, tee shots that hit the ground ahead (`launch_problems`); the generator retries |
+| `grading.py` | grade-limits the line of play from the tee (flat tee deck, gentle first 120 m) and levels the tee boxes so they never form terraces |
 | `terrain.py` (+ `course_prep/noise.py`) | fractal noise relief + course shaping (smoothed corridor, raised green/tee pads, dug bunkers, pond beds with banks) |
 | `generate.py` | writes the package per the hole contract (`Docs/hole-format`): `hole.json`, `heightmap.raw`, `objects.bin`, `gen.json`, `preview.png`. Trees, shrubs and rocks are planted by `course_prep/vegetation.py` (`tree_density` scales them), so Unity and the trainer show the same objects |
 | `preference.py` | Bayesian logistic regression on style features, shared + per-preset; Thompson sampling over 48 candidates; 10% pure exploration; no model with no ratings |

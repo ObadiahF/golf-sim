@@ -13,6 +13,7 @@ from generate import DEFAULT_SPACING
 from rating_store import DB_ENV
 
 TRUE = {"1", "true", "yes", "on"}
+LAUNCH_LIMITS = ("launch_near_m", "launch_near_max_m", "launch_far_m", "launch_far_max_m")
 
 
 def log(message: str) -> None:
@@ -43,6 +44,12 @@ class Settings:
     pool_autorun: bool = True        # background thread + worker processes fill batches (tests: pool.run_pending())
     game_key: str = ""               # bearer key for the read-only /api/game routes (empty: disabled)
     api_docs: bool = False           # serve /docs, /redoc, /openapi.json (development only)
+    # Tee-shot playability (hole_checks.py): unplayable when the ground rises more than *_max_m above a low tee
+    # shot within *_m of the tee. Changing them needs `check-holes --all` to re-judge checked holes.
+    launch_near_m: float = 60.0
+    launch_near_max_m: float = 1.0
+    launch_far_m: float = 100.0      # the scanner looks no further than validate.LAUNCH_RUN (100 m)
+    launch_far_max_m: float = 2.5
 
     @classmethod
     def from_env(cls, **overrides) -> "Settings":
@@ -62,6 +69,7 @@ class Settings:
             "pool_max_unrated": int(_env("TRAINER_POOL_MAX_UNRATED", "300")),
             "game_key": _env("TRAINER_GAME_KEY"),
             "api_docs": _env("TRAINER_API_DOCS").lower() in TRUE,
+            **{name: float(_env(f"TRAINER_{name.upper()}", str(getattr(cls, name)))) for name in LAUNCH_LIMITS},
         }
         if _env("TRAINER_SESSION_SECRET"):
             values["session_secret"] = _env("TRAINER_SESSION_SECRET")

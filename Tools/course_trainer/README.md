@@ -121,6 +121,8 @@ Or snapshot the `course-trainer_db` volume with the stack stopped. `docker compo
 | `TRAINER_KEEP_UNRATED` | `40` | unrated holes kept on disk |
 | `TRAINER_VIEW_GRACE_HOURS` | `3` | holes opened or made this recently are never pruned |
 | `TRAINER_SESSION_DAYS` | `30` | |
+| `TRAINER_LAUNCH_NEAR_M`, `TRAINER_LAUNCH_NEAR_MAX_M` | `60`, `1.0` | a hole is unplayable when the ground rises more than 1.0 m above the tee shot within 60 m (see Playability) |
+| `TRAINER_LAUNCH_FAR_M`, `TRAINER_LAUNCH_FAR_MAX_M` | `100`, `2.5` | ... or more than 2.5 m within 100 m (the scanner's reach) |
 
 ## Hole pool
 
@@ -151,9 +153,27 @@ Everyone rates holes from one shared pool (`pool.py`, filled by `pool_worker.py`
 6. Pool holes are **never pruned**. **Submit** and **Skip** (N) both go to the next pool hole. The old ad-hoc
    Generate (preset / par) is under "Advanced" on the hole card.
 
+### Playability (`hole_checks.py`)
+
+Packages are immutable, so holes from generator v3 and earlier can have ground rising into the tee shot
+(`mountain_25039489_bd20eb`: 5.3 m above the launch line 70 m out). Each pool or voted hole is judged once with
+course_gen's scanner (`scan_launch.launch_profile`, the generator's own 8° launch check over the first 100 m):
+**unplayable** when the ground rises more than `TRAINER_LAUNCH_NEAR_MAX_M` (1.0 m) above the launch line within
+`TRAINER_LAUNCH_NEAR_M` (60 m) of the tee, or more than `TRAINER_LAUNCH_FAR_MAX_M` (2.5 m) within 100 m. The verdict
+goes into `hole_checks` (migration `004_hole_checks.sql`: generator version, playable, reason, worst overshoot).
+
+- New pool holes are checked as they join the pool (they pass: the generator rejects such layouts now).
+- On startup a background thread backfills every unchecked hole (~50 ms each; requests never wait for it):
+  `hole checks: backfilled 408 hole(s), 4 unplayable: ...` in the log. The leaderboard and `/api/next` check
+  an unchecked hole on the spot, so nothing slips through while the backfill runs.
+- Unplayable holes leave the Top holes ranking (`/api/top`, the Game API, `top`) and are never served by
+  `/api/next` (nor counted toward a batch's refill). Their **votes stay** and still train the model.
+- `docker compose run --rm -T trainer check-holes` checks the unchecked holes and lists every unplayable one;
+  `--all` re-checks them all (needed after changing the `TRAINER_LAUNCH_*` limits).
+
 ### Leaderboard (Top holes)
 
-`GET /api/top?limit=20` and the **Top holes** button (L) rank every voted hole still on disk by everyone's
+`GET /api/top?limit=20` and the **Top holes** button (L) rank every playable voted hole still on disk by everyone's
 latest vote per hole. Score = the **Wilson score lower bound** (95%, z = 1.96) of the like share:
 
 ```
@@ -180,7 +200,7 @@ curl -H "Authorization: Bearer $KEY" https://golf-trainer.obadiahfusco.xyz/api/g
 curl -H "Authorization: Bearer $KEY" -O https://golf-trainer.obadiahfusco.xyz/api/game/holes/<id>/hole.json
 ```
 
-`GET /api/game/top-holes?limit=9` (1-100, default 9), best first:
+`GET /api/game/top-holes?limit=9` (1-100, default 9), best first, unplayable holes left out (see Playability):
 
 ```json
 {
@@ -224,7 +244,7 @@ docker compose run --rm -T -v ~/top-holes:/export --user "$(id -u):$(id -g)" \
   trainer top --limit 9 --export /export                             # + copy the top 9 packages
 ```
 
-`--export DIR` copies each top hole's contract files (the five above, no Unity artefacts) to `DIR/<id>/`; copy
+Like the API, it skips unplayable holes. `--export DIR` copies each top hole's contract files (the five above, no Unity artefacts) to `DIR/<id>/`; copy
 those folders into Unity's `Assets/CourseData/Saved/`. (`--user`: so the files belong to you, not the image's
 `trainer` user.)
 
@@ -277,7 +297,7 @@ Unity's `Assets/CourseData/generated/` (override with `--out` or `TRAINER_HOLES_
 never need Postgres: without `TRAINER_DATABASE_URL` they use `data/ratings.jsonl` as before.
 
 Server commands: `server.py [--port 8765] [--host 127.0.0.1] [--out DIR] [--open]`, `seed`,
-`adduser NAME`, `passwd NAME`, `export [--history]`, `top [--limit 9] [--export DIR]`.
+`adduser NAME`, `passwd NAME`, `export [--history]`, `top [--limit 9] [--export DIR]`, `check-holes [--all]`.
 
 ### UI development
 
@@ -326,11 +346,12 @@ captured the page asks before unloading.
 ```
 course_trainer/
   run.sh            local launcher (Postgres from compose)
-  server.py         CLI: serve (migrate + seed first), seed, adduser, passwd, export, top
+  server.py         CLI: serve (migrate + seed first), seed, adduser, passwd, export, top, check-holes
   api.py            FastAPI app (create_app): thin layer over course_gen; generation semaphore, pruning, /next, /top
   pool.py           shared pool in Postgres: batches, serving unseen holes, refill trigger (advisory lock)
   pool_worker.py    background batch filler: retrain, then generate in worker processes
-  ranking.py        leaderboard: Wilson lower bound over latest_votes
+  ranking.py        leaderboard: Wilson lower bound over latest_votes, playable holes only
+  hole_checks.py    tee-shot playability per hole (course_gen's scan_launch), startup backfill
   game.py           read-only Game API behind TRAINER_GAME_KEY
   auth.py           signed session cookie, login / logout / me, login throttle, client IP behind a proxy
   users.py          scrypt password hashes, accounts, server-side sessions, seed (users + legacy ratings.jsonl)
@@ -339,9 +360,9 @@ course_trainer/
   config.py         Settings from TRAINER_* environment variables
   holes.py          hole packages on disk: safe lookup, per-hole summary
   migrations/       001_init.sql (users, votes + latest_votes view, hole_views, training_runs),
-                    002_pool.sql (batches, pool_holes), 003_sessions.sql (sessions)
+                    002_pool.sql (batches, pool_holes), 003_sessions.sql (sessions), 004_hole_checks.sql
   Dockerfile, Dockerfile.dockerignore, docker-compose.yml, .env.example, requirements.txt
-  tests/            test_api, test_auth, test_votes, test_pool, test_ranking (+ conftest: throwaway database)
+  tests/            test_api, test_auth, test_votes, test_pool, test_ranking, test_hole_checks (+ conftest)
   web/              Vite + React + TypeScript + three.js (@react-three/fiber, drei)
     src/App.tsx             login gate -> TrainerView (3D scene + HUD)
     src/Login.tsx, src/useSession.ts   login card; session state (any 401 shows the login again)

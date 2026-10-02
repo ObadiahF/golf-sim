@@ -17,12 +17,13 @@ from preview import render_preview
 from priors import load_priors
 from style import Style
 from terrain import Grid, sculpt
-from validate import problems
+from validate import launch_problems, problems
 from vegetation import plant
 from vegetation_themes import tree_density_scale
 from water import carve_water
 
-GENERATOR_VERSION = 3   # 2: trees, shrubs and rocks planted here (objects.bin), not by Unity; 3: tee point always on the back tee box
+GENERATOR_VERSION = 4   # 2: trees, shrubs and rocks planted here (objects.bin), not by Unity; 3: tee point always on the back tee box
+                        # 4: graded line of play + level tee boxes, tee shots checked for clearance (TH-5)
 GEN_FORMAT = 2          # gen.json format (Docs/hole-format/gen.schema.json)
 GEN_FILE = "gen.json"
 MAX_ATTEMPTS = 40
@@ -37,18 +38,42 @@ def hole_id(style: Style, seed: int) -> str:
     return f"{style.preset}_{seed}_{digest}"
 
 
-def plan(style: Style, seed: int, priors: dict | None = None) -> tuple[Layout, int]:
-    """First playable layout for this style and seed. Returns (layout, attempts used)."""
+def _layouts(style: Style, seed: int, priors: dict | None):
+    """Every candidate layout for this style and seed, in order: (layout, attempt number, problems)."""
     priors = priors or load_priors()
-    last_issues: list[str] = []
     for attempt in range(MAX_ATTEMPTS):
         rng = np.random.default_rng([seed, attempt])
         layout = LayoutBuilder(style, priors, rng).build()
         layout = dress(layout, style, rng, Fbm(seed * 31 + attempt, 140, octaves=3))
-        last_issues = problems(layout)
-        if not last_issues:
-            return layout, attempt + 1
-    raise RuntimeError(f"No playable layout in {MAX_ATTEMPTS} attempts; last issues: {', '.join(last_issues)}")
+        yield layout, attempt + 1, problems(layout)
+
+
+def _give_up(issues: list[str]):
+    raise RuntimeError(f"No playable layout in {MAX_ATTEMPTS} attempts; last issues: {', '.join(issues)}")
+
+
+def plan(style: Style, seed: int, priors: dict | None = None) -> tuple[Layout, int]:
+    """First playable layout for this style and seed (2D checks only). Returns (layout, attempts used)."""
+    issues: list[str] = []
+    for layout, attempt, issues in _layouts(style, seed, priors):
+        if not issues:
+            return layout, attempt
+    _give_up(issues)
+
+
+def plan_terrain(style: Style, seed: int, spacing: float = DEFAULT_SPACING, priors: dict | None = None):
+    """First layout whose 2D plan and sculpted terrain are both playable (the tee shot clears the ground).
+    Returns (layout, frame, heights, attempts used)."""
+    issues: list[str] = []
+    for layout, attempt, issues in _layouts(style, seed, priors):
+        if issues:
+            continue
+        frame = HoleFrame(0, 0.0, 0.0, layout.size, pick_resolution(layout.size, spacing))
+        heights = sculpt(layout, style, Grid(frame.size, frame.resolution), seed)
+        issues = launch_problems(layout.path, heights, layout.size)
+        if not issues:
+            return layout, frame, heights, attempt
+    _give_up(issues)
 
 
 def _areas(layout: Layout) -> list[tuple[dict, object]]:
@@ -66,14 +91,11 @@ def _areas(layout: Layout) -> list[tuple[dict, object]]:
 
 def write_package(style: Style, seed: int, out_root: Path, spacing: float = DEFAULT_SPACING,
                   extra: dict | None = None) -> Path:
-    layout, attempts = plan(style, seed)
+    layout, frame, heights, attempts = plan_terrain(style, seed, spacing)
     hid = hole_id(style, seed)
     out_dir = out_root / hid
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    frame = HoleFrame(0, 0.0, 0.0, layout.size, pick_resolution(layout.size, spacing))
-    grid = Grid(frame.size, frame.resolution)
-    heights = sculpt(layout, style, grid, seed)
     water = carve_water(heights, layout.water, frame)
     areas = _areas(layout)
     objects = plant([(a["surface"], poly) for a, poly in areas], heights, frame.size, style.theme, seed,

@@ -19,6 +19,7 @@ from pathlib import Path
 import db
 import pool
 from config import Settings, log
+from hole_checks import HoleChecks
 from gen_hole import generate_hole, train_and_save
 from pg_store import PostgresStore
 
@@ -37,12 +38,13 @@ def train_and_log(dsn: str, store: PostgresStore, lock: threading.Lock, user_id:
 
 class PoolWorker:
     def __init__(self, settings: Settings, store: PostgresStore, generations: threading.Semaphore,
-                 train_lock: threading.Lock):
+                 train_lock: threading.Lock, checks: HoleChecks):
         self.settings = settings
         self.dsn = settings.database_url
         self.store = store
         self.generations = generations
         self.train_lock = train_lock
+        self.checks = checks
         self._wake = threading.Event()
         self._busy = threading.Lock()
         self._thread: threading.Thread | None = None
@@ -106,6 +108,7 @@ class PoolWorker:
             except Exception:
                 log(f"pool: batch {batch_id} position {position} failed\n{traceback.format_exc()}")
                 return False
+            self.checks.check(result["id"])  # tee-shot check as it joins the pool (new holes pass)
             pool.add_hole(self.dsn, batch_id, position, result["id"])
             return True
         return False
