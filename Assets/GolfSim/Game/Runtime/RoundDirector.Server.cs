@@ -108,6 +108,7 @@ namespace GolfSim.Game
             if (reason == null && s.screen != StateMessage.Game) reason = "The sim isn't ready for a shot";
             s.canShoot = reason == null;
             s.waitReason = reason ?? "";
+            s.canReplay = ReplayDirector.Instance && ReplayDirector.Instance.Offered;
         }
 
         /// <summary>A phone shot the sim can't hit: tell the phones why (shotRejected) as well as the TV.</summary>

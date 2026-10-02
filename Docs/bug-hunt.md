@@ -85,6 +85,7 @@ This round played the game as a group would, end to end, with three players (Oba
 - **Expected:** a Replay button, or the D-pad's Up, as on the scorecard.
 - **Actual:** gameplay mode has only the club wheel, aim, Menu, Mulligan and Pick up. Up only reaches the sim from remote mode (scorecards), so "replay the last shot between turns" can't be done mid-hole.
 - **Evidence:** `bug-phone-no-replay-control-in-gameplay.png`.
+- **Status:** Fixed (2026-10-02, app): gameplay and putting modes show a **Replay last shot** button above Menu / Mulligan / Pick up while the TV offers a replay; it sends `nav {key:"up"}` (`GameLink.replay`). The sim doesn't say so in `state` yet, so the app infers it from `screen:"game"`, `canShoot:false` and `waitReason:"Wait for the next turn"` (the sim's `BetweenShots` phase, when `ReplayDirector.CanReplay` holds). `SimState.canReplay` (optional bool) is already decoded and wins over that guess: **sim to-do:** publish `state.canReplay = ReplayDirector.CanReplay && stage == Idle` (and republish when it changes) so the button never shows when Up would fall through to RoundDirector's club change (e.g. after a mulligan, when `LastIsCurrent` is false). Checked: shown/hidden by state on the iPhone 17 Pro and SE, a tap reached a fake sim as `nav up`; `EndToEndFixTests.replay*`. Screenshots: `…/tmp/appfix4/pro-gameplay-replay-offered.png`, `se-gameplay-replay-offered.png`.
 
 #### E-7 Bottom controls slide under the tab bar (disconnect banner, 18-hole remote)
 - **Severity:** minor
@@ -94,6 +95,7 @@ This round played the game as a group would, end to end, with three players (Oba
   2. On an 18-hole game's hole-complete screen, the Front 9 / Back 9 picker pushes the remote's Back button under the tab bar.
 - **Expected:** the content scrolls or compresses so every control stays tappable.
 - **Evidence:** `bug-phone-controls-under-tabbar-when-disconnected.png`, `bug-phone-back-under-tabbar-18hole.png`.
+- **Status:** Fixed (2026-10-02, app): `ScreenScaffold` takes a `bottom:` slot pinned above the tab bar: Replay / Menu / Mulligan / Pick up and Simulate swing on the gameplay and putting screens, Back on the remote. The content between the header and those controls gets the biggest control sizes that fit (`ViewThatFits` over `ScreenFit.levels`), and scrolls at the smallest when even they don't. The D-pad under a scorecard is 200 pt. Checked with the banner showing (server stopped) and on an 18-hole hole-complete scorecard, iPhone 17 Pro and SE: every control above the tab bar. Screenshots: `…/tmp/appfix4/{pro,se}-gameplay-disconnected.png`, `{pro,se}-putting-disconnected.png`, `{pro,se}-remote-18hole-scorecard.png`.
 
 #### E-8 End game abandons the round with one tap, no confirmation
 - **Severity:** minor
@@ -102,6 +104,7 @@ This round played the game as a group would, end to end, with three players (Oba
 - **Expected:** a confirmation, as Pick up has ("Pick up on this hole?").
 - **Actual:** the game is ABANDONED immediately and the sim drops to the menu. An accidental tap ends an 18-hole round.
 - **Evidence:** `23-18hole-ended-from-app.png`, `06-pickup-confirm.png`.
+- **Status:** Fixed (2026-10-02, app): End game asks first ("End game #N?", "The 18-hole round is abandoned and its scores won't count. The sim goes back to the menu.", destructive End game). Checked: the dialog shows on the iPhone 17 Pro and confirming abandons the game on the server (`…/tmp/appfix4/pro-end-game-confirm.png`).
 
 #### E-9 The putting meter keeps the last putt's strength until the next stroke
 - **Severity:** polish
@@ -109,12 +112,14 @@ This round played the game as a group would, end to end, with three players (Oba
 - **Repro:** putt once, then look at the putting view for the next putt.
 - **Actual:** the meter still reads "6.4 m" with the fill at the old level before the new stroke starts. It reads like a preset strength.
 - **Evidence:** `11-putting-green-meter-breakline.png`.
+- **Status:** Fixed (2026-10-02, app): `PuttMeter.reset` empties the meter on a new turn (`turn`), on Address, and on leaving the putting view; a new hole also clears the "Last putt" result (`PuttMeter.follow`). A putt still waiting for its result keeps waiting. Checked: putt struck at 8.4 m, then `shotResult` + `turn` → the meter reads 0.0 m with "Putted 5.9 m of 4.6 m" kept (`…/tmp/appfix4/pro-putting-new-turn-meter-reset.png`); `EndToEndFixTests` meter tests.
 
 #### E-10 "Best rounds · per 18 holes" lists raw 9-hole totals
 - **Severity:** polish
 - **Component:** `Golf-app/Views/Game/LeaderboardView.swift`.
 - **Actual:** under that title the rows read "68 (+34) · 9 holes". The list is ranked per 18 (`toPar` doubled), but the numbers are the round's own, so the title reads as if they were per-18 scores. "Best rounds (ranked per 18 holes)", or showing the per-18 figure, would be clearer.
 - **Evidence:** `16-phone-scores-leaderboard.png`.
+- **Status (app side):** Fixed (2026-10-02): the leaderboard lists "Best 9-hole rounds" and "Best 18-hole rounds" separately (the server's `bestRounds` split by `holesCount`, server order kept), each row the round's total and score to par with its game; the per-player Best 9 / Best 18 columns (from `/api/players` `best9` / `best18`) are unchanged. An 18-hole list shows only once someone has an 18-hole round. Checked: `…/tmp/appfix4/pro-leaderboard-best-rounds.png`, `EndToEndFixTests.bestRoundsAreListedPerLength`.
 
 ### Putting
 

@@ -63,6 +63,8 @@ namespace GolfSim.Net
         public bool canShoot;
         /// <summary>Why a swing wouldn't be hit now ("Wait for the next turn"); "" when canShoot.</summary>
         public string waitReason;
+        /// <summary>The sim offers an instant replay of the last shot now (nav "up" plays it).</summary>
+        public bool canReplay;
         /// <summary>The server game being played; 0 for practice.</summary>
         public long gameId;
         public string currentPlayer;

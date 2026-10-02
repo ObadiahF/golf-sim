@@ -75,8 +75,15 @@ namespace GolfSim.Game
         void Update()
         {
             Tick(UnityEngine.Time.unscaledDeltaTime);
-            overlay?.ShowPrompt(stage == Stage.Idle && CanReplay);
+            bool offered = Offered;
+            overlay?.ShowPrompt(offered);
+            if (offered != lastOffered && RoundDirector.Instance) RoundDirector.Instance.PublishState(); // state.canReplay
+            lastOffered = offered;
         }
+
+        /// <summary>The "▲ Replay" offer is showing: the phones get it as state.canReplay.</summary>
+        public bool Offered => stage == Stage.Idle && CanReplay;
+        bool lastOffered;
 
         /// <summary>A replay of the last shot is possible: in a round, between turns or on its scorecard, the ball still where it finished.</summary>
         public bool CanReplay =>

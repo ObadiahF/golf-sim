@@ -343,7 +343,7 @@ namespace GolfSim.Game
         }
 
         /// <summary>Redraws the HUD and sends "state" when anything changed (always when forced, e.g. on reconnect).</summary>
-        void PublishState(bool force = false)
+        internal void PublishState(bool force = false)
         {
             var state = BuildState();
             ShowPutting(state);
