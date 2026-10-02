@@ -9,6 +9,7 @@ namespace GolfSim.Game
     /// <summary>
     /// The main menu's Scores overlay: everyone's stats from the game server (GET /api/players) as a ranked
     /// table. Left/Right (keyboard, gamepad or the phone's D-pad) or the tabs pick what to rank by; Back closes.
+    /// It opens on the first tab that ranks somebody (Handicap needs 3 rounds, so a new group starts on Avg /18).
     /// </summary>
     public class ScoresScreen
     {
@@ -79,8 +80,8 @@ namespace GolfSim.Game
             IsOpen = true;
             overlay.AddToClassList(Open);
             NavInput.Register(OnNav, NavInput.OverlayPriority);
-            Rank(ranking);
-            Refresh();
+            Rank(0);
+            Refresh(pickTab: true);
         }
 
         public void Close()
@@ -90,13 +91,19 @@ namespace GolfSim.Game
             NavInput.Unregister(OnNav);
         }
 
-        /// <summary>Fetches the stats again (each time the screen opens).</summary>
-        public void Refresh()
+        /// <summary>Fetches the stats again (each time the screen opens); pickTab: then show the first tab with data.</summary>
+        public void Refresh(bool pickTab = false)
         {
             status.text = "Loading scores…";
             table.Clear();
+            int shownTab = ranking;
             host.StartCoroutine(GameApi.Players(
-                result => { players = result; Render(); },
+                result =>
+                {
+                    players = result;
+                    if (pickTab && ranking == shownTab) Rank(FirstRankingWithData()); // unless a tab was picked meanwhile
+                    else Render();
+                },
                 error => status.text = $"Can't reach the game server ({error})."));
         }
 
@@ -148,6 +155,13 @@ namespace GolfSim.Game
                 for (int i = 0; i < Rankings.Length; i++) ScoreTable.Cell(row, Rankings[i].format(p), i == ranking ? "sc-cell--stat " + Current : "sc-cell--stat");
                 ScoreTable.Cell(row, p.finishedRounds.ToString(), "sc-cell--stat");
             }
+        }
+
+        /// <summary>The first tab that ranks at least one player (the first tab when nobody has played).</summary>
+        int FirstRankingWithData()
+        {
+            int first = Array.FindIndex(Rankings, r => players.Any(p => Ranked(p, r)));
+            return Mathf.Max(0, first);
         }
 
         /// <summary>Players without the stat (no finished rounds, or no handicap yet) are listed unranked at the bottom.</summary>

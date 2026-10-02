@@ -52,10 +52,12 @@ namespace GolfSim.Net
     [Serializable]
     public class StateMessage : SimMessage
     {
-        public const string Menu = "menu", Loading = "loading", Game = "game", Paused = "paused", Replay = "replay",
-            HoleComplete = "holeComplete", Results = "results";
+        public const string Menu = "menu", Loading = "loading", Game = "game", Paused = "paused", Settings = "settings",
+            Replay = "replay", HoleComplete = "holeComplete", Results = "results";
 
-        /// <summary>menu, loading, game, paused, replay (an instant replay: Select/Back skip it), holeComplete (scorecard between holes) or results (final scorecard).</summary>
+        /// <summary>menu, loading, game, paused, settings (the Sound panel, from the menu or the pause menu: Up/Down choose,
+        /// Left/Right change, Back closes), replay (an instant replay: Select/Back skip it), holeComplete (scorecard
+        /// between holes) or results (final scorecard).</summary>
         public string screen;
         /// <summary>A swing would be hit now. False between shots (screen stays game), and on every other screen.</summary>
         public bool canShoot;

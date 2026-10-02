@@ -2,14 +2,14 @@ using System.Collections.Generic;
 using GolfSim.Ball;
 using GolfSim.Course;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 namespace GolfSim.Game
 {
     /// <summary>
     /// What the replay takes over and gives back: the main camera's exact pose and lens with its fly-camera follow
     /// state (the component is paused, so its target, offset and glide resume untouched), and the game's own visuals
-    /// (the real ball, its tracer and aim line, the shot panel, the round HUD), hidden while the replay is on.
+    /// (the real ball, its tracer and aim line, the shot panel), hidden while the replay is on. The round HUD hides
+    /// itself on the "replay" screen (RoundHud.Render), so it comes back with the next state whatever ends the replay.
     /// </summary>
     public struct ScreenState
     {
@@ -22,9 +22,8 @@ namespace GolfSim.Game
         bool[] wasEnabled;
         List<Renderer> renderers;
         BallTracer tracer;
-        VisualElement hud;
 
-        public static ScreenState Hide(Camera cam, GolfBall ball, RoundDirector director)
+        public static ScreenState Hide(Camera cam, GolfBall ball)
         {
             var s = new ScreenState
             {
@@ -43,9 +42,6 @@ namespace GolfSim.Game
             foreach (var r in ball.GetComponentsInChildren<Renderer>())
                 if (r.enabled) { r.enabled = false; s.renderers.Add(r); }
             if (s.tracer) s.tracer.Hidden = true;
-            var hudDoc = director ? director.transform.Find("Round HUD")?.GetComponent<UIDocument>() : null;
-            s.hud = hudDoc ? hudDoc.rootVisualElement.Q("hud-root") : null;
-            if (s.hud != null) s.hud.style.display = DisplayStyle.None;
             cam.nearClipPlane = Mathf.Min(s.near, 0.1f); // the cup camera sits close to the ground
             return s;
         }
@@ -64,7 +60,6 @@ namespace GolfSim.Game
                 foreach (var r in renderers)
                     if (r) r.enabled = true;
             if (tracer) tracer.Hidden = false;
-            if (hud != null) hud.style.display = StyleKeyword.Null;
         }
     }
 }

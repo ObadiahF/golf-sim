@@ -5,12 +5,13 @@ using UnityEngine.UIElements;
 
 namespace GolfSim.Game
 {
-    // Putting mode: with the putter on the green (or just off it) the camera drops low behind the ball looking at the
+    // Putting mode: with the putter on the green (or just off it, on short grass) the camera drops low behind the ball looking at the
     // cup, the break preview (PuttPreview) draws on the green, the HUD shows the putt card, and "state" carries the
     // putting fields the phone's power meter needs. After a putt the HUD shows how far it went against the target.
     public partial class RoundDirector
     {
-        const float FringeReach = 3f;      // m: the putter from this close to the green is putting mode
+        const float FringeReach = 3f;      // m: the putter from this close to the green is putting mode...
+        const float FringeRolling = 0.12f; // ...from short grass only (fairway 0.11); rough (0.35) is a chip, not a putt
         const float PuttCameraBack = 2.6f; // m behind the ball
         const float PuttCameraUp = 1.5f;   // m above the ball and the ground behind it (the fly camera's minimum ground clearance)
         const float PuttBallLow = 0.3f;    // the ball sits at most this share of the view below its centre
@@ -57,8 +58,14 @@ namespace GolfSim.Game
             puttingHud?.Hide();
         }
 
+        /// <summary>
+        /// The putter on the green, or on the fringe: short grass within FringeReach of the green. From the rough the
+        /// grass grabs the ball (7x the green's rolling resistance, and the lie's speed loss), so how far it goes
+        /// hardly follows the meter's flat-green scale: the putter there is an ordinary shot, without the meter.
+        /// </summary>
         bool IsPutting(string lie) =>
-            preview && Clubs.Find(club).IsPutter && (lie == "green" || (lie != "tee" && preview.GreenWithin(FringeReach)));
+            preview && Clubs.Find(club).IsPutter &&
+            (lie == "green" || (lie != "tee" && ball.Settings.For(lie).rolling <= FringeRolling && preview.GreenWithin(FringeReach)));
 
         /// <summary>The putting fields of "state" (called by BuildState).</summary>
         void FillPutting(StateMessage s)

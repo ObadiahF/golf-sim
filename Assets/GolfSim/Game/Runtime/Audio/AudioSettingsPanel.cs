@@ -7,7 +7,8 @@ namespace GolfSim.Game
     /// <summary>
     /// The Sound settings overlay, opened from the main menu's Sound card and the pause menu: one bar per volume
     /// (master, effects, crowd, ambience, interface), saved through GameAudio. Up/Down picks a volume, Left/Right
-    /// changes it by 10 %, Back or Select closes (keyboard, gamepad or the phone's D-pad); a click on a bar sets it.
+    /// changes it by 10 % (to the next 10 % mark from a default off the grid), Back or Select closes (keyboard, gamepad or
+    /// the phone's D-pad); a click on a bar sets it. While one is open the phones are told the screen is "settings".
     /// Built in code into any UI Toolkit root that uses Menu.uss.
     /// </summary>
     public class AudioSettingsPanel
@@ -44,6 +45,18 @@ namespace GolfSim.Game
         int highlighted;
 
         public bool IsOpen { get; private set; }
+
+        /// <summary>A Sound panel is open (main menu or pause menu); OpenChanged fires when that changes.</summary>
+        public static bool AnyOpen => openCount > 0;
+        public static event Action<bool> OpenChanged;
+        static int openCount;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            openCount = 0;
+            OpenChanged = null;
+        }
 
         public AudioSettingsPanel(VisualElement root)
         {
@@ -93,18 +106,26 @@ namespace GolfSim.Game
         public void Show()
         {
             if (IsOpen) return;
-            IsOpen = true;
             for (int i = 0; i < Channels.Length; i++) Render(i);
             Highlight(0);
             overlay.AddToClassList(Open);
             NavInput.Register(OnNav, NavInput.ModalPriority);
+            SetOpen(true);
         }
 
         public void Close()
         {
-            IsOpen = false;
             overlay.RemoveFromClassList(Open);
             NavInput.Unregister(OnNav);
+            SetOpen(false);
+        }
+
+        void SetOpen(bool open)
+        {
+            if (IsOpen == open) return;
+            IsOpen = open;
+            openCount = Mathf.Max(0, openCount + (open ? 1 : -1));
+            OpenChanged?.Invoke(AnyOpen);
         }
 
         bool OnNav(NavKey key)
@@ -113,8 +134,8 @@ namespace GolfSim.Game
             {
                 case NavKey.Up: Highlight(highlighted - 1); break;
                 case NavKey.Down: Highlight(highlighted + 1); break;
-                case NavKey.Left: Set(highlighted, Channels[highlighted].get() - Step); break;
-                case NavKey.Right: Set(highlighted, Channels[highlighted].get() + Step); break;
+                case NavKey.Left: Set(highlighted, Stepped(Channels[highlighted].get(), -1)); break;
+                case NavKey.Right: Set(highlighted, Stepped(Channels[highlighted].get(), 1)); break;
                 default: Close(); break; // Select or Back
             }
             return true; // modal
@@ -128,8 +149,17 @@ namespace GolfSim.Game
 
         void Set(int index, float value)
         {
-            Channels[index].set(Mathf.Round(Mathf.Clamp01(value) / Step) * Step); // whole steps, as the D-pad gives
+            Channels[index].set(Mathf.Floor(Mathf.Clamp01(value) / Step + 0.5f) * Step); // whole steps (halves up), as the D-pad gives
             Render(index);
+        }
+
+        /// <summary>The next 10 % mark in this direction: 70 → 60 or 80, and 75 (a default) → 70 or 80.</summary>
+        public static float Stepped(float value, int direction)
+        {
+            const float Slack = 1e-3f; // float noise: 0.7 is 6.9999 steps
+            float steps = value / Step;
+            float next = direction > 0 ? Mathf.Floor(steps + Slack) + 1f : Mathf.Ceil(steps - Slack) - 1f;
+            return Mathf.Clamp01(next * Step);
         }
 
         void Render(int index)

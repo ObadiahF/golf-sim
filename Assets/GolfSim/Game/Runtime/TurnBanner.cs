@@ -13,6 +13,9 @@ namespace GolfSim.Game
     {
         const string Center = "turn-banner--center", BadgeShown = "turn-badge--shown";
         const int HoldMs = 1500, MoveMs = 550, ConfettiPieces = 70;
+        // The title's size in RoundHud.uss and the smallest it shrinks to for a long name before it wraps.
+        const float TitleSize = 112f, MinTitleSize = 60f, ScreenShare = 0.9f, CardPadding = 2f * 64f + 6f;
+        const float TwoLines = 1.8f; // two lines hold a little under twice one line (words don't split evenly)
 
         /// <summary>Accent per player in turn order (the server allows 8 players).</summary>
         public static readonly Color[] Accents =
@@ -26,6 +29,8 @@ namespace GolfSim.Game
         IVisualElementScheduledItem step;
         int sequence;
         bool badgeWanted; // false once the turn is over (e.g. the hole ended during the announcement)
+        bool badgeLanded; // the announcement has flown into the badge
+        bool covered;     // another screen is up (a replay, the scorecard): the badge waits underneath
 
         public TurnBanner(VisualElement root)
         {
@@ -47,8 +52,9 @@ namespace GolfSim.Game
         public void AnnounceTurn(string player, int playerIndex, string info)
         {
             var color = AccentFor(playerIndex);
-            badge.RemoveFromClassList(BadgeShown);
             badgeWanted = true;
+            badgeLanded = false;
+            RefreshBadge();
             SetBadge(player, info, color);
             Show($"{player.ToUpperInvariant()}'S TURN", info, color);
             int id = sequence;
@@ -58,11 +64,21 @@ namespace GolfSim.Game
         /// <summary>Updates the badge text (e.g. the stroke count) without an announcement.</summary>
         public void UpdateBadge(string info) => badgeDetail.text = info;
 
+        /// <summary>The turn is over: no badge until the next announcement.</summary>
         public void HideBadge()
         {
             badgeWanted = false;
-            badge.RemoveFromClassList(BadgeShown);
+            RefreshBadge();
         }
+
+        /// <summary>Hides the badge while another screen is up and brings it back afterwards (the turn goes on).</summary>
+        public void Cover(bool on)
+        {
+            covered = on;
+            RefreshBadge();
+        }
+
+        void RefreshBadge() => badge.EnableInClassList(BadgeShown, badgeWanted && badgeLanded && !covered);
 
         /// <summary>The winner banner with confetti; onDone runs when it has faded (e.g. to show the scorecard).</summary>
         public void Celebrate(string headline, string info, Color color, Action onDone)
@@ -96,6 +112,7 @@ namespace GolfSim.Game
             ResetCard();
             card.style.display = StyleKeyword.Null;
             title.text = headline;
+            FitTitle(headline);
             title.style.color = color;
             detail.text = info;
             SetBorder(card, color);
@@ -124,8 +141,30 @@ namespace GolfSim.Game
             card.style.display = DisplayStyle.None; // hide instantly, then reset without animating back
             banner.RemoveFromClassList(Center);
             ResetCard();
-            if (badgeWanted) badge.AddToClassList(BadgeShown);
+            badgeLanded = true;
+            RefreshBadge();
             Schedule(50, () => card.style.display = StyleKeyword.Null);
+        }
+
+        /// <summary>
+        /// Sizes the title to its text. Layout measures a label without its letter-spacing, so the label's own width
+        /// would cut the last letters off; this sets the width with the spacing counted, shrinks the font for a long
+        /// name, and only when even the smallest size can't fit on one line wraps it onto two, at a size they hold.
+        /// </summary>
+        void FitTitle(string text)
+        {
+            float spacing = title.resolvedStyle.letterSpacing;
+            float available = Mathf.Min(title.resolvedStyle.maxWidth.value is var max && max > 0f ? max : float.MaxValue,
+                                        (root.layout.width > 0f ? root.layout.width : 1920f) * ScreenShare - CardPadding);
+            float measured = title.MeasureTextSize(text, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined).x;
+            float glyphs = measured * TitleSize / Mathf.Max(1f, title.resolvedStyle.fontSize); // at the USS size, whatever was set last time
+            float Width(float size) => glyphs * size / TitleSize + spacing * text.Length + 2f;
+            float oneLine = TitleSize * (available - spacing * text.Length) / Mathf.Max(1f, glyphs);
+            bool wrap = oneLine < MinTitleSize;
+            float fit = Mathf.Clamp(wrap ? oneLine * TwoLines : oneLine, MinTitleSize, TitleSize);
+            title.style.fontSize = fit;
+            title.style.whiteSpace = wrap ? WhiteSpace.Normal : WhiteSpace.NoWrap;
+            title.style.width = wrap ? available : Width(fit);
         }
 
         void ResetCard()

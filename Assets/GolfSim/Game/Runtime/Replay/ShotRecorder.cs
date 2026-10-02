@@ -32,6 +32,12 @@ namespace GolfSim.Game
             ball.ShotStarted -= OnShotStarted;
             ball.ShotFinished -= OnShotFinished;
             ball.Placed -= OnPlaced;
+            Forget();
+        }
+
+        /// <summary>Drops the last shot (the hole is being left): nothing to replay until the next one.</summary>
+        public void Forget()
+        {
             Last = null;
             LastIsCurrent = false;
         }

@@ -1,6 +1,8 @@
 using System;
 using GolfSim.Ball;
+using GolfSim.Net;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 namespace GolfSim.Game
@@ -9,8 +11,9 @@ namespace GolfSim.Game
     /// The instant replay. In a round, after an interesting shot (ReplaySettings.Reason) or when a player presses Up
     /// between turns, it holds the next turn (RoundDirector.Hold), dips to black, and replays the recorded shot
     /// (ShotRecorder) with TV cameras (ReplayCameraman), slow motion, a ghost ball and tracer (ReplayGhost) and
-    /// letterboxed graphics (ReplayOverlay), then hands the camera back exactly as it was. Select or Back skips it.
-    /// The real ball, its tracer and aim line, the HUD and the shot panel are hidden while it plays.
+    /// letterboxed graphics (ReplayOverlay), then hands the camera back exactly as it was. Select or Back skips it,
+    /// its lead-in included. The real ball, its tracer and aim line and the shot panel are hidden while it plays (the
+    /// HUD hides itself on the "replay" screen). Leaving the hole (a scene load) drops the replay and the last shot.
     /// </summary>
     [RequireComponent(typeof(ShotRecorder))]
     public class ReplayDirector : MonoBehaviour
@@ -56,6 +59,7 @@ namespace GolfSim.Game
             hold = () => Busy;
             RoundDirector.Hold = hold;
             NavInput.Register(OnNav, NavInput.OverlayPriority + 10); // over the pause menu: Back skips a replay
+            SceneManager.sceneLoaded += OnSceneLoaded;
             CreateOverlay();
         }
 
@@ -63,6 +67,7 @@ namespace GolfSim.Game
         {
             recorder.Recorded -= OnRecorded;
             NavInput.Unregister(OnNav);
+            SceneManager.sceneLoaded -= OnSceneLoaded;
             if (RoundDirector.Hold == hold) RoundDirector.Hold = null;
             if (Instance == this) Instance = null;
         }
@@ -73,10 +78,11 @@ namespace GolfSim.Game
             overlay?.ShowPrompt(stage == Stage.Idle && CanReplay);
         }
 
-        /// <summary>A replay of the last shot is possible: in a round, between turns, the ball still where it finished.</summary>
+        /// <summary>A replay of the last shot is possible: in a round, between turns or on its scorecard, the ball still where it finished.</summary>
         public bool CanReplay =>
             recorder.Last != null && recorder.LastIsCurrent && RoundDirector.Instance && RoundDirector.Instance.Round != null &&
-            Shots.Blocked != null && !HomeMenu.IsOpen;
+            Shots.Blocked != null && !HomeMenu.IsOpen && !ScreenFade.Loading &&
+            RoundDirector.Instance.ScreenName is StateMessage.Game or StateMessage.HoleComplete or StateMessage.Results;
 
         // ---- starting and stopping ----
 
@@ -111,18 +117,31 @@ namespace GolfSim.Game
             }
         }
 
+        /// <summary>Leaving the hole (Select on the scorecard, the menu, a new round): drops any replay and the last shot.</summary>
+        public void Forget()
+        {
+            Stop();
+            recorder.Forget();
+            overlay?.ShowPrompt(false);
+        }
+
+        void OnSceneLoaded(Scene scene, LoadSceneMode mode) => Forget(); // the camera and ball it would use are gone
+
         bool OnNav(NavKey key)
         {
             if (HomeMenu.IsOpen) return false;
-            if (Busy && stage != Stage.Waiting)
+            if (stage == Stage.Waiting)
+            {
+                // The lead-in (or an Up just pressed): Select or Back skips it, Up starts it now. The key never falls
+                // through to the scorecard, which would load the next hole under a replay about to start.
+                if (key is NavKey.Select or NavKey.Back) Skip();
+                else if (key == NavKey.Up) stageTime = Mathf.Max(stageTime, 0f);
+                return true;
+            }
+            if (Busy)
             {
                 if (key is NavKey.Select or NavKey.Back) Skip();
                 return true; // nothing else reacts while the replay is on screen
-            }
-            if (key == NavKey.Up && stage == Stage.Waiting)
-            {
-                stageTime = Mathf.Max(stageTime, 0f); // already coming: start it now
-                return true;
             }
             if (key == NavKey.Up && stage == Stage.Idle && CanReplay)
             {
@@ -183,7 +202,7 @@ namespace GolfSim.Game
                 return;
             }
             plan = new ReplayCameraman(settings, CameraSpots.For(hole, ball)).Plan(rec);
-            saved = ScreenState.Hide(cam, ball, director);
+            saved = ScreenState.Hide(cam, ball);
             ghost ??= new ReplayGhost(ball, transform);
             ghost.Begin(rec);
             ghost.Show(true);
@@ -231,7 +250,10 @@ namespace GolfSim.Game
             Playing?.Invoke(false);
         }
 
-        void OnDisable()
+        void OnDisable() => Stop();
+
+        /// <summary>Ends any replay at once, with no reveal (the camera and screen are handed back if it had begun).</summary>
+        void Stop()
         {
             if (stage is Stage.Playing or Stage.DipOut) End(restore: true, reveal: false);
             else Enter(Stage.Idle);

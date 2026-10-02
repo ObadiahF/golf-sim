@@ -69,9 +69,10 @@ with the connection and the HUD. Any scene with a `HoleInfo` and a `GolfBall` wo
    Hole Simulator and **Scores**. On Play a Round, Up/Down picks 9 or 18 holes for a solo round. If the
    server has a game in progress, the card resumes it at the first unfinished hole instead.
    Scores shows a ranked table from `GET /api/players`, ranked by handicap, average to par per 18 holes,
-   best 9-hole and 18-hole rounds, wins, birdies or aces (use Left/Right to change). Back closes it. **Sound**
-   opens the volume settings (also in the pause menu): Up/Down picks master, effects, crowd, ambience or
-   interface, Left/Right changes it by 10 %, Back closes. The volumes are saved.
+   best 9-hole and 18-hole rounds, wins, birdies or aces (use Left/Right to change). It opens on the first of
+   those that ranks somebody (the handicap needs 3 rounds). Back closes it. **Sound**
+   opens the volume settings (also in the pause menu; screen `settings`): Up/Down picks master, effects, crowd,
+   ambience or interface, Left/Right moves it to the next 10 % mark, Back closes. The volumes are saved.
    While a round's top holes download, an overlay shows "Downloading hole 3 of 9…" and takes every key;
    Back cancels and the round never starts.
 2. **Start:** the app's Start Game calls `POST /api/games`, the server sends `gameStarted`, and the sim
@@ -96,11 +97,13 @@ Select, Esc (or B) for Back. Space hits with the on-screen panel (Tab shows it).
 
 ## Putting
 
-With the putter on the green (or within 3 m of it on the fringe) the sim is in **putting mode**
+With the putter on the green (or on short grass within 3 m of it: the fringe) the sim is in **putting mode**
 (`RoundDirector.Putting.cs`): the camera drops low behind the ball looking at the cup, the HUD shows the putt
 card (feet and metres, the rise or fall in cm, how long it plays, the Stimp and the read level), and `state`
 carries `putting: true`, `puttDistance` (m), `elevation` (m, + uphill), `stimp` (ft), `puttPlaysAs` (m) and
 `puttingAssist`. The app then shows its putting view with a power meter. Shots stay ordinary `shot` messages.
+From the rough the putter is an ordinary shot (no putting mode, `puttPlaysAs` 0): the rough's rolling resistance
+(7x the green's) and the lie's speed loss make the roll too far from the meter's flat-green scale to read.
 
 - **Break preview** (`Ball/Runtime/PuttPreview.cs`, `PuttPredictor.cs`, `GreenReading.cs`): rolls a copy of the
   putt over the terrain with the ball's own physics at the speed that finishes 40 cm past the hole along the aim,
@@ -130,7 +133,9 @@ plays a sound or moves a replay camera.
   into a `ShotRecording` (path every 4 ms plus its events). In a round, `ReplayDirector` replays shots that
   `ReplaySettings.Reason` finds interesting (drives over 250 yd, approaches from 30 m+ finishing within 3 m, holed
   shots from off the green, holed putts over 6 m, trees, water), or the last shot when a player presses **Up**
-  between turns. It holds the next turn (`RoundDirector.Hold`) and **Select or Back skips it**. `ReplayCameraman`
+  between turns. It holds the next turn (`RoundDirector.Hold`) and **Select or Back skips it** (its lead-in too;
+  the HUD hides itself on the `replay` screen, so it always comes back, and leaving the hole drops the replay and the
+  last shot). `ReplayCameraman`
   cuts it like TV: down-the-line on a long lens, a tower beside the flight with lead room, a landing-zone camera
   looking back at the ball dropping in (slow motion), a tree camera, a low cup camera for holed putts and a
   blimp shot of the whole tracer after long shots. Cameras are kept out of the terrain and trees with a clear view

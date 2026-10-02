@@ -8,6 +8,8 @@ namespace GolfSim.Game
     /// The in-game overlay (RoundHud.uxml): hole, par, stroke, club, aim, distance and lie (rendered from the
     /// same StateMessage the phone gets), the turn announcement and current-player badge (TurnBanner), short
     /// toasts, the between-holes / final scorecard and the fade curtain for loading holes.
+    /// What shows is decided here from the state alone (Render), so every screen change puts the HUD back as it should
+    /// be: hidden during an instant replay, the stats in game and paused, the key hints only in game.
     /// </summary>
     public class RoundHud
     {
@@ -16,19 +18,21 @@ namespace GolfSim.Game
         public readonly ScreenFade Fade;
         public readonly TurnBanner Banner;
 
-        readonly VisualElement info, hint, scorecard, table, loading, loadingFill;
-        readonly Label eyebrow, player, strokes, club, aim, distance, lie, toast, title, subtitle, footer, loadingTitle, loadingDetail;
+        readonly VisualElement hudRoot, info, hint, scorecard, table, loading, loadingFill;
+        readonly Label eyebrow, player, strokesCaption, strokes, club, aim, distance, lie, toast, title, subtitle, footer, loadingTitle, loadingDetail;
         IVisualElementScheduledItem hideToast;
 
         public RoundHud(UIDocument document)
         {
             var root = document.rootVisualElement;
+            hudRoot = root.Q("hud-root");
             info = root.Q("hud-info");
             hint = root.Q("hud-hint");
             scorecard = root.Q("scorecard");
             table = root.Q("scorecard-table");
             eyebrow = root.Q<Label>("hud-eyebrow");
             player = root.Q<Label>("hud-player");
+            strokesCaption = root.Q<Label>("hud-strokes-caption");
             strokes = root.Q<Label>("hud-strokes");
             club = root.Q<Label>("hud-club");
             aim = root.Q<Label>("hud-aim");
@@ -46,29 +50,33 @@ namespace GolfSim.Game
             PlainText.Apply(root); // names (badge, banner, toasts, scorecard) come from the app
             Banner = new TurnBanner(root);
             Fade = new ScreenFade(root);
-            ShowInfo(false);
+            info.AddToClassList(Hidden);
+            hint.AddToClassList(Hidden);
         }
 
-        public void ShowInfo(bool show)
-        {
-            info.EnableInClassList(Hidden, !show);
-            hint.EnableInClassList(Hidden, !show);
-        }
-
-        /// <summary>Shows a state: the HUD in game, nothing on other screens. lieLabel: the lie with its effect ("Rough −12%").</summary>
-        public void Render(StateMessage s, string lieLabel = null)
+        /// <summary>
+        /// Shows a state: the HUD in game (the stats also under the pause menu), nothing on other screens, and none of
+        /// it during a replay. lieLabel: the lie with its effect ("Rough −12%"). current: the player up, whose
+        /// finished hole (holed or picked up) shows as their score instead of a next stroke.
+        /// </summary>
+        public void Render(StateMessage s, string lieLabel = null, PlayerBall current = null)
         {
             bool playing = s.screen == StateMessage.Game || s.screen == StateMessage.Paused;
             bool inRound = !string.IsNullOrEmpty(s.currentPlayer);
-            ShowInfo(playing);
-            if (!playing || !inRound) Banner.HideBadge();
+            hudRoot.style.display = s.screen == StateMessage.Replay ? DisplayStyle.None : StyleKeyword.Null;
+            info.EnableInClassList(Hidden, !playing);
+            hint.EnableInClassList(Hidden, s.screen != StateMessage.Game);
+            if (!inRound) Banner.HideBadge();
+            Banner.Cover(!playing);
             if (!playing) return;
             eyebrow.text = inRound ? $"HOLE {s.hole}  ·  PAR {s.par}" : $"PRACTICE  ·  PAR {s.par}";
             // In a round the player's name is on the turn badge (top right).
             player.EnableInClassList(Hidden, inRound);
             player.text = "Practice";
-            if (inRound) Banner.UpdateBadge(TurnInfo(s.hole, s.par, s.strokes));
-            strokes.text = (s.strokes + 1).ToString();
+            bool finished = current is { Done: true };
+            if (inRound) Banner.UpdateBadge(finished ? FinishedInfo(s.hole, s.par, current) : TurnInfo(s.hole, s.par, s.strokes));
+            strokesCaption.text = finished ? "SCORE" : "STROKE";
+            strokes.text = (finished ? s.strokes : s.strokes + 1).ToString();
             club.text = s.club;
             aim.text = Aim(s.aim);
             distance.text = $"{s.distanceToPin:0} yd";
@@ -108,7 +116,13 @@ namespace GolfSim.Game
         public bool ScorecardOpen => scorecard.ClassListContains(Open);
 
         /// <summary>"Hole 3 · Par 4 · Stroke 2" (strokes = taken so far, so this is the next one).</summary>
-        public static string TurnInfo(int hole, int par, int strokes) => $"Hole {hole}  ·  Par {par}  ·  Stroke {strokes + 1}";
+        public static string TurnInfo(int hole, int par, int strokes) => HoleLine(hole, par, $"Stroke {strokes + 1}");
+
+        /// <summary>"Hole 3 · Par 4 · Picked up: 9" or "… · Holed: 4" once the player's hole is over.</summary>
+        public static string FinishedInfo(int hole, int par, PlayerBall ball) =>
+            HoleLine(hole, par, $"{(ball.pickedUp ? "Picked up" : "Holed")}: {ball.strokes}");
+
+        static string HoleLine(int hole, int par, string detail) => $"Hole {hole}  ·  Par {par}  ·  {detail}";
 
         public static string ToPar(int toPar) => toPar == 0 ? "E" : toPar > 0 ? $"+{toPar}" : toPar.ToString();
 

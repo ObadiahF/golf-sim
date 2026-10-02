@@ -48,7 +48,8 @@
     transition: opacity 0.3s ease-out, scale 0.55s ease-in-out, translate 0.55s ease-in-out;
 }
 .turn-banner--center .turn-banner__card { opacity: 1; scale: 1; }
-.turn-banner__title { max-width: 1700px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 112px; -unity-font-style: bold; letter-spacing: 4px; margin: 0; text-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); }
+/* TurnBanner.FitTitle sets the width (letter-spacing counted), shrinks long names and wraps only the longest. */
+.turn-banner__title { max-width: 1700px; white-space: nowrap; font-size: 112px; -unity-font-style: bold; -unity-text-align: middle-center; letter-spacing: 4px; margin: 0; text-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); }
 .turn-banner__detail { font-size: 34px; color: #c9d4de; margin: 4px 0 0 0; }
 
 .turn-badge {

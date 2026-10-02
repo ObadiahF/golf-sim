@@ -36,16 +36,17 @@ namespace GolfSim.Game
         public GameView ServerGame => serverGame;
         public string ScreenName => phase switch
         {
-            Phase.Menu => StateMessage.Menu,
+            Phase.Menu => AudioSettingsPanel.AnyOpen ? StateMessage.Settings : StateMessage.Menu,
             Phase.Loading => StateMessage.Loading,
             _ when replaying => StateMessage.Replay,
             Phase.HoleSummary => StateMessage.HoleComplete,
             Phase.Finished => StateMessage.Results,
-            _ => HomeMenu.IsOpen ? StateMessage.Paused : StateMessage.Game,
+            _ => !HomeMenu.IsOpen ? StateMessage.Game : AudioSettingsPanel.AnyOpen ? StateMessage.Settings : StateMessage.Paused,
         };
 
         SimConnection connection;
         RoundHud hud;
+        ReplayDirector replay;
         Round round;
         GameView serverGame;
         Phase phase = Phase.Menu;
@@ -99,7 +100,8 @@ namespace GolfSim.Game
             Instance = this;
             if (!course) course = CourseRound.Load();
             hud = CreateHud();
-            gameObject.AddComponent<ReplayDirector>().Playing += OnReplayPlaying; // presentation: sounds and replays follow the ball and round events
+            replay = gameObject.AddComponent<ReplayDirector>(); // presentation: sounds and replays follow the ball and round events
+            replay.Playing += OnReplayPlaying;
             gameObject.AddComponent<GameAudio>();
             TurnStarted += turn => hud?.Banner.AnnounceTurn(turn.player, Array.IndexOf(round.players, turn.player),
                                                              RoundHud.TurnInfo(turn.hole, round.Par, turn.strokes));
@@ -119,6 +121,7 @@ namespace GolfSim.Game
             Shots.Gate = BlockedReason;
             Shots.Accepted += OnShotAccepted;
             HomeMenu.OpenChanged += OnPauseChanged;
+            AudioSettingsPanel.OpenChanged += OnPauseChanged;
             HomeMenu.CanRestart = CanRestartHole;
             NavInput.Register(OnNav, NavInput.GamePriority);
             SceneManager.sceneLoaded += OnSceneLoaded;
@@ -132,6 +135,7 @@ namespace GolfSim.Game
             if (Shots.Gate == BlockedReason) Shots.Gate = null;
             Shots.Accepted -= OnShotAccepted;
             HomeMenu.OpenChanged -= OnPauseChanged;
+            AudioSettingsPanel.OpenChanged -= OnPauseChanged;
             if (HomeMenu.CanRestart == CanRestartHole) HomeMenu.CanRestart = null;
             SceneManager.sceneLoaded -= OnSceneLoaded;
             NavInput.Unregister(OnNav);
@@ -199,6 +203,7 @@ namespace GolfSim.Game
             round = null;
             starting = false;
             pending = null;
+            if (replay) replay.Forget();
             hud?.HideScorecard();
             hud?.Banner.Clear();
         }
@@ -224,6 +229,7 @@ namespace GolfSim.Game
             }
             loadingHole = holeIndex;
             pending = null;
+            if (replay) replay.Forget(); // the hole is over: no replay on the way out, no "Replay" hint on the next screen
             phase = Phase.Loading;
             PublishState();
             hud?.HideScorecard();
@@ -341,7 +347,7 @@ namespace GolfSim.Game
         {
             var state = BuildState();
             ShowPutting(state);
-            hud?.Render(state, LieLabel(state.lie));
+            hud?.Render(state, LieLabel(state.lie), round?.CurrentBall);
             string json = state.ToJson();
             if (!force && json == lastState) return;
             lastState = json;
