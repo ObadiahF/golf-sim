@@ -38,6 +38,7 @@ namespace GolfSim.Game
         {
             Phase.Menu => StateMessage.Menu,
             Phase.Loading => StateMessage.Loading,
+            _ when replaying => StateMessage.Replay,
             Phase.HoleSummary => StateMessage.HoleComplete,
             Phase.Finished => StateMessage.Results,
             _ => HomeMenu.IsOpen ? StateMessage.Paused : StateMessage.Game,
@@ -49,7 +50,7 @@ namespace GolfSim.Game
         GameView serverGame;
         Phase phase = Phase.Menu;
         int loadingHole = -1;
-        Action pending;
+        Action pending, queuedLoad;
         float pendingAt;
         string lastState;
 
@@ -73,10 +74,10 @@ namespace GolfSim.Game
         /// <summary>True when the server has a game in progress that "Play a Round" would resume.</summary>
         public static bool CanResume => Instance && Instance.serverGame != null && Instance.serverGame.IsInProgress;
 
-        /// <summary>The round card's description: what pressing Play will do.</summary>
-        public static string MenuDescription(GameMode mode)
+        /// <summary>The round card's description: what pressing Play will do (a solo round of `holes`, or the resume).</summary>
+        public static string MenuDescription(GameMode mode, int holes)
         {
-            if (!CanResume) return mode.description;
+            if (!CanResume) return mode.description.Replace("{holes}", holes.ToString());
             var game = Instance.serverGame;
             var resume = Round.FromGame(game, Instance.course.turnOrder, Instance.course.maxOverPar).FirstUnfinishedHole();
             return $"Resume game {game.id}: {string.Join(", ", game.players.Select(p => p.name))}. " +
@@ -86,7 +87,7 @@ namespace GolfSim.Game
         /// <summary>Resumes the server's game in progress, else starts a solo round (holes: 0 = CourseRound.holes).</summary>
         public void PlayRound(int holes = 0)
         {
-            if (ScreenFade.Loading) return; // already leaving for a scene (a double Select on Play)
+            if (ScreenFade.Loading || IsFetching) return; // already leaving for a scene or getting its holes (a double Select on Play)
             if (CanResume) StartRound(Round.FromGame(serverGame, course.turnOrder, course.maxOverPar));
             else StartRound(new Round(0, new[] { course.soloPlayer }, holes > 0 ? holes : course.holes, course.turnOrder, course.maxOverPar));
         }
@@ -98,13 +99,13 @@ namespace GolfSim.Game
             Instance = this;
             if (!course) course = CourseRound.Load();
             hud = CreateHud();
-            gameObject.AddComponent<ReplayDirector>(); // presentation: sounds and replays follow the ball and round events
+            gameObject.AddComponent<ReplayDirector>().Playing += OnReplayPlaying; // presentation: sounds and replays follow the ball and round events
             gameObject.AddComponent<GameAudio>();
             TurnStarted += turn => hud?.Banner.AnnounceTurn(turn.player, Array.IndexOf(round.players, turn.player),
                                                              RoundHud.TurnInfo(turn.hole, round.Par, turn.strokes));
             connection = SimConnection.Create(ServerConfig.Load());
             connection.Connected += () => PublishState(force: true);
-            connection.HelloReceived += hello => serverGame = hello.game;
+            connection.HelloReceived += OnHello;
             connection.GameStarted += OnGameStarted;
             connection.ScorecardReceived += game => serverGame = game;
             connection.GameFinished += OnGameFinished;
@@ -118,6 +119,7 @@ namespace GolfSim.Game
             Shots.Gate = BlockedReason;
             Shots.Accepted += OnShotAccepted;
             HomeMenu.OpenChanged += OnPauseChanged;
+            HomeMenu.CanRestart = CanRestartHole;
             NavInput.Register(OnNav, NavInput.GamePriority);
             SceneManager.sceneLoaded += OnSceneLoaded;
         }
@@ -130,6 +132,7 @@ namespace GolfSim.Game
             if (Shots.Gate == BlockedReason) Shots.Gate = null;
             Shots.Accepted -= OnShotAccepted;
             HomeMenu.OpenChanged -= OnPauseChanged;
+            if (HomeMenu.CanRestart == CanRestartHole) HomeMenu.CanRestart = null;
             SceneManager.sceneLoaded -= OnSceneLoaded;
             NavInput.Unregister(OnNav);
             if (Instance == this) Instance = null;
@@ -175,35 +178,26 @@ namespace GolfSim.Game
 
         // ---- rounds and scenes ----
 
-        void OnGameStarted(GameView game)
-        {
-            serverGame = game;
-            Debug.Log($"[RoundDirector] Game {game.id} started: {string.Join(", ", game.players.Select(p => p.name))}, {game.holesCount} holes.");
-            StartRound(Round.FromGame(game, Instance.course.turnOrder, Instance.course.maxOverPar));
-        }
-
-        void OnGameFinished(GameView game)
-        {
-            serverGame = game;
-            if (round == null || round.gameId != game.id || game.status != GameView.Abandoned) return;
-            hud?.Toast("Game ended from the app");
-            EndRound();
-            LoadScene(course.menuScene, -1);
-        }
-
+        /// <summary>Starts a round (game started, Play a Round, a resume), replacing any round in progress.</summary>
         void StartRound(Round newRound)
         {
+            if (IsFetching) StopFetching();
+            if (round != null) EndRound();
             round = newRound;
-            FetchCourseHoles(() =>
+            starting = true;
+            phase = Phase.Loading;
+            FetchCourseHoles(newRound, () =>
             {
-                int first = round.FirstUnfinishedHole();
-                LoadHole(first < round.holeCount ? first : 0);
+                if (round != newRound) return; // replaced or cancelled meanwhile
+                int first = newRound.FirstUnfinishedHole();
+                LoadHole(first < newRound.holeCount ? first : 0);
             });
         }
 
         void EndRound()
         {
             round = null;
+            starting = false;
             pending = null;
             hud?.HideScorecard();
             hud?.Banner.Clear();
@@ -222,6 +216,12 @@ namespace GolfSim.Game
 
         void LoadScene(string scene, int holeIndex)
         {
+            if (ScreenFade.Loading)
+            {
+                // Another scene is on its way (e.g. the menu after the last game was abandoned): load this one after it.
+                queuedLoad = () => LoadScene(scene, holeIndex);
+                return;
+            }
             loadingHole = holeIndex;
             pending = null;
             phase = Phase.Loading;
@@ -238,8 +238,10 @@ namespace GolfSim.Game
             if (round != null) BuildCourseHole(loadingHole >= 0 ? loadingHole : Mathf.Max(0, round.HoleIndex));
             var holeInfo = FindAnyObjectByType<HoleInfo>();
             var golfBall = holeInfo ? FindAnyObjectByType<GolfBall>() : null;
+            if (round != null && phase == Phase.Finished) EndRound(); // a finished round is never replayed (a reload is practice)
             if (golfBall)
             {
+                starting = false;
                 Bind(holeInfo, golfBall);
                 // A hole we didn't load (HOME > Restart Hole) restarts the current hole.
                 if (round != null) StartHole(loadingHole >= 0 ? loadingHole : Mathf.Max(0, round.HoleIndex));
@@ -247,11 +249,16 @@ namespace GolfSim.Game
             }
             else
             {
-                if (round != null) EndRound(); // HOME > Main Menu leaves the round (the server game can be resumed)
-                phase = Phase.Menu;
+                // HOME > Main Menu leaves the round (the server game can be resumed), unless a new one is on its way.
+                if (round != null && !starting) EndRound();
+                phase = starting ? Phase.Loading : Phase.Menu;
             }
             loadingHole = -1;
             PublishState();
+            if (queuedLoad == null) return;
+            var load = queuedLoad;
+            queuedLoad = null;
+            load();
         }
 
         // ---- input ----
@@ -285,13 +292,14 @@ namespace GolfSim.Game
         void OnRemoteShot(RemoteShotMessage shot)
         {
             var ack = Shots.Submit(shot, "WebSocket", out _);
-            if (ack.status != "ok") hud?.Toast(ack.message);
+            if (ack.status != "ok") RejectShot(shot, ack.message);
         }
 
         /// <summary>Why a shot can't be hit now (the Shots gate), or null.</summary>
         string BlockedReason()
         {
             if (HomeMenu.IsOpen) return "The sim is paused";
+            if (replaying) return "Wait for the replay to finish";
             return phase switch
             {
                 Phase.Menu => "Start a game on the sim first",
@@ -315,8 +323,11 @@ namespace GolfSim.Game
                 s.aim = (float)Math.Round(ball.aimOffset, 1);
                 s.distanceToPin = Mathf.Round(YardsToPin);
                 s.lie = round == null ? practiceLie : round.CurrentBall?.lie ?? "";
-                FillPutting(s);
+                // Putting only while a player is still on this hole (not with the ball in the cup, nor on the scorecard).
+                if (phase is (Phase.Playing or Phase.BetweenShots) && round?.CurrentBall?.Done != true) FillPutting(s);
+                else s.puttingAssist = PuttPreview.AssistName(PuttPreview.Assist);
             }
+            FillCanShoot(s);
             if (round?.CurrentBall is { } current)
             {
                 s.currentPlayer = current.player;

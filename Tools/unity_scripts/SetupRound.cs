@@ -1,8 +1,8 @@
 // Dev helper (one-off, edit mode), run with the Unity CLI (not compiled into the project):
 //   unity command run_script --file Tools/unity_scripts/SetupRound.cs --entry SetupRound.Run
 // Creates the multiplayer assets: Resources/CourseRound (hole scenes, turn rules, HUD), Resources/GolfServer
-// (server URL + token) and the "Play a Round" and "Scores" GameModes, and puts them on the MainMenu scene's
-// cards (round first, scores last). Idempotent: existing assets are kept. The MainMenu scene is opened
+// (server URL + token) and the "Play a Round", "Scores" and "Sound" GameModes, and puts them on the MainMenu
+// scene's cards (round first, then the others, scores and sound last). Idempotent: existing assets are kept. The MainMenu scene is opened
 // additively, so the open scene stays.
 using System.Linq;
 using GolfSim.Game;
@@ -30,7 +30,7 @@ public static class SetupRound
         var mode = Asset<GameMode>($"{Game}/Modes/PlayRound.asset", m =>
         {
             m.title = "Play a Round";
-            m.description = "9 or 18 holes for up to 8 players, taking turns with one phone. Add players in the SwingRemote app " +
+            m.description = "{holes} holes for up to 8 players, taking turns with one phone. Add players in the SwingRemote app " +
                             "and press Start Game, or press Play here for a solo round.";
             m.kind = GameMode.ModeKind.Round;
             m.banner = AssetDatabase.LoadAssetAtPath<Texture2D>($"{Game}/Art/HoleSimulator.png");
@@ -42,13 +42,20 @@ public static class SetupRound
             m.kind = GameMode.ModeKind.Scores;
             m.banner = AssetDatabase.LoadAssetAtPath<Texture2D>($"{Game}/Art/HoleSimulator.png");
         });
+        var sound = Asset<GameMode>($"{Game}/Modes/Sound.asset", m =>
+        {
+            m.title = "Sound";
+            m.description = "Volumes for the whole game, sound effects, the crowd, the ambience and the menus.";
+            m.kind = GameMode.ModeKind.Settings;
+            m.banner = AssetDatabase.LoadAssetAtPath<Texture2D>($"{Game}/Art/HoleSimulator.png");
+        });
         AssetDatabase.SaveAssets();
 
         var scene = EditorSceneManager.OpenScene("Assets/Scenes/MainMenu.unity", OpenSceneMode.Additive);
         var menu = scene.GetRootGameObjects().Select(g => g.GetComponentInChildren<MainMenu>(true)).First(m => m);
-        if (!menu.modes.Contains(mode) || !menu.modes.Contains(scores))
+        if (!menu.modes.Contains(mode) || !menu.modes.Contains(scores) || !menu.modes.Contains(sound))
         {
-            menu.modes = new[] { mode }.Concat(menu.modes.Where(m => m != mode && m != scores)).Append(scores).ToArray();
+            menu.modes = new[] { mode }.Concat(menu.modes.Where(m => m != mode && m != scores && m != sound)).Append(scores).Append(sound).ToArray();
             EditorUtility.SetDirty(menu);
             EditorSceneManager.SaveScene(scene);
         }

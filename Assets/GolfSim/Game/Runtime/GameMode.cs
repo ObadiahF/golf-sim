@@ -17,10 +17,13 @@ namespace GolfSim.Game
             Round,
             /// <summary>Opens the Scores screen (everyone's stats from the game server).</summary>
             Scores,
+            /// <summary>Opens the Sound settings (volumes).</summary>
+            Settings,
         }
 
         public ModeKind kind = ModeKind.Scene;
         public string title = "New Mode";
+        [Tooltip("{holes} is replaced by the selected round length (9 or 18) on a Round card.")]
         [TextArea(2, 4)] public string description;
         [Tooltip("Scene to load (must be in the build settings).")]
         public string sceneName;

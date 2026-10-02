@@ -53,13 +53,15 @@ namespace GolfSim.Course
                 if (unknown.Count > 0)
                     Debug.LogWarning($"[CourseBuilder] Surfaces not in {options.layers.name}, left unpainted: {string.Join(", ", unknown)}");
 
+                var objects = pkg.LoadObjects();
+                var obstacles = objects.Select(o => new Obstacle { radius = o.radius, height = o.height, kind = (byte)o.kind }).ToArray();
                 if (options.scatter)
                 {
                     progress("Trees and rocks", 0.7f);
-                    int placed = TreeScatterer.Apply(data, pkg, options.scatter);
+                    int placed = TreeScatterer.Apply(data, pkg, objects, options.scatter, obstacles);
                     Debug.Log($"[CourseBuilder] Placed {placed} of {pkg.objects.count} trees, shrubs and rocks from {pkg.objects.file}");
                 }
-                return CreateObjects(pkg, data, options, layers, alpha, assets, progress);
+                return CreateObjects(pkg, data, options, layers, alpha, assets, progress, objects, obstacles);
             }
             finally
             {
@@ -68,7 +70,8 @@ namespace GolfSim.Course
         }
 
         static GameObject CreateObjects(HolePackage pkg, TerrainData data, HoleBuildOptions options, SurfaceLayerSet layers,
-                                        float[,,] alpha, HoleAssets assets, Action<string, float> progress)
+                                        float[,,] alpha, HoleAssets assets, Action<string, float> progress,
+                                        PlacedObject[] objects, Obstacle[] obstacles)
         {
             var root = new GameObject($"Hole {pkg.holeRef} - {pkg.course}");
             var terrainGo = Terrain.CreateTerrainGameObject(data);
@@ -101,13 +104,9 @@ namespace GolfSim.Course
             info.holePath = Enumerable.Range(0, pkg.holePath.Count).Select(i => pkg.ToLocal(pkg.holePath[i], terrain)).ToArray();
             info.sourcePackage = pkg.assetPath;
             info.terrainLayerSurfaces = layers.SurfaceNames();
-            info.obstacles = pkg.LoadObjects().Select(o => new Obstacle
-            {
-                position = pkg.ToLocal(o.position, terrain),
-                radius = o.radius,
-                height = o.height,
-                kind = (byte)o.kind,
-            }).ToArray();
+            // Every object, with the crown its model draws (TreeScatterer), at its spot on the terrain.
+            for (int i = 0; i < objects.Length; i++) obstacles[i].position = pkg.ToLocal(objects[i].position, terrain);
+            info.obstacles = obstacles;
             return root;
         }
     }

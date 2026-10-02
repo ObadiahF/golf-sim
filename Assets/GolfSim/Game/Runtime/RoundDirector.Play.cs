@@ -40,6 +40,7 @@ namespace GolfSim.Game
             if (flyCam) flyCam.showHelp = round == null && hud == null;
             ball.ShotFinished += OnShotFinished;
             ball.Placed += OnBallPlaced;
+            ball.ShotStarted += OnShotStarted;
             BindPutting();
         }
 
@@ -50,6 +51,7 @@ namespace GolfSim.Game
             {
                 ball.ShotFinished -= OnShotFinished;
                 ball.Placed -= OnBallPlaced;
+                ball.ShotStarted -= OnShotStarted;
             }
             ball = null;
             panel = null;
@@ -249,7 +251,7 @@ namespace GolfSim.Game
         {
             int score = round.scores[player][round.HoleIndex];
             Debug.Log($"[RoundDirector] Hole {round.HoleNumber}: {round.players[player]} {score} (par {round.Par})");
-            if (!round.InServerGame) return;
+            if (!round.InServerGame || !ServerTakesScores(round.gameId)) return;
             connection.Send(new HoleScoreMessage
             {
                 gameId = round.gameId, player = round.players[player], hole = round.HoleNumber, par = round.Par, strokes = score,

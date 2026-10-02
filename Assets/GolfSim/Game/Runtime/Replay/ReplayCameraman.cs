@@ -13,6 +13,9 @@ namespace GolfSim.Game
     public class ReplayCameraman
     {
         const float FullFlight = 2.2f; // s in the air: below this a shot is a chip or pitch (fewer cameras)
+        const float TreeIgnoreNear = 2.5f; // m before a tree hit that may be in leaves (the crown the ball is in)
+        const float StrikeHold = 0.02f;    // s after the strike the opening camera still frames the ball (address, impact)
+        const float SplashHold = 2f;       // s of recording held on the ripples after a splash
 
         readonly ReplaySettings s;
         readonly CameraSpots spots;
@@ -31,7 +34,9 @@ namespace GolfSim.Game
             rec = recording;
             dir = rec.Direction;
             right = Vector3.Cross(Vector3.up, dir);
-            var plan = new ReplayPlan { start = -s.preRoll, end = rec.Duration + s.hold };
+            // Into the water: hold on the splash while it ripples (the ball sinks out of sight).
+            float finish = rec.SplashTime >= 0f ? rec.SplashTime + SplashHold : rec.Duration + s.hold;
+            var plan = new ReplayPlan { start = -s.preRoll, end = finish };
             if (rec.Rolled) PlanPutt(plan);
             else PlanFlight(plan);
             return plan;
@@ -66,6 +71,7 @@ namespace GolfSim.Game
             {
                 name = "behind the putter", start = start, end = end, from = pos, to = pos + (middle - pos).normalized * 0.4f,
                 fovFrom = fov, fovTo = fov * 0.93f, lookAt = middle, track = 0.35f, frame = new Vector2(0f, -0.08f), sharpness = 2.5f,
+                holdUntil = StrikeHold,
             };
         }
 
@@ -91,7 +97,7 @@ namespace GolfSim.Game
         void PlanFlight(ReplayPlan plan)
         {
             float end = rec.Duration;
-            float land = rec.LandTime >= 0f ? rec.LandTime : end; // water / out of bounds from the air: the splash
+            float land = rec.LandTime >= 0f ? rec.LandTime : rec.SplashTime >= 0f ? rec.SplashTime : end; // from the air: the splash, out of bounds
             float hit = rec.ObstacleTime;
             bool full = land >= FullFlight;
             bool overhead = full && Flat(rec.Rest - rec.Launch).magnitude >= s.overheadMeters;
@@ -115,7 +121,9 @@ namespace GolfSim.Game
 
             if (hit >= 0f && hit < land)
             {
-                plan.shots.Add(Tree(next, hold, hit));
+                // No spot sees the tree hit (deep in the woods): the camera before it stays on to the end.
+                if (Tree(next, hold, hit) is { } tree) plan.shots.Add(tree);
+                else plan.shots[plan.shots.Count - 1].end = hold;
                 plan.Speed(hit - 0.35f, hit + 0.45f, s.slowMotion);
             }
             else
@@ -134,7 +142,8 @@ namespace GolfSim.Game
             }
         }
 
-        /// <summary>Low behind the golfer, slightly offset, on a long lens: holds on the strike, then tilts up after the ball.</summary>
+        /// <summary>Low behind the golfer, slightly offset, on a long lens: holds on the strike (the ball in the lower third),
+        /// then tilts up after the ball.</summary>
         ReplayShot DownTheLine(float start, float end, bool full)
         {
             float back = full ? 11f : 6.5f;
@@ -146,6 +155,7 @@ namespace GolfSim.Game
             {
                 name = "down the line", start = start, end = end, from = pos, to = pos + dir * 0.6f, fovFrom = fov, fovTo = fov * 1.12f,
                 lookAt = rec.Launch + dir * 90f + Vector3.up * 6f, track = 0.6f, frame = new Vector2(0f, -0.08f), sharpness = 3.2f,
+                holdUntil = StrikeHold,
             };
         }
 
@@ -174,15 +184,16 @@ namespace GolfSim.Game
         ReplayShot Landing(float start, float end, float land)
         {
             var landAt = rec.PositionAt(land);
-            var roll = Flat(rec.Rest - landAt);
+            var rest = Finish;
+            var roll = Flat(rest - landAt);
             float distance = Mathf.Clamp(rec.Carry * 0.1f, 12f, 28f);
             float along = Mathf.Max(distance, Vector3.Dot(roll, dir) + 9f);
             float sideSign = Vector3.Dot(roll, right) > 2f ? -1f : 1f; // not in the roll's way
             var wanted = dir + right * sideSign * 0.45f;
             var incoming = rec.PositionAt(Mathf.Max(0f, land - 0.5f));
-            var pos = spots.Search(landAt, new[] { landAt + Vector3.up * 0.3f, rec.Rest + Vector3.up * 0.1f, incoming },
+            var pos = spots.Search(landAt, new[] { landAt + Vector3.up * 0.3f, rest + Vector3.up * 0.1f, incoming },
                                    new[] { along, along * 0.75f, along * 1.3f }, 2.2f, CameraSpots.Toward(wanted), 1f);
-            var look = Vector3.Lerp(landAt, rec.Rest, 0.35f);
+            var look = Vector3.Lerp(landAt, rest, 0.35f);
             return new ReplayShot
             {
                 name = "landing", start = start, end = end, from = pos, to = pos + (look - pos).normalized * 1.5f,
@@ -190,20 +201,35 @@ namespace GolfSim.Game
             };
         }
 
-        /// <summary>On the tree, from open ground on the side the ball came in: the clatter in slow motion, then where it drops.</summary>
+        /// <summary>
+        /// On the tree, from open ground on the side the ball came in: the clatter in slow motion, then where it drops. The
+        /// camera must see the ball's path into the hit past the other trees; in dense woods it rises over the treetops,
+        /// holds on the hit if it can't see where the ball drops, and if nothing sees the hit there is no tree camera (null).
+        /// </summary>
         ReplayShot Tree(float start, float end, float hit)
         {
             var at = rec.PositionAt(hit);
+            var before = rec.PositionAt(Mathf.Max(0f, hit - 0.25f));
             var incoming = Flat(at - rec.PositionAt(Mathf.Max(0f, hit - 0.6f)));
             var along = incoming.sqrMagnitude > 0.01f ? incoming.normalized : dir;
             var side = Vector3.Cross(Vector3.up, along);
-            var pos = spots.Search(at, new[] { at, rec.Rest + Vector3.up * 0.2f }, new[] { 32f, 24f, 45f }, 3f,
-                                   d => Mathf.Max(CameraSpots.Toward(-along + side)(d), CameraSpots.Toward(-along - side)(d)), 6f);
+            var subjects = new[] { at, before, rec.Rest + Vector3.up * 0.2f };
+            System.Func<Vector3, float> preference = d => Mathf.Max(CameraSpots.Toward(-along + side)(d), CameraSpots.Toward(-along - side)(d));
+            var pos = spots.Search(at, subjects, new[] { 32f, 24f, 45f }, 3f, preference, TreeIgnoreNear, out float seen);
+            if (seen < 1f)
+            {
+                float overTrees = Mathf.Max(spots.TreetopsAt(at), at.y) - CourseSurface.GroundAt(at) + 10f;
+                var high = spots.Search(at, subjects, new[] { 40f, 55f, 70f }, overTrees, preference, TreeIgnoreNear, out float seenHigh);
+                if (seenHigh > seen) { pos = high; seen = seenHigh; }
+            }
+            if (seen < 0.6f) return null; // it sees at most one of the hit, the ball coming in and where it stops
+
+            bool seesDrop = spots.CanSee(pos, subjects[2], TreeIgnoreNear);
             float fov = Mathf.Clamp(Vector3.Angle(at - pos, rec.Rest - pos) * 1.6f, 22f, 40f);
             return new ReplayShot
             {
                 name = "tree", start = start, end = end, from = pos, to = pos + (at - pos).normalized * 2f, fovFrom = fov, fovTo = fov * 0.9f,
-                lookAt = Vector3.Lerp(at, rec.Rest, 0.4f), track = 0.6f, frame = Vector2.zero, sharpness = 2.4f,
+                lookAt = seesDrop ? Vector3.Lerp(at, rec.Rest, 0.4f) : at, track = seesDrop ? 0.6f : 0.25f, frame = Vector2.zero, sharpness = 2.4f,
             };
         }
 
@@ -223,6 +249,9 @@ namespace GolfSim.Game
                 lookAt = look, track = 0f, sharpness = 3f, wobble = 0.03f,
             };
         }
+
+        /// <summary>Where the ball finishes in view: at rest, or where it went into the water.</summary>
+        Vector3 Finish => rec.SplashTime >= 0f ? rec.SplashPoint : rec.Rest;
 
         /// <summary>First time the ball is within this distance of the point, or the end.</summary>
         float TimeWithin(Vector3 point, float distance)

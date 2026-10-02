@@ -7,7 +7,7 @@ namespace GolfSim.Game
     /// <summary>
     /// The game's sound: plays catalog sounds (AudioCatalog) from a pool of sources, 3D for ball sounds and 2D for the
     /// crowd and UI, with master / SFX / crowd / UI / ambience volumes saved in PlayerPrefs, and an ambient bed of birds
-    /// and wind on the holes. What triggers the sounds lives in ShotSounds (the ball), CrowdReactions (the gallery) and
+    /// and wind on the holes. The pause menu pauses every sound but the interface's. What triggers the sounds lives in ShotSounds (the ball), CrowdReactions (the gallery) and
     /// UiSounds (menus and banners), which only listen to game events: no sound code in the gameplay.
     /// </summary>
     public class GameAudio : MonoBehaviour
@@ -38,12 +38,15 @@ namespace GolfSim.Game
             gameObject.AddComponent<CrowdReactions>();
             gameObject.AddComponent<UiSounds>();
             SceneManager.sceneLoaded += OnSceneLoaded;
+            HomeMenu.OpenChanged += OnPause;
             OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
         }
 
         void OnDestroy()
         {
             SceneManager.sceneLoaded -= OnSceneLoaded;
+            HomeMenu.OpenChanged -= OnPause;
+            AudioListener.pause = false;
             if (Instance == this) Instance = null;
         }
 
@@ -90,6 +93,7 @@ namespace GolfSim.Game
             source.pitch = Random.Range(sound.pitch.x, sound.pitch.y) * pitch;
             source.volume = Mathf.Clamp01(Random.Range(sound.volume.x, sound.volume.y) * volume * Gain(sound.bus));
             source.clip = clip;
+            source.ignoreListenerPause = sound.bus == SoundBus.Ui; // menu ticks still play in the pause menu
             source.Play();
         }
 
@@ -121,6 +125,9 @@ namespace GolfSim.Game
             source.dopplerLevel = 0f;
             return source;
         }
+
+        /// <summary>The pause menu pauses the game's sounds (crowd, ball, ambience) where they are; Resume carries on.</summary>
+        static void OnPause(bool paused) => AudioListener.pause = paused;
 
         // ---- ambience and the listener ----
 

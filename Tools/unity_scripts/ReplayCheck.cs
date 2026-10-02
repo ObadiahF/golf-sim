@@ -3,6 +3,7 @@
 // Hits a shot, runs it to rest with GolfBall.Advance, then plays its instant replay with ReplayDirector.Tick (the
 // Editor doesn't tick Play mode in the background) and renders frames from each camera shot to Out.
 //   Drive / Approach / Tree / Putt / Chip / Water   one scenario each (Tree and Water search for a shot that does it)
+//   Woods                                          a 5 iron sprayed 35° into the trees (dense woods on forest holes)
 //   All                                            every scenario
 //   Flow                                           in a round: shot, auto replay holding the turn, skip, next turn
 using System.IO;
@@ -57,6 +58,16 @@ public static class ReplayCheck
                 if (rec.ObstacleTime >= 0f && rec.ObstacleTime < (rec.LandTime < 0f ? rec.Duration : rec.LandTime)) return Film("tree", rec);
             }
         return "tree: no tree hit found";
+    }
+
+    public static string Woods()
+    {
+        foreach (float aim in new[] { -35f, 35f, -30f, 30f, -40f, 40f })
+        {
+            var rec = Hit(Clubs.Find("5 Iron").shot, null, aim);
+            if (rec.ObstacleTime >= 0f) return Film("woods", rec);
+        }
+        return "woods: no tree hit found";
     }
 
     public static string Water()

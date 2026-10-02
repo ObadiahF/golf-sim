@@ -36,6 +36,7 @@
     padding: 36px 40px; border-radius: 24px; background-color: var(--surface);
     border-width: 1px; border-color: var(--border);
 }
+.scorecard__panel .home__subtitle { max-width: 1200px; white-space: normal; } /* a tie can list 8 long names */
 .scorecard__hint { font-size: 22px; color: var(--accent); -unity-font-style: bold; margin: 24px 0 0 0; }
 
 /* ---- Turn announcement (TurnBanner.cs): big in the middle, then it flies into the badge ---- */
@@ -47,7 +48,7 @@
     transition: opacity 0.3s ease-out, scale 0.55s ease-in-out, translate 0.55s ease-in-out;
 }
 .turn-banner--center .turn-banner__card { opacity: 1; scale: 1; }
-.turn-banner__title { font-size: 112px; -unity-font-style: bold; letter-spacing: 4px; margin: 0; text-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); }
+.turn-banner__title { max-width: 1700px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 112px; -unity-font-style: bold; letter-spacing: 4px; margin: 0; text-shadow: 0 6px 24px rgba(0, 0, 0, 0.6); }
 .turn-banner__detail { font-size: 34px; color: #c9d4de; margin: 4px 0 0 0; }
 
 .turn-badge {
@@ -57,7 +58,7 @@
 }
 .turn-badge--shown { opacity: 1; }
 .turn-badge__dot { width: 18px; height: 18px; border-radius: 9px; margin: 0 14px 0 0; background-color: var(--accent); }
-.turn-badge__name { font-size: 32px; -unity-font-style: bold; margin: 0; }
+.turn-badge__name { max-width: 420px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 32px; -unity-font-style: bold; margin: 0; }
 .turn-badge__detail { font-size: 17px; color: var(--muted); margin: 0; }
 
 .confetti { position: absolute; left: 0; right: 0; top: 0; bottom: 0; overflow: hidden; }
@@ -65,3 +66,16 @@
     position: absolute; top: -30px; width: 11px; height: 18px; border-radius: 2px;
     transition-property: translate, rotate; transition-timing-function: ease-in;
 }
+
+/* ---- Course download (RoundHud.ShowLoading): covers the menu and swallows clicks until it's done or cancelled ---- */
+.loading {
+    position: absolute; left: 0; right: 0; top: 0; bottom: 0; justify-content: center; align-items: center;
+    background-color: rgba(5, 8, 12, 0.8); display: none;
+}
+.loading--open { display: flex; }
+.loading__panel {
+    width: 720px; padding: 40px; border-radius: 24px; background-color: var(--surface);
+    border-width: 1px; border-color: var(--border);
+}
+.loading__bar { height: 12px; border-radius: 6px; background-color: rgba(255, 255, 255, 0.10); overflow: hidden; }
+.loading__fill { height: 100%; width: 0; background-color: var(--accent); transition: width 0.3s; }

@@ -1,4 +1,5 @@
 using System;
+using GolfSim.Course;
 using UnityEngine;
 
 namespace GolfSim.Ball
@@ -23,7 +24,8 @@ namespace GolfSim.Ball
         public float spinKept = 0.2f;
 
         [Header("Tree canopies")]
-        [Tooltip("Canopy shape per tree kind (0 conifer, 1 deciduous, 2 palm, 3 cactus), as fractions of the tree height.")]
+        [Tooltip("Canopy per tree kind (0 conifer, 1 deciduous, 2 palm, 3 cactus): the leaf density, and the shape (fractions " +
+                 "of the tree height) for trees whose drawn crown wasn't measured when the hole was built.")]
         public Canopy[] canopies = DefaultCanopies();
         [Tooltip("Speed kept by a leaf / branch hit (random in this range).")]
         public Vector2 canopySpeedKept = new Vector2(0.2f, 0.6f);
@@ -46,7 +48,7 @@ namespace GolfSim.Ball
 
         public static Canopy[] DefaultCanopies() => new[]
         {
-            new Canopy { name = "conifer",   cone = true, bottom = 0.30f, top = 1.00f, radius = 0.22f, density = 0.35f },
+            new Canopy { name = "conifer",   cone = true, bottom = 0.30f, top = 1.00f, radius = 0.22f, density = 0.20f }, // porous
             new Canopy { name = "deciduous",              bottom = 0.30f, top = 1.00f, radius = 0.40f, density = 0.30f },
             new Canopy { name = "palm",                   bottom = 0.80f, top = 1.00f, radius = 0.30f, density = 0.30f },
             new Canopy { name = "cactus",                 bottom = 0.35f, top = 0.85f, radius = 0.20f, density = 0.20f },
@@ -55,7 +57,53 @@ namespace GolfSim.Ball
         /// <summary>The canopy of this obstacle kind, or null (shrubs and rocks).</summary>
         public Canopy CanopyFor(byte kind) => kind < canopies.Length ? canopies[kind] : null;
 
+        /// <summary>
+        /// A tree's crown in its own meters: the crown its model draws (measured when the hole was built), with the leaf
+        /// density of the kind of tree drawn; else its kind's default shape. None (radius 0) for shrubs and rocks.
+        /// </summary>
+        public Crown CrownOf(in Obstacle o)
+        {
+            var canopy = o.IsTree ? CanopyFor(o.kind) : null;
+            if (canopy == null) return default;
+            if (o.HasCrown)
+                return new Crown
+                {
+                    cone = o.crownCone, bottom = o.crownBottom, top = Mathf.Min(o.crownTop, o.height), radius = o.crownRadius,
+                    density = (CanopyFor(o.crownKind) ?? canopy).density,
+                };
+            return new Crown
+            {
+                cone = canopy.cone, bottom = canopy.bottom * o.height, top = canopy.top * o.height, radius = canopy.radius * o.height,
+                density = canopy.density,
+            };
+        }
+
         public Vector2 RestitutionFor(byte kind) => ObstacleKinds.IsRock(kind) ? rockRestitution : kind == ObstacleKinds.Shrub ? shrubRestitution : woodRestitution;
+    }
+
+    /// <summary>A tree crown, heights above the tree's base: a cone narrowing to the top, or an ellipsoid.</summary>
+    public struct Crown
+    {
+        public bool cone;
+        public float bottom, top, radius; // radius: the widest (a cone's at its base)
+        /// <summary>Leaf / branch hits per meter travelled inside.</summary>
+        public float density;
+
+        public bool Exists => radius > 0f && top > bottom;
+
+        /// <summary>The crown's radius at this height above the base (0 outside it).</summary>
+        public float RadiusAt(float y)
+        {
+            if (!Exists || y < bottom || y > top) return 0f;
+            float u = (y - bottom) / (top - bottom);
+            return cone ? radius * (1f - u) : radius * Mathf.Sqrt(Mathf.Max(0f, 1f - (2f * u - 1f) * (2f * u - 1f)));
+        }
+
+        /// <summary>The same crown with its sizes scaled (the hole's scale; a margin for camera views).</summary>
+        public Crown Scaled(float across, float up) => new Crown
+        {
+            cone = cone, bottom = bottom * up, top = top * up, radius = radius * across, density = density,
+        };
     }
 
     /// <summary>The obstacle kinds in HoleInfo.obstacles (objects.bin).</summary>

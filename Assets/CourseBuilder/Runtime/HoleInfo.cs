@@ -10,8 +10,14 @@ namespace GolfSim.Course
         public float radius;       // solid trunk / body radius, meters
         public float height;       // meters, ground to top
         public byte kind;          // objects.bin kind (0 conifer .. 6 rock)
+        // The crown as drawn (measured from the model at build time), meters above the base; radius 0 = not measured.
+        public float crownRadius;  // widest radius (a cone's at its base)
+        public float crownBottom, crownTop;
+        public bool crownCone;     // narrows to the top; otherwise an ellipsoid
+        public byte crownKind;     // the tree kind whose model draws it (its leaf density)
 
         public bool IsTree => kind <= 3;
+        public bool HasCrown => crownRadius > 0f && crownTop > crownBottom;
     }
 
     /// <summary>Gameplay-facing description of a generated hole. Positions are local to this transform.</summary>

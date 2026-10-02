@@ -8,6 +8,7 @@
                 <ui:Label text="Esc or Back to resume · Up/Down and Select to choose" class="home__subtitle" />
                 <ui:Button name="home-resume" text="Resume" class="btn btn--primary" />
                 <ui:Button name="home-restart" text="Restart Hole" class="btn btn--ghost" />
+                <ui:Button name="home-sound" text="Sound" class="btn btn--ghost" />
                 <ui:Button name="home-menu" text="Main Menu" class="btn btn--ghost" />
             </ui:VisualElement>
         </ui:VisualElement>

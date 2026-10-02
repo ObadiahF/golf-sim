@@ -14,7 +14,8 @@ namespace GolfSim.Game
     /// </summary>
     public static class NavInput
     {
-        public const int MenuPriority = 0, GamePriority = 0, OverlayPriority = 100;
+        /// <summary>Modal: above the overlays (pause menu, Scores), e.g. the sound settings and the course download.</summary>
+        public const int MenuPriority = 0, GamePriority = 0, OverlayPriority = 100, ModalPriority = 200;
 
         static readonly List<(int priority, Func<NavKey, bool> handler)> handlers = new List<(int, Func<NavKey, bool>)>();
 

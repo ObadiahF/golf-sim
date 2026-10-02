@@ -6,8 +6,9 @@ using UnityEngine.UIElements;
 namespace GolfSim.Game
 {
     /// <summary>
-    /// In-game pause menu (Back: Esc, gamepad B or the phone's Back): pauses the game and offers
-    /// Resume / Restart / Main Menu, chosen with Up/Down and Select (or the mouse).
+    /// In-game pause menu (Back: Esc, gamepad B or the phone's Back): pauses the game (and its sounds) and offers
+    /// Resume / Restart / Sound / Main Menu, chosen with Up/Down and Select (or the mouse). Restart is skipped
+    /// while CanRestart says no (e.g. on a round's scorecard).
     /// Behaviours listed in pauseWhileOpen (camera, shot controls...) are disabled while it is open.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
@@ -22,11 +23,14 @@ namespace GolfSim.Game
         /// <summary>True while a pause menu is open; OpenChanged fires when that changes.</summary>
         public static bool IsOpen { get; private set; }
         public static event Action<bool> OpenChanged;
+        /// <summary>Set by a game mode: false while Restart Hole isn't allowed (null: always allowed).</summary>
+        public static Func<bool> CanRestart;
 
         VisualElement panel;
         ScreenFade fade;
         Button[] buttons;
         Action[] actions;
+        AudioSettingsPanel sound;
         int highlighted;
         bool open;
 
@@ -35,6 +39,7 @@ namespace GolfSim.Game
         {
             IsOpen = false;
             OpenChanged = null;
+            CanRestart = null;
         }
 
         public bool Open
@@ -47,11 +52,13 @@ namespace GolfSim.Game
         {
             var root = GetComponent<UIDocument>().rootVisualElement;
             panel = root.Q("home");
-            buttons = new[] { root.Q<Button>("home-resume"), root.Q<Button>("home-restart"), root.Q<Button>("home-menu") };
+            buttons = new[] { root.Q<Button>("home-resume"), root.Q<Button>("home-restart"), root.Q<Button>("home-sound"), root.Q<Button>("home-menu") };
+            sound = new AudioSettingsPanel(root);
             actions = new Action[]
             {
                 () => SetOpen(false),
-                () => fade.LoadScene(SceneManager.GetActiveScene().name),
+                () => { if (RestartAllowed) fade.LoadScene(SceneManager.GetActiveScene().name); },
+                () => sound.Show(),
                 () => fade.LoadScene(menuScene),
             };
             for (int i = 0; i < buttons.Length; i++)
@@ -68,6 +75,7 @@ namespace GolfSim.Game
         void OnDisable()
         {
             NavInput.Unregister(OnNav);
+            sound?.Close();
             Time.timeScale = 1f;
             if (open) Publish(false);
         }
@@ -80,15 +88,19 @@ namespace GolfSim.Game
                 return true;
             }
             if (!open) return false;
-            if (key == NavKey.Up) Highlight(highlighted - 1);
-            else if (key == NavKey.Down) Highlight(highlighted + 1);
+            if (key == NavKey.Up) Highlight(highlighted - 1, -1);
+            else if (key == NavKey.Down) Highlight(highlighted + 1, 1);
             else if (key == NavKey.Select) actions[highlighted]();
             return true; // the menu is modal: swallow Left/Right too
         }
 
-        void Highlight(int index)
+        static bool RestartAllowed => CanRestart?.Invoke() != false;
+
+        /// <summary>Highlights a button, stepping past disabled ones in direction `step`.</summary>
+        void Highlight(int index, int step = 1)
         {
-            highlighted = (index % buttons.Length + buttons.Length) % buttons.Length;
+            for (int tries = 0; tries < buttons.Length && !buttons[Wrap(index)].enabledSelf; tries++) index += step;
+            highlighted = Wrap(index);
             for (int i = 0; i < buttons.Length; i++) buttons[i].EnableInClassList(SelectedClass, i == highlighted);
         }
 
@@ -103,10 +115,14 @@ namespace GolfSim.Game
             if (open)
             {
                 UnityEngine.Cursor.lockState = CursorLockMode.None;
+                buttons[1].SetEnabled(RestartAllowed);
                 Highlight(0);
             }
+            else sound.Close();
             Publish(open);
         }
+
+        int Wrap(int index) => (index % buttons.Length + buttons.Length) % buttons.Length;
 
         static void Publish(bool value)
         {

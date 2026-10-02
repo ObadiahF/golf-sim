@@ -11,13 +11,13 @@ namespace GolfSim.Game
     /// </summary>
     public class RoundHud
     {
-        const string Hidden = "hud--hidden", Open = "scorecard--open", ToastShown = "toast--shown";
+        const string Hidden = "hud--hidden", Open = "scorecard--open", ToastShown = "toast--shown", LoadingOpen = "loading--open";
 
         public readonly ScreenFade Fade;
         public readonly TurnBanner Banner;
 
-        readonly VisualElement info, hint, scorecard, table;
-        readonly Label eyebrow, player, strokes, club, aim, distance, lie, toast, title, subtitle, footer;
+        readonly VisualElement info, hint, scorecard, table, loading, loadingFill;
+        readonly Label eyebrow, player, strokes, club, aim, distance, lie, toast, title, subtitle, footer, loadingTitle, loadingDetail;
         IVisualElementScheduledItem hideToast;
 
         public RoundHud(UIDocument document)
@@ -38,7 +38,12 @@ namespace GolfSim.Game
             title = root.Q<Label>("scorecard-title");
             subtitle = root.Q<Label>("scorecard-subtitle");
             footer = root.Q<Label>("scorecard-hint");
+            loading = root.Q("loading");
+            loadingFill = root.Q("loading-fill");
+            loadingTitle = root.Q<Label>("loading-title");
+            loadingDetail = root.Q<Label>("loading-detail");
             root.pickingMode = PickingMode.Ignore;
+            PlainText.Apply(root); // names (badge, banner, toasts, scorecard) come from the app
             Banner = new TurnBanner(root);
             Fade = new ScreenFade(root);
             ShowInfo(false);
@@ -88,6 +93,17 @@ namespace GolfSim.Game
         }
 
         public void HideScorecard() => scorecard.RemoveFromClassList(Open);
+
+        /// <summary>The download overlay over everything (the menu included): progress 0..1.</summary>
+        public void ShowLoading(string heading, string detail, float progress)
+        {
+            loadingTitle.text = heading;
+            loadingDetail.text = detail;
+            loadingFill.style.width = Length.Percent(Mathf.Clamp01(progress) * 100f);
+            loading.AddToClassList(LoadingOpen);
+        }
+
+        public void HideLoading() => loading.RemoveFromClassList(LoadingOpen);
 
         public bool ScorecardOpen => scorecard.ClassListContains(Open);
 

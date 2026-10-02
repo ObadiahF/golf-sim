@@ -28,7 +28,8 @@ namespace GolfSim.Ball
     /// The hole's trees, shrubs and rocks in a world-space grid, so the ball's 2 ms path segment is tested only against
     /// the few obstacles near it (one array lookup when it flies over the treetops). No Unity physics: solids are
     /// upright cylinders (trunks, shrubs) and domes (rocks) the ball rebounds from; tree crowns are hit by chance per
-    /// meter travelled through them (leaves and branches), slowing, deflecting and usually dropping the ball.
+    /// meter travelled through them (leaves and branches), slowing, deflecting and usually dropping the ball. Crowns are
+    /// the ones the trees' models draw, measured when the hole was built (ObstacleSettings.CrownOf).
     /// </summary>
     public class ObstacleField
     {
@@ -101,17 +102,8 @@ namespace GolfSim.Ball
                 kind = o.kind,
                 rock = ObstacleKinds.IsRock(o.kind),
             };
-            float height = o.height * up;
-            body.top = body.basePosition.y + height;
-            var canopy = o.IsTree ? settings.CanopyFor(o.kind) : null;
-            if (canopy != null && canopy.radius > 0f && canopy.top > canopy.bottom)
-            {
-                body.cone = canopy.cone;
-                body.canopyBottom = body.basePosition.y + canopy.bottom * height;
-                body.canopyTop = body.basePosition.y + canopy.top * height;
-                body.canopyRadius = canopy.radius * height;
-                body.density = canopy.density;
-            }
+            body.top = body.basePosition.y + o.height * up;
+            body.crown = settings.CrownOf(o).Scaled(across, up); // the drawn crown, or the kind's default
             return body;
         }
 
@@ -162,14 +154,14 @@ namespace GolfSim.Ball
                         {
                             if (t < bestT) { bestT = t; bestNormal = n; solid = i; }
                         }
-                        else if (!rolling && canopy < 0 && o.density > 0f && ObstacleShapes.InCanopy(o, mid)) canopy = i;
+                        else if (!rolling && canopy < 0 && o.crown.density > 0f && ObstacleShapes.InCanopy(o, mid)) canopy = i;
                     }
                 }
 
             if (solid >= 0) return Rebound(ref s, from + (to - from) * bestT, bestNormal, bodies[solid], ref rng);
             if (canopy >= 0)
             {
-                float chance = 1f - Mathf.Exp(-bodies[canopy].density * Vector3.Distance(from, to));
+                float chance = 1f - Mathf.Exp(-bodies[canopy].crown.density * Vector3.Distance(from, to));
                 if (rng.Next01() < chance) return Deflect(ref s, bodies[canopy], ref rng);
             }
             return null;

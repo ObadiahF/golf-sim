@@ -10,12 +10,10 @@ namespace GolfSim.Ball
         public float top;            // world y of the top
         public byte kind;
         public bool rock;            // dome instead of an upright cylinder
-        // Canopy (trees only; radius 0 = none), world y bottom / top.
-        public bool cone;
-        public float canopyBottom, canopyTop, canopyRadius, density;
+        public Crown crown;          // trees only (radius 0 = none), heights above the base
 
         public float Height => top - basePosition.y;
-        public float Extent => Mathf.Max(radius, canopyRadius);
+        public float Extent => Mathf.Max(radius, crown.radius);
     }
 
     /// <summary>Ball-vs-obstacle geometry. The ball is a point; every solid is grown by the ball radius.</summary>
@@ -44,16 +42,9 @@ namespace GolfSim.Ball
         /// <summary>True if the point is inside the tree's crown.</summary>
         public static bool InCanopy(in ObstacleBody o, Vector3 p)
         {
-            if (o.canopyRadius <= 0f || p.y < o.canopyBottom || p.y > o.canopyTop) return false;
-            float dx = p.x - o.basePosition.x, dz = p.z - o.basePosition.z, d2 = dx * dx + dz * dz;
-            float span = o.canopyTop - o.canopyBottom;
-            if (o.cone)
-            {
-                float r = o.canopyRadius * (o.canopyTop - p.y) / span;
-                return d2 < r * r;
-            }
-            float half = span * 0.5f, dy = p.y - (o.canopyBottom + half);
-            return d2 / (o.canopyRadius * o.canopyRadius) + dy * dy / (half * half) < 1f;
+            float r = o.crown.RadiusAt(p.y - o.basePosition.y);
+            float dx = p.x - o.basePosition.x, dz = p.z - o.basePosition.z;
+            return dx * dx + dz * dz < r * r;
         }
 
         /// <summary>Upright cylinder from the ground to the top: side wall, or a top that sheds the ball.</summary>

@@ -23,6 +23,7 @@ namespace GolfSim.Game
         public static Label Cell(VisualElement row, string text, string classes = null)
         {
             var cell = new Label(text) { pickingMode = PickingMode.Ignore };
+            PlainText.Apply(cell); // names come from the app
             cell.AddToClassList("sc-cell");
             if (classes != null)
                 foreach (var c in classes.Split(' ').Where(c => c.Length > 0)) cell.AddToClassList(c);

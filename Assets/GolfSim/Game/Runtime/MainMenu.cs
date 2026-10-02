@@ -28,6 +28,7 @@ namespace GolfSim.Game
         Label title, description, clock, date;
         ScreenFade fade;
         ScoresScreen scores;
+        AudioSettingsPanel sound;
         int selected = -1, frontBackdrop, holeChoice;
 
         GameMode Mode => selected >= 0 ? modes[selected] : null;
@@ -37,6 +38,7 @@ namespace GolfSim.Game
         void OnEnable()
         {
             var root = GetComponent<UIDocument>().rootVisualElement;
+            PlainText.Apply(root); // the Resume line lists the players' names
             backdrops = new[] { root.Q("backdrop-a"), root.Q("backdrop-b") };
             root.Q("shade").style.backgroundImage = MenuArt.Shade(Background);
             title = root.Q<Label>("title");
@@ -58,6 +60,7 @@ namespace GolfSim.Game
             }
             ChooseHoles(0);
             scores = new ScoresScreen(root, this);
+            sound = new AudioSettingsPanel(root);
             BuildCards(root.Q("cards"));
             fade = new ScreenFade(root);
             Select(0);
@@ -68,6 +71,7 @@ namespace GolfSim.Game
         {
             NavInput.Unregister(OnNav);
             scores?.Close();
+            sound?.Close();
         }
 
         bool OnNav(NavKey key)
@@ -116,7 +120,7 @@ namespace GolfSim.Game
 
             var mode = modes[selected];
             title.text = mode.title;
-            description.text = mode.description;
+            description.text = mode.kind == GameMode.ModeKind.Round ? RoundDirector.MenuDescription(mode, HoleChoices[holeChoice]) : mode.description;
             // Crossfade: load the new art into the hidden layer, then swap which layer is shown.
             frontBackdrop = 1 - frontBackdrop;
             backdrops[frontBackdrop].style.backgroundImage = mode.banner;
@@ -126,12 +130,13 @@ namespace GolfSim.Game
 
         void Play()
         {
-            if (selected < 0 || ScreenFade.Loading) return; // a second Select / click during the fade
+            if (selected < 0 || ScreenFade.Loading || RoundDirector.Instance?.IsFetching == true) return; // a second Select / click during the fade or download
             var mode = modes[selected];
             switch (mode.kind)
             {
                 case GameMode.ModeKind.Round: RoundDirector.PlayFromMenu(HoleChoices[holeChoice]); break;
                 case GameMode.ModeKind.Scores: scores.Show(); break;
+                case GameMode.ModeKind.Settings: sound.Show(); break;
                 default:
                     if (!string.IsNullOrEmpty(mode.sceneName)) fade.LoadScene(mode.sceneName);
                     break;
@@ -144,7 +149,7 @@ namespace GolfSim.Game
             clock.text = now.ToString("h:mm tt");
             date.text = now.ToString("dddd, MMMM d");
             holes.EnableInClassList(HolesHidden, !ChoosingHoles);
-            if (Mode && Mode.kind == GameMode.ModeKind.Round) description.text = RoundDirector.MenuDescription(Mode);
+            if (Mode && Mode.kind == GameMode.ModeKind.Round) description.text = RoundDirector.MenuDescription(Mode, HoleChoices[holeChoice]);
         }
     }
 }

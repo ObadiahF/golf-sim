@@ -34,9 +34,11 @@ namespace GolfSim.Game
 
         static readonly Ranking[] Rankings =
         {
+            // Rounds of other lengths would compare unfairly: bests are per length, the average is to par per 18 holes.
             new Ranking("Handicap", p => p.handicap, true, p => Decimal(p.handicap, signed: false)),
-            new Ranking("Average", p => p.averageToPar, true, p => Decimal(p.averageToPar, signed: true)),
-            new Ranking("Best", p => p.bestTotal, true, p => GameApi.Has(p.bestTotal) ? p.bestTotal.ToString("0") : "—"),
+            new Ranking("Avg /18", p => p.averageToPar, true, p => Decimal(p.averageToPar, signed: true)),
+            new Ranking("Best 9", p => p.best9, true, p => Whole(p.best9)),
+            new Ranking("Best 18", p => p.best18, true, p => Whole(p.best18)),
             new Ranking("Wins", p => p.wins, false, p => p.wins.ToString()),
             new Ranking("Birdies", BirdiesOrBetter, false, p => BirdiesOrBetter(p).ToString("0")),
             new Ranking("Aces", p => p.holes.holesInOne, false, p => p.holes.holesInOne.ToString()),
@@ -125,7 +127,7 @@ namespace GolfSim.Game
                 return;
             }
             status.text = ranked.Count == 0
-                ? $"Nobody has a {r.title.ToLowerInvariant()} yet{(r.title == "Handicap" ? " (it needs 3 finished rounds)" : "")}."
+                ? $"Nobody has a {r.title.ToLowerInvariant()} yet{(r.title == "Handicap" ? " (it needs 3 finished 9- or 18-hole rounds)" : "")}."
                 : $"Ranked by {r.title.ToLowerInvariant()}{(r.lowerIsBetter ? ", lowest first" : "")}.";
 
             var head = ScoreTable.Row(table, "sc-row--head");
@@ -154,6 +156,8 @@ namespace GolfSim.Game
         static bool Better(PlayerStats a, PlayerStats b, Ranking r) => r.lowerIsBetter ? r.value(a) < r.value(b) : r.value(a) > r.value(b);
 
         static float BirdiesOrBetter(PlayerStats p) => p.holes.holesInOne + p.holes.eagles + p.holes.birdies;
+
+        static string Whole(float value) => GameApi.Has(value) ? value.ToString("0") : "—";
 
         static string Decimal(float value, bool signed) =>
             !GameApi.Has(value) ? "—" : signed && value > 0 ? $"+{value:0.0}" : value.ToString("0.0");

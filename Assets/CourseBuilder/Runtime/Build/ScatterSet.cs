@@ -66,13 +66,16 @@ namespace GolfSim.Course
         public string[] keepClear = { "fairway", "tee", "green", "bunker", "water" };
 
         /// <summary>Models for a kind, borrowing from related kinds when it has none (e.g. no palms: deciduous).</summary>
-        public List<Prototype> PrototypesFor(ObjectKind kind)
+        public List<Prototype> PrototypesFor(ObjectKind kind) => RuleFor(kind)?.prototypes;
+
+        /// <summary>The rule whose models draw this kind (its own, or the one it borrows from), or null.</summary>
+        public Rule RuleFor(ObjectKind kind)
         {
             var k = kind;
             while (true)
             {
                 var rule = rules.FirstOrDefault(r => r.kind == k && r.prototypes.Any(p => p.prefab));
-                if (rule != null) return rule.prototypes;
+                if (rule != null) return rule;
                 var next = Fallback(k);
                 if (next == null || next == kind) return null; // went round the whole cycle
                 k = next.Value;

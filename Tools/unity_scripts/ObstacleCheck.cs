@@ -10,6 +10,8 @@
 //   Replay      the same shot and seed lands on the same spot
 //   Stress      200 random shots and spots: no NaN, nothing stuck, under the ground or inside a trunk
 //   Lies        7 iron from 153 yd on fairway, rough, bunker, native and woods (trees off)
+//   Crowns      every drawn tree has its measured crown (HoleInfo.obstacles), no wider than the drawn tree's bounds
+//   Drive       the default opening drive (Driver at the pin) and a fan of tee shots: every tree hit is on a drawn tree
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -31,7 +33,7 @@ public static class ObstacleCheck
     public static string All()
     {
         var sb = new StringBuilder();
-        foreach (var test in new System.Func<string>[] { TreeLine, OverTree, RockRoll, Canopy, Replay, Lies, Stress })
+        foreach (var test in new System.Func<string>[] { Crowns, Drive, TreeLine, OverTree, RockRoll, Canopy, Replay, Lies, Stress })
         {
             try { sb.AppendLine(test()); }
             catch (System.Exception e) { sb.AppendLine($"{test.Method.Name}: EXCEPTION {e}"); }
@@ -218,7 +220,107 @@ public static class ObstacleCheck
                $"(whole ball sim, {ball.Obstacles.Count} obstacles)";
     }
 
+    // A fitted cone is widest at its base, where the model's foliage can be a little narrower than the fit.
+    const float WiderThanDrawn = 1.15f;
+
+    public static string Crowns()
+    {
+        var hole = Hole;
+        var drawn = DrawnTrees();
+        var settings = Ball.Settings.obstacles;
+        int trees = 0, measured = 0, wider = 0, onDrawn = 0;
+        float ratioSum = 0f, worst = 0f;
+        string worstModel = "";
+        foreach (var o in hole.obstacles)
+        {
+            if (!o.IsTree) continue;
+            trees++;
+            if (o.HasCrown) measured++;
+            var p = hole.transform.TransformPoint(o.position);
+            var d = Nearest(drawn, p, out float off);
+            if (off > 0.3f) continue;
+            onDrawn++;
+            float ratio = settings.CrownOf(o).radius * hole.transform.lossyScale.x / Mathf.Max(0.1f, d.halfWidth);
+            ratioSum += ratio;
+            if (ratio > worst) { worst = ratio; worstModel = d.name; }
+            if (ratio > WiderThanDrawn) wider++;
+        }
+        bool pass = trees > 0 && measured == trees && wider == 0;
+        return $"Crowns {(pass ? "PASS" : "FAIL")}: {measured}/{trees} trees have a measured crown; collision crown / drawn half-width " +
+               $"avg {ratioSum / Mathf.Max(1, onDrawn):0.00}x, worst {worst:0.00}x ({worstModel}), wider than drawn (>{WiderThanDrawn}x) {wider} ({onDrawn} matched to a drawn tree)";
+    }
+
+    public static string Drive()
+    {
+        var ball = Ball;
+        var drawn = DrawnTrees();
+        var sb = new StringBuilder();
+        int total = 0, ghosts = 0;
+        string opening = "";
+        foreach (var club in new[] { "Driver", "5 Iron", "Wedge" })
+            for (float aim = -40f; aim <= 40f; aim += 4f)
+            {
+                var hits = new List<ObstacleHit>();
+                System.Action<GolfBall, ObstacleHit> record = (_, h) => hits.Add(h);
+                ball.HitObstacle += record;
+                ball.ResetToTee();
+                ball.aimOffset = aim;
+                var r = Shoot(Clubs.Find(club).shot, collide: true);
+                ball.HitObstacle -= record;
+                if (club == "Driver" && aim == 0f) opening = $"{r}";
+                foreach (var h in hits)
+                {
+                    total++;
+                    if (drawn.Any(t => Flat(t.position - h.point).magnitude <= t.halfWidth + 0.3f && h.point.y <= t.position.y + t.height + 0.5f)) continue;
+                    var d = Nearest(drawn, h.point, out float off);
+                    ghosts++;
+                    if (ghosts <= 5) sb.Append($"\n  {club} aim {aim}: {(h.canopy ? "leaves" : "solid")} at {h.point}, {off:0.0} m from a drawn {d.name} (half-width {d.halfWidth:0.0})");
+                }
+            }
+        ball.aimOffset = 0f;
+        ball.ResetToTee();
+        return $"Drive {(ghosts == 0 ? "PASS" : "FAIL")}: opening drive {opening}; fan of 63 tee shots: {total} hits, {ghosts} off the drawn trees" + sb;
+    }
+
     // ---- helpers ----
+
+    struct DrawnTree { public Vector3 position; public float halfWidth, height; public string name; }
+
+    /// <summary>The terrain's tree instances: where they stand, how far their LOD0 bounding box reaches from the trunk, and how tall they are drawn.</summary>
+    static List<DrawnTree> DrawnTrees()
+    {
+        var terrain = Hole.GetComponentInChildren<Terrain>();
+        var data = terrain.terrainData;
+        var size = new List<Bounds>();
+        foreach (var proto in data.treePrototypes)
+        {
+            var copy = Object.Instantiate(proto.prefab);
+            copy.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            var lods = copy.GetComponent<LODGroup>()?.GetLODs();
+            var renderers = lods != null && lods.Length > 0 ? lods[0].renderers.Where(r => r).ToArray() : copy.GetComponentsInChildren<Renderer>();
+            var b = renderers[0].bounds;
+            foreach (var r in renderers) b.Encapsulate(r.bounds);
+            size.Add(b);
+            Object.DestroyImmediate(copy);
+        }
+        return data.treeInstances.Select(t =>
+        {
+            var b = size[t.prototypeIndex];
+            return new DrawnTree
+            {
+                position = Vector3.Scale(t.position, data.size) + terrain.transform.position,
+                halfWidth = Mathf.Max(-b.min.x, b.max.x, -b.min.z, b.max.z) * t.widthScale, height = b.max.y * t.heightScale,
+                name = data.treePrototypes[t.prototypeIndex].prefab.name,
+            };
+        }).ToList();
+    }
+
+    static DrawnTree Nearest(List<DrawnTree> drawn, Vector3 p, out float distance)
+    {
+        var best = drawn.OrderBy(d => Flat(d.position - p).sqrMagnitude).First();
+        distance = Flat(best.position - p).magnitude;
+        return best;
+    }
 
     struct Outcome
     {

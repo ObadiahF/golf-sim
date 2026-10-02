@@ -6,7 +6,8 @@ namespace GolfSim.Course
 {
     /// <summary>
     /// Places the package's objects.bin (every tree, shrub and rock) as Terrain tree instances, exactly where
-    /// the file says, scaled so each model's top is at the object's height. Only the model choice is ours.
+    /// the file says, scaled so each model's top is at the object's height. Only the model choice is ours, so the
+    /// drawn crown of each object (ModelShape) is written to its obstacle for collisions.
     /// </summary>
     public class TreeScatterer
     {
@@ -14,7 +15,7 @@ namespace GolfSim.Course
         readonly float size;
         readonly List<GameObject> prototypes = new List<GameObject>();
         readonly List<TreeInstance> instances = new List<TreeInstance>();
-        readonly Dictionary<GameObject, float> modelHeights = new Dictionary<GameObject, float>();
+        readonly Dictionary<GameObject, ModelShape> shapes = new Dictionary<GameObject, ModelShape>();
 
         TreeScatterer(TerrainData data, float size)
         {
@@ -22,16 +23,22 @@ namespace GolfSim.Course
             this.size = size;
         }
 
+        /// <param name="objects">The package's objects (pkg.LoadObjects()).</param>
+        /// <param name="obstacles">The same objects as obstacles (same order): each drawn one gets its model's crown.</param>
         /// <returns>Number of instances placed.</returns>
-        public static int Apply(TerrainData data, HolePackage pkg, ScatterSet scatter)
+        public static int Apply(TerrainData data, HolePackage pkg, PlacedObject[] objects, ScatterSet scatter, Obstacle[] obstacles)
         {
             var s = new TreeScatterer(data, pkg.sizeMeters);
             var missing = new HashSet<ObjectKind>();
-            foreach (var obj in pkg.LoadObjects())
+            for (int i = 0; i < objects.Length; i++)
             {
-                var options = scatter.PrototypesFor(obj.kind);
-                if (options == null) { missing.Add(obj.kind); continue; }
-                s.Add(ScatterSet.Pick(options, obj.variant), obj);
+                var obj = objects[i];
+                var rule = scatter.RuleFor(obj.kind);
+                if (rule == null) { missing.Add(obj.kind); continue; }
+                var proto = ScatterSet.Pick(rule.prototypes, obj.variant);
+                if (proto == null) continue;
+                var shape = s.Add(proto, obj);
+                if (shape.HasCrown && obj.kind < ObjectKind.Boulder) SetCrown(ref obstacles[i], shape, obj.height, rule.kind);
             }
             if (missing.Count > 0)
                 Debug.LogWarning($"[CourseBuilder] No models for {string.Join(", ", missing)} in {scatter.name}: those objects were skipped. " +
@@ -42,9 +49,17 @@ namespace GolfSim.Course
             return s.instances.Count;
         }
 
-        void Add(ScatterSet.Prototype proto, PlacedObject obj)
+        static void SetCrown(ref Obstacle o, in ModelShape shape, float height, ObjectKind drawnAs)
         {
-            if (proto == null) return;
+            o.crownRadius = shape.crownRadius * height; // instances scale uniformly (width = height scale)
+            o.crownBottom = shape.crownBottom * height;
+            o.crownTop = shape.crownTop * height;
+            o.crownCone = shape.cone;
+            o.crownKind = (byte)drawnAs;
+        }
+
+        ModelShape Add(ScatterSet.Prototype proto, PlacedObject obj)
+        {
             int index = prototypes.IndexOf(proto.prefab);
             if (index < 0)
             {
@@ -52,7 +67,8 @@ namespace GolfSim.Course
                 prototypes.Add(proto.prefab);
             }
 
-            float scale = obj.height / ModelHeight(proto.prefab);
+            var shape = Shape(proto.prefab);
+            float scale = obj.height / shape.height;
             instances.Add(new TreeInstance
             {
                 prototypeIndex = index,
@@ -63,29 +79,14 @@ namespace GolfSim.Course
                 color = Color.white,
                 lightmapColor = Color.white,
             });
+            return shape;
         }
 
-        /// <summary>The model's own height in meters at scale 1 (LOD0 if it has LODs), measured once per prefab.</summary>
-        float ModelHeight(GameObject prefab)
+        /// <summary>The model's height and crown at scale 1, measured once per prefab.</summary>
+        ModelShape Shape(GameObject prefab)
         {
-            if (modelHeights.TryGetValue(prefab, out float h)) return h;
-            var copy = Object.Instantiate(prefab);
-            copy.hideFlags = HideFlags.HideAndDontSave;
-            copy.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
-            try
-            {
-                var lods = copy.GetComponent<LODGroup>()?.GetLODs();
-                var renderers = lods != null && lods.Length > 0 ? lods[0].renderers.Where(r => r).ToArray()
-                                                                : copy.GetComponentsInChildren<Renderer>();
-                float top = renderers.Length > 0 ? renderers.Max(r => r.bounds.max.y) : 0f;
-                h = top > 0.01f ? top : 1f; // pivots sit at the ground, so the top is the height
-            }
-            finally
-            {
-                Object.DestroyImmediate(copy);
-            }
-            modelHeights[prefab] = h;
-            return h;
+            if (!shapes.TryGetValue(prefab, out var shape)) shapes[prefab] = shape = ModelShape.Measure(prefab);
+            return shape;
         }
     }
 }

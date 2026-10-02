@@ -90,7 +90,10 @@ Label { color: var(--text); }
 .sc-row { flex-direction: row; border-bottom-width: 2px; border-color: rgba(255, 255, 255, 0.07); }
 .sc-row--head .sc-cell, .sc-row--par .sc-cell { color: var(--muted); }
 .sc-cell { width: 52px; height: 46px; margin: 0; font-size: 22px; -unity-text-align: middle-center; }
-.sc-cell--name { width: 200px; -unity-text-align: middle-left; -unity-font-style: bold; padding-left: 4px; }
+.sc-cell--name {
+    width: 200px; -unity-text-align: middle-left; -unity-font-style: bold; padding-left: 4px; padding-right: 8px;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis; /* a 40-character name can't spill into the scores */
+}
 .sc-cell--total { width: 70px; -unity-font-style: bold; }
 .sc-cell--current { background-color: rgba(52, 211, 153, 0.16); }
 .sc-cell--under { color: var(--accent); }
@@ -124,3 +127,22 @@ Label { color: var(--text); }
 .scores__tabs { flex-direction: row; margin: 6px 0 18px 0; }
 .scores__status { font-size: 22px; color: var(--muted); margin: 0 0 12px 0; white-space: normal; }
 .scores__hint { font-size: 20px; color: var(--accent); -unity-font-style: bold; margin: 22px 0 0 0; }
+.btn:disabled { opacity: 0.35; }
+
+/* ---- Sound settings (AudioSettingsPanel.cs): main menu and pause menu ---- */
+.sound {
+    position: absolute; left: 0; right: 0; top: 0; bottom: 0; justify-content: center; align-items: center;
+    background-color: rgba(5, 8, 12, 0.8); opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0.2s;
+}
+.sound--open { opacity: 1; visibility: visible; }
+.sound__panel { width: 760px; scale: 1; }
+.sound__row {
+    flex-direction: row; align-items: center; height: 64px; padding: 0 16px; margin: 0 0 8px 0; border-radius: 14px;
+    border-width: 1px; border-color: rgba(255, 255, 255, 0);
+}
+.sound__row--selected { background-color: rgba(255, 255, 255, 0.08); border-color: var(--accent); }
+.sound__name { width: 180px; font-size: 26px; -unity-font-style: bold; margin: 0; }
+.sound__bar { flex-grow: 1; height: 14px; border-radius: 7px; background-color: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.sound__fill { height: 100%; background-color: var(--accent); }
+.sound__value { width: 90px; font-size: 24px; color: var(--muted); -unity-text-align: middle-right; margin: 0; }
+.sound__panel .sound__close { align-self: flex-start; margin: 18px 0 0 0; }

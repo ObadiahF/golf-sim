@@ -37,5 +37,13 @@
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="confetti" class="confetti" picking-mode="Ignore" />
+        <ui:VisualElement name="loading" class="loading">
+            <ui:VisualElement class="loading__panel">
+                <ui:Label name="loading-title" class="home__title" />
+                <ui:Label name="loading-detail" class="home__subtitle" />
+                <ui:VisualElement class="loading__bar"><ui:VisualElement name="loading-fill" class="loading__fill" /></ui:VisualElement>
+                <ui:Label text="Press Back to cancel" class="scorecard__hint" />
+            </ui:VisualElement>
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

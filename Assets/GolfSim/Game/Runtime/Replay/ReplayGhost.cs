@@ -5,7 +5,8 @@ namespace GolfSim.Game
 {
     /// <summary>
     /// What the replay draws instead of the real ball: a copy of the ball's look moved along the recording (never too
-    /// small to see on a long lens) and the tracer drawn from the recording up to the replay time.
+    /// small to see on a long lens) and the tracer drawn from the recording up to the replay time. A ball that goes
+    /// into the water disappears at the splash, which ripples (ReplaySplash).
     /// </summary>
     public class ReplayGhost
     {
@@ -14,6 +15,7 @@ namespace GolfSim.Game
         readonly GameObject root;
         readonly Transform look;
         readonly TracerLine tracer;
+        readonly ReplaySplash splash;
         readonly float diameter;
         ShotRecording rec;
         int drawn;
@@ -45,6 +47,7 @@ namespace GolfSim.Game
             tracer = new TracerLine("Replay Tracer", traceStyle ? traceStyle.material : null,
                                     traceStyle ? traceStyle.color : new Color(1.3f, 0.78f, 0.03f));
             tracer.gameObject.transform.SetParent(parent, false);
+            splash = new ReplaySplash(parent);
             Show(false);
         }
 
@@ -60,14 +63,18 @@ namespace GolfSim.Game
         {
             root.SetActive(show);
             tracer.Hidden = !show || !traced;
+            if (!show) splash.Hide();
         }
 
-        /// <summary>Moves the ball to recording time t and draws the tracer up to it.</summary>
-        public void Draw(float t, Camera cam, float realDelta)
+        /// <summary>Moves the ball to recording time `time` and draws the tracer up to it.</summary>
+        public void Draw(float time, Camera cam, float realDelta)
         {
-            var at = rec.PositionAt(t);
+            bool sunk = rec.SplashTime >= 0f && time >= rec.SplashTime;
+            float t = sunk ? rec.SplashTime : time; // the ball and tracer stop at the water's surface
+            var at = sunk ? rec.SplashPoint : rec.PositionAt(t);
             bool underground = rec.Holed && t >= rec.Duration; // in the cup: the lip hides it
-            root.SetActive(!underground);
+            root.SetActive(!underground && !sunk);
+            splash.Draw(rec.SplashPoint, rec.SplashTime >= 0f ? time - rec.SplashTime : -1f, cam);
             root.transform.position = at;
             var v = rec.VelocityAt(t);
             spin += v.magnitude / (diameter * 0.5f) * Mathf.Rad2Deg * Mathf.Min(realDelta, 0.05f) * 0.15f;
@@ -92,6 +99,7 @@ namespace GolfSim.Game
         {
             if (root) Object.Destroy(root);
             tracer.Destroy();
+            splash.Destroy();
         }
     }
 }

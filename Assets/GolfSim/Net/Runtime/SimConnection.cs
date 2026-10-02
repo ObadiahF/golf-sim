@@ -21,6 +21,7 @@ namespace GolfSim.Net
         public enum Status { Offline, Connecting, Connected }
 
         const int ReceiveBuffer = 16 * 1024;
+        const int SilentPings = 3; // ping intervals without receiving anything before the server counts as gone
 
         public ServerConfig config;
         public bool logMessages;
@@ -222,22 +223,28 @@ namespace GolfSim.Net
             }
         }
 
-        /// <summary>Sends queued messages, pings when idle, and gives up when the server has gone quiet.</summary>
+        /// <summary>
+        /// Sends queued messages, and pings every pingInterval whatever else is being sent (the server only answers
+        /// pings, so outgoing traffic proves nothing). Gives up when nothing, pong included, has been received for
+        /// SilentPings intervals.
+        /// </summary>
         async Task SendLoop(ClientWebSocket socket, CancellationToken token)
         {
             var interval = TimeSpan.FromSeconds(Mathf.Max(1f, config.pingInterval));
             string ping = new SimMessage(MessageType.Ping).ToJson();
+            var nextPing = DateTime.UtcNow + interval;
             while (!token.IsCancellationRequested)
             {
-                bool signalled = await outboxSignal.WaitAsync(interval, token);
-                if (!signalled)
+                var wait = nextPing - DateTime.UtcNow;
+                if (wait > TimeSpan.Zero && await outboxSignal.WaitAsync(wait, token))
                 {
-                    var silent = DateTime.UtcNow - new DateTime(Interlocked.Read(ref lastReceivedTicks));
-                    if (silent > interval + interval + interval) throw new TimeoutException("server stopped answering");
-                    await SendText(socket, ping, token);
+                    if (outbox.TryDequeue(out var json)) await SendText(socket, json, token);
                     continue;
                 }
-                if (outbox.TryDequeue(out var json)) await SendText(socket, json, token);
+                var silent = DateTime.UtcNow - new DateTime(Interlocked.Read(ref lastReceivedTicks));
+                if (silent > TimeSpan.FromTicks(interval.Ticks * SilentPings)) throw new TimeoutException("server stopped answering");
+                await SendText(socket, ping, token);
+                nextPing = DateTime.UtcNow + interval;
             }
         }
 

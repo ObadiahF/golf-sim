@@ -26,6 +26,20 @@ namespace GolfSim.Game
             return terrain ? terrain.SampleHeight(world) + terrain.transform.position.y : world.y;
         }
 
+        /// <summary>The height of the water surface over this point (the hole's "Water" meshes), or null if none.</summary>
+        public static float? WaterLevelAt(Vector3 world)
+        {
+            var hole = Object.FindAnyObjectByType<HoleInfo>();
+            if (!hole) return null;
+            foreach (var r in hole.GetComponentsInChildren<MeshRenderer>())
+            {
+                var b = r.bounds;
+                if (r.name.StartsWith("Water") && world.x >= b.min.x && world.x <= b.max.x && world.z >= b.min.z && world.z <= b.max.z)
+                    return b.max.y;
+            }
+            return null;
+        }
+
         public static bool IsSand(string surface) => surface == "bunker";
         public static bool IsGreen(string surface) => surface == "green";
 

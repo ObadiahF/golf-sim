@@ -12,7 +12,8 @@ namespace GolfSim.Game
     {
         const float FringeReach = 3f;      // m: the putter from this close to the green is putting mode
         const float PuttCameraBack = 2.6f; // m behind the ball
-        const float PuttCameraUp = 1.5f;   // m above the ball (the fly camera's minimum ground clearance)
+        const float PuttCameraUp = 1.5f;   // m above the ball and the ground behind it (the fly camera's minimum ground clearance)
+        const float PuttBallLow = 0.3f;    // the ball sits at most this share of the view below its centre
 
         PuttPreview preview;
         PuttingHud puttingHud;
@@ -85,7 +86,11 @@ namespace GolfSim.Game
             puttingHud?.Render(s.putting && (s.screen is StateMessage.Game or StateMessage.Paused) ? s : null, stroke);
         }
 
-        /// <summary>Low behind the ball, looking at the cup (only in putting mode; otherwise the panel's own line-up).</summary>
+        /// <summary>
+        /// Low behind the ball, looking at the cup (only in putting mode; otherwise the panel's own line-up). Rising
+        /// ground behind the ball lifts the camera (it stays above the terrain from the ball back to it), and it tilts
+        /// down if needed to keep the ball in view.
+        /// </summary>
         Pose? PuttCameraPose()
         {
             if (!wasPutting || !ball || !hole) return null;
@@ -93,7 +98,14 @@ namespace GolfSim.Game
             var toPin = Vector3.ProjectOnPlane(hole.PinWorld - at, Vector3.up);
             var back = toPin.sqrMagnitude > 1e-4f ? toPin.normalized : ball.AimDirection;
             var position = at - back * PuttCameraBack + Vector3.up * PuttCameraUp;
-            return new Pose(position, Quaternion.LookRotation(hole.PinWorld - position));
+            for (int k = 1; k <= 6; k++) // every ~45 cm from the ball back to the camera
+                position.y = Mathf.Max(position.y, CourseSurface.GroundAt(at - back * (PuttCameraBack * k / 6f)) + PuttCameraUp);
+
+            var look = Quaternion.LookRotation(hole.PinWorld - position);
+            float fov = Camera.main ? Camera.main.fieldOfView : 60f;
+            float pitchToBall = Vector3.Angle(at - position, Vector3.ProjectOnPlane(at - position, Vector3.up));
+            float pitch = Mathf.Max(look.eulerAngles.x > 180f ? look.eulerAngles.x - 360f : look.eulerAngles.x, pitchToBall - fov * PuttBallLow);
+            return new Pose(position, Quaternion.Euler(pitch, look.eulerAngles.y, 0f));
         }
 
         void OnPanelClub(string name) => SetClub(name);

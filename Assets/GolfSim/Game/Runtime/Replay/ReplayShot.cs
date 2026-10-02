@@ -24,6 +24,10 @@ namespace GolfSim.Game
         public float sharpness = 4f;
         /// <summary>Operator wobble, degrees (long lenses on a tripod still breathe a little).</summary>
         public float wobble = 0.08f;
+        /// <summary>Until this recording time the camera holds on the ball itself at `holdFrame` (the address and the
+        /// strike), then pans to its own framing.</summary>
+        public float holdUntil = float.NegativeInfinity;
+        public Vector2 holdFrame = new Vector2(0f, -1f / 6f); // the lower third
 
         Quaternion rotation;
         float leadSide;
@@ -37,7 +41,8 @@ namespace GolfSim.Game
             float u = Smooth(Mathf.InverseLerp(start, end, t));
             var position = Vector3.Lerp(from, to, u);
             cam.fieldOfView = Mathf.Lerp(fovFrom, fovTo, u);
-            var subject = Vector3.Lerp(lookAt, ball, track);
+            bool holding = t < holdUntil;
+            var subject = holding ? ball : Vector3.Lerp(lookAt, ball, track);
 
             // Which way the ball moves across the screen decides the side the lead room is on.
             var facing = started ? cam.transform.rotation : Quaternion.LookRotation(subject - position); // a cut: the new view's right
@@ -45,7 +50,8 @@ namespace GolfSim.Game
             if (!started) leadSide = across >= 0f ? 1f : -1f;
             else if (Mathf.Abs(across) > 2f) leadSide = Mathf.MoveTowards(leadSide, Mathf.Sign(across), realDelta * 1.5f);
 
-            var wanted = Frame(position, subject, cam.fieldOfView, cam.aspect, frame.x - lead * leadSide, frame.y);
+            var wanted = holding ? Frame(position, subject, cam.fieldOfView, cam.aspect, holdFrame.x, holdFrame.y)
+                                 : Frame(position, subject, cam.fieldOfView, cam.aspect, frame.x - lead * leadSide, frame.y);
             rotation = started ? Quaternion.Slerp(rotation, wanted, 1f - Mathf.Exp(-sharpness * realDelta)) : wanted;
             started = true;
             cam.transform.SetPositionAndRotation(position, rotation * Wobble(t));

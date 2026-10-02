@@ -16,7 +16,7 @@ namespace GolfSim.Net
         // remote -> sim (relayed by the server)
         public const string Nav = "nav", Club = "club", Aim = "aim", AimReset = "aimReset", Shot = "shot", Mulligan = "mulligan", Skip = "skip";
         // sim -> remotes
-        public const string State = "state", ShotResult = "shotResult", Turn = "turn";
+        public const string State = "state", ShotResult = "shotResult", Turn = "turn", ShotRejected = "shotRejected";
         // sim -> server
         public const string HoleScore = "holeScore";
         // server -> clients
@@ -52,11 +52,15 @@ namespace GolfSim.Net
     [Serializable]
     public class StateMessage : SimMessage
     {
-        public const string Menu = "menu", Loading = "loading", Game = "game", Paused = "paused",
+        public const string Menu = "menu", Loading = "loading", Game = "game", Paused = "paused", Replay = "replay",
             HoleComplete = "holeComplete", Results = "results";
 
-        /// <summary>menu, loading, game, paused, holeComplete (scorecard between holes) or results (final scorecard).</summary>
+        /// <summary>menu, loading, game, paused, replay (an instant replay: Select/Back skip it), holeComplete (scorecard between holes) or results (final scorecard).</summary>
         public string screen;
+        /// <summary>A swing would be hit now. False between shots (screen stays game), and on every other screen.</summary>
+        public bool canShoot;
+        /// <summary>Why a swing wouldn't be hit now ("Wait for the next turn"); "" when canShoot.</summary>
+        public string waitReason;
         /// <summary>The server game being played; 0 for practice.</summary>
         public long gameId;
         public string currentPlayer;
@@ -111,6 +115,17 @@ namespace GolfSim.Net
         public int strokes;
 
         public TurnMessage() : base(MessageType.Turn) { }
+    }
+
+    /// <summary>A phone's shot arrived when it couldn't be hit; the phone shows the reason.</summary>
+    [Serializable]
+    public class ShotRejectedMessage : SimMessage
+    {
+        public string reason;
+        /// <summary>The phone's shot id (0 when it sent none).</summary>
+        public long id;
+
+        public ShotRejectedMessage() : base(MessageType.ShotRejected) { }
     }
 
     // ---- sim -> server ----

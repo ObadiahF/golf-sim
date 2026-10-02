@@ -68,6 +68,9 @@ namespace GolfSim.Game
         public float ObstacleTime => Find(ShotEventKind.Obstacle) is { } e ? e.time : -1f;
         public bool Holed => end == BallStatus.Holed;
         public bool Water => end == BallStatus.InWater;
+        /// <summary>In the water: when (-1 otherwise) and where the ball went through the water's surface.</summary>
+        public float SplashTime { get; private set; } = -1f;
+        public Vector3 SplashPoint { get; private set; }
         public float Apex { get; private set; }
         public float Carry => result.carry;
         public float Total => result.total;
@@ -193,6 +196,26 @@ namespace GolfSim.Game
             };
             if (ghost.Status == BallStatus.Holed) closestToPin = 0f;
             events.Add(new ShotEvent { kind = kind, time = Duration, position = last, surface = CourseSurface.At(last) });
+            if (ghost.Status == BallStatus.InWater) FindSplash();
+        }
+
+        /// <summary>The ball ends on the hazard's bed, under the water: back along the path to where it crossed the surface.</summary>
+        void FindSplash()
+        {
+            float level = CourseSurface.WaterLevelAt(Rest) ?? Rest.y;
+            int i = samples.Count - 1;
+            while (i > 0 && samples[i - 1].y < level) i--;
+            if (i == 0)
+            {
+                SplashTime = 0f;
+                SplashPoint = new Vector3(Launch.x, level, Launch.z);
+                return;
+            }
+            Vector3 above = samples[i - 1], below = samples[i];
+            float u = above.y > below.y ? Mathf.Clamp01((above.y - level) / (above.y - below.y)) : 1f;
+            SplashTime = (i - 1 + u) * SampleTime;
+            var p = Vector3.Lerp(above, below, u);
+            SplashPoint = new Vector3(p.x, level, p.z);
         }
 
         static bool NearGround(Vector3 p) => p.y - CourseSurface.GroundAt(p) < BallPhysicsSettings.Radius + 0.03f;

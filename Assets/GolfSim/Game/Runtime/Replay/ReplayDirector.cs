@@ -89,6 +89,9 @@ namespace GolfSim.Game
             Queue(recording, settings.leadIn);
         }
 
+        /// <summary>The queued shot is still the last one and its ball still lies where it finished (no mulligan, no restart).</summary>
+        bool Current => rec != null && rec == recorder.Last && recorder.LastIsCurrent;
+
         /// <summary>Replays this shot after `delay` real seconds (0: now).</summary>
         public void Queue(ShotRecording recording, float delay = 0f)
         {
@@ -139,7 +142,8 @@ namespace GolfSim.Game
             switch (stage)
             {
                 case Stage.Waiting:
-                    if (stageTime >= 0f) Enter(Stage.DipIn);
+                    if (!Current) Enter(Stage.Idle); // the shot was taken back or the hole restarted during the lead-in
+                    else if (stageTime >= 0f) Enter(Stage.DipIn);
                     break;
                 case Stage.DipIn:
                     overlay?.Show(0f, 0f, Mathf.Clamp01(stageTime / DipTime));

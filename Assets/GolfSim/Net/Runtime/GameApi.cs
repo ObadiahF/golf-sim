@@ -15,7 +15,7 @@ namespace GolfSim.Net
         /// <summary>JSON null numbers are read as this (JsonUtility would read 0, which is a valid handicap).</summary>
         public const float Missing = -99999f;
 
-        static readonly Regex NullNumber = new Regex(@"(?<!\\)""([A-Za-z]+)""\s*:\s*null", RegexOptions.Compiled);
+        static readonly Regex NullNumber = new Regex(@"(?<!\\)""([A-Za-z0-9]+)""\s*:\s*null", RegexOptions.Compiled);
 
         public static bool Has(float value) => value > Missing + 1f;
 
@@ -23,7 +23,11 @@ namespace GolfSim.Net
         public static IEnumerator Players(Action<PlayerStats[]> done, Action<string> failed) =>
             Get("/api/players", json => done(JsonUtility.FromJson<PlayerList>("{\"items\":" + WithMissing(json) + "}").items), failed);
 
-        public static IEnumerator Get(string path, Action<string> done, Action<string> failed)
+        /// <summary>GET path; failed also gets exceptions (an insecure-HTTP refusal, a bad URL).</summary>
+        public static IEnumerator Get(string path, Action<string> done, Action<string> failed) =>
+            SafeCoroutine.Run(Request(path, done, failed), e => failed($"{ServerConfig.Load().HttpUrl}: {e.Message}"));
+
+        static IEnumerator Request(string path, Action<string> done, Action<string> failed)
         {
             var config = ServerConfig.Load();
             using var request = UnityWebRequest.Get(config.HttpUrl + path);
@@ -40,14 +44,18 @@ namespace GolfSim.Net
         [Serializable] class PlayerList { public PlayerStats[] items = new PlayerStats[0]; }
     }
 
-    /// <summary>One player's history (GET /api/players). Totals, averages, bests and handicap count finished rounds.</summary>
+    /// <summary>
+    /// One player's history (GET /api/players). Wins and finishedRounds count every complete card in a finished game;
+    /// bests, averages and the handicap only 9- and 18-hole ones, per length (averageToPar is per 18 holes).
+    /// </summary>
     [Serializable]
     public class PlayerStats
     {
         public string name;
         public int gamesPlayed, finishedRounds, wins;
-        /// <summary>GameApi.Missing when there's no finished round (handicap: fewer than 3).</summary>
-        public float bestTotal, averageTotal, averageToPar, recentAverageToPar, handicap;
+        /// <summary>GameApi.Missing when there's no such round (handicap: fewer than 3), or the server doesn't send it.</summary>
+        public float best9 = GameApi.Missing, best18 = GameApi.Missing, avg9 = GameApi.Missing, avg18 = GameApi.Missing,
+            averageToPar = GameApi.Missing, recentAverageToPar = GameApi.Missing, handicap = GameApi.Missing;
         public HoleTallies holes = new HoleTallies();
         public string lastPlayedAt;
     }

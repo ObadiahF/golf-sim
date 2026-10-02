@@ -64,7 +64,7 @@ namespace GolfSim.Ball
         }
 
         /// <summary>Unlit, alpha-blended material for lines on the course (also used by AimLine).</summary>
-        internal static Material DefaultMaterial(Color hdrColor)
+        public static Material DefaultMaterial(Color hdrColor)
         {
             // Alpha-blended (not additive: yellow added onto a bright sky turns white), slightly HDR so bloom glows.
             var mat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));

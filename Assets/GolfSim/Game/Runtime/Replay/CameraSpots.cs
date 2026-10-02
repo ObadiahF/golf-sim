@@ -6,22 +6,23 @@ using UnityEngine;
 namespace GolfSim.Game
 {
     /// <summary>
-    /// Where a replay camera may stand: above the terrain, outside every tree crown, trunk and rock (with a margin,
-    /// since the drawn trees are bushier than their collision shapes), and with a clear view of what it films.
+    /// Where a replay camera may stand: above the terrain, outside every tree crown, trunk and rock (with a margin),
+    /// and with a clear view of what it films past the crowns as drawn (cones or ellipsoids, ObstacleSettings.CrownOf).
     /// Obstacles are bucketed in a coarse grid, built once per hole.
     /// </summary>
     public class CameraSpots
     {
         const float Cell = 12f;
         const float Margin = 2.5f;       // m kept from any crown or trunk
-        const float CrownScale = 1.25f;  // drawn crowns are wider than the collision crowns
+        const float CrownScale = 1.1f;   // a view keeps a little off the drawn crowns (stray twigs)
         const float MinClearance = 1.2f; // m above the terrain
 
         struct Volume
         {
             public Vector3 basePosition;
             public float radius, bottom, top;     // the camera keeps out of this (with the margin)
-            public float trunk, crown, crownBottom; // what blocks a view: the trunk, and the crown above crownBottom
+            public float trunk;                   // what blocks a view: the trunk,
+            public Crown crown;                   // and the crown (heights above the base)
         }
 
         readonly List<Volume> volumes = new List<Volume>();
@@ -36,13 +37,12 @@ namespace GolfSim.Game
             {
                 var p = t.TransformPoint(o.position);
                 float height = o.height * t.lossyScale.y;
-                var canopy = o.IsTree ? settings.CanopyFor(o.kind) : null;
                 float trunk = o.radius * t.lossyScale.x;
-                float crown = canopy != null ? canopy.radius * height * CrownScale : trunk;
+                var crown = settings.CrownOf(o).Scaled(t.lossyScale.x * CrownScale, t.lossyScale.y);
                 Add(new Volume
                 {
-                    basePosition = p, radius = Mathf.Max(trunk, crown) + Margin, bottom = p.y - 1f, top = p.y + height + Margin,
-                    trunk = trunk + 0.3f, crown = crown, crownBottom = p.y + (canopy != null ? canopy.bottom * height : 0f),
+                    basePosition = p, radius = Mathf.Max(trunk, crown.radius) + Margin, bottom = p.y - 1f, top = p.y + height + Margin,
+                    trunk = trunk + 0.3f, crown = crown,
                 });
             }
         }
@@ -65,6 +65,15 @@ namespace GolfSim.Game
         static int CellOf(float v) => Mathf.FloorToInt(v / Cell);
         static long Key(int x, int z) => ((long)x << 32) ^ (uint)z;
 
+        /// <summary>The highest treetop (world y) near this point, or the ground if there are no trees.</summary>
+        public float TreetopsAt(Vector3 p)
+        {
+            float top = CourseSurface.GroundAt(p);
+            if (grid.TryGetValue(Key(CellOf(p.x), CellOf(p.z)), out var list))
+                foreach (int i in list) top = Mathf.Max(top, volumes[i].top - Margin);
+            return top;
+        }
+
         /// <summary>True if this point is inside (or within the margin of) a tree, shrub or rock.</summary>
         public bool InObstacle(Vector3 p) => Inside(p, false);
 
@@ -80,7 +89,11 @@ namespace GolfSim.Game
                 if (p.y < v.bottom || p.y > v.top) continue;
                 float dx = p.x - v.basePosition.x, dz = p.z - v.basePosition.z, d2 = dx * dx + dz * dz;
                 if (!view) { if (d2 < v.radius * v.radius) return true; }
-                else if (d2 < v.trunk * v.trunk || (p.y > v.crownBottom && d2 < v.crown * v.crown)) return true;
+                else
+                {
+                    float crown = v.crown.RadiusAt(p.y - v.basePosition.y);
+                    if (d2 < v.trunk * v.trunk || d2 < crown * crown) return true;
+                }
             }
             return false;
         }
@@ -150,10 +163,16 @@ namespace GolfSim.Game
         /// against looking steeply up at the first subject.
         /// </summary>
         public Vector3 Search(Vector3 pivot, IReadOnlyList<Vector3> subjects, float[] distances, float height,
-                              System.Func<Vector3, float> preference, float ignoreNear = 3f)
+                              System.Func<Vector3, float> preference, float ignoreNear = 3f) =>
+            Search(pivot, subjects, distances, height, preference, ignoreNear, out _);
+
+        /// <summary>Search, also giving the share of the subjects the chosen spot sees (0..1).</summary>
+        public Vector3 Search(Vector3 pivot, IReadOnlyList<Vector3> subjects, float[] distances, float height,
+                              System.Func<Vector3, float> preference, float ignoreNear, out float seenShare)
         {
             var best = AboveGround(pivot + Vector3.back * distances[0], height);
             float bestScore = float.MinValue;
+            seenShare = 0f;
             foreach (float lift in new[] { 0f, 4f, 10f })
                 for (int a = 0; a < 360; a += 15)
                     foreach (float d in distances)
@@ -170,7 +189,7 @@ namespace GolfSim.Game
                         float lookUp = Mathf.Atan2(toSubject.y, new Vector2(toSubject.x, toSubject.z).magnitude) * Mathf.Rad2Deg;
                         float score = seen * 10f + preference(dir) * 4f + (open ? 1.5f : 0f) - lift * 0.15f - Mathf.Abs(d - distances[0]) * 0.01f
                                       - Mathf.Max(0f, lookUp - 10f) * 0.12f;
-                        if (score > bestScore) { bestScore = score; best = p; }
+                        if (score > bestScore) { bestScore = score; best = p; seenShare = seen; }
                     }
             return best;
         }

@@ -23,14 +23,16 @@ The wire contract is `Game-server/docs/PROTOCOL.md` (source of truth: `WsMessage
 | `GolfSim/Net/Runtime/SimConnection.cs` | `ClientWebSocket` as `role=sim`: background receive, main-thread events, ping, reconnect with backoff, reliable `holeScore` queue |
 | `GolfSim/Net/Runtime/SimMessages.cs` | every WebSocket message class (phone shots reuse `Ball/RemoteShotMessage`) |
 | `GolfSim/Net/Runtime/GameApi.cs` | REST GETs (stats for the Scores screen) |
+| `GolfSim/Net/Runtime/TrainerHoles.cs` | downloads the Course Trainer's top holes into a cache, one fetch at a time; saves each round's hole list |
 | `GolfSim/Ball/Runtime/Shots.cs` | the one shot path for UDP, WebSocket and the on-screen panel: game gate, retry de-duplication, hit |
 | `GolfSim/Ball/Runtime/Clubs.cs` | the club table (same names as the app), carries, club suggestion |
 | `GolfSim/Ball/Runtime/AimLine.cs` | the aim arrow on the ground; `GolfBall.aimOffset` turns the shot |
 | `GolfSim/Game/Runtime/NavInput.cs` | one input path for keyboard, gamepad and the phone's D-pad |
-| `GolfSim/Game/Runtime/RoundDirector*.cs` | the session across scenes: connection wiring, rounds, holes, turns, scoring, `state` |
+| `GolfSim/Game/Runtime/RoundDirector*.cs` | the session across scenes: connection wiring, rounds, holes, turns, scoring, `state`; `.Server.cs` keeps the round in step with the server's game, `.Holes.cs` gets the round's holes |
 | `GolfSim/Game/Runtime/Round.cs` | the scorecard and turn rules (no scene code) |
 | `GolfSim/Game/Runtime/RoundHud.cs`, `TurnBanner.cs`, `ScoreTable.cs` | HUD, turn announcement and badge, scorecard |
 | `GolfSim/Game/Runtime/ScoresScreen.cs` | the main menu's Scores leaderboard |
+| `GolfSim/Game/Runtime/Audio/AudioSettingsPanel.cs` | the Sound settings (main menu card and pause menu) |
 | `GolfSim/Game/Resources/CourseRound.asset` | hole scenes, holes, turn order, max over par, HUD assets |
 
 `RoundDirector` creates itself when Play starts (`RuntimeInitializeOnLoadMethod`) and lives across scenes
@@ -46,19 +48,32 @@ with the connection and the HUD. Any scene with a `HoleInfo` and a `GolfBall` wo
 - **Pick-up**: at par + 5 (`maxOverPar`) without holing out, the player scores par + 5. The phone's
   **Pick up** (`skip`) does the same at any time.
 - **Mulligan**: takes back the last shot (ball, strokes and score), and that player hits again.
+- **The server's game wins.** A new game from the app replaces the round in progress. A game ended from the app
+  stops the round: ABANDONED goes back to the menu, FINISHED shows the final scorecard. After a reconnect, the
+  `hello` game is played if it differs from the sim's (or the round stops if its game is over). Scores are only
+  sent to a game the server says is in progress, and Restart Hole is unavailable on the scorecards.
 - A player's `holeScore` goes to the server as soon as they finish the hole. Scores are sent reliably:
   if the connection is down they wait for the next connection. The server upserts them, so resending is safe.
 - Par comes from the hole scene's `HoleInfo.par` (3 to 6), else `CourseRound.defaultPar`.
 - **Holes:** `CourseRound.holeScenes` repeats to fill 9 or 18 holes. Add more hole scenes (in the build
   settings) to the list and rounds use them in order.
+- **Top holes** (`ServerConfig.useTopHoles`): rounds play the Course Trainer's top-rated holes, downloaded into
+  `<persistentDataPath>/holes/<id>/` and built at runtime. The hole list of each server game is saved in
+  `holes/rounds/`, so a resumed game replays the same holes without the trainer; with the trainer down, a new round
+  plays the last saved list, else the built-in holes. A LAN trainer may use `http://` (Player Settings › Allow
+  downloads over HTTP is "Always allowed").
 
 ## Flows
 
 1. **Menu:** the D-pad's Left/Right picks a card and Select plays it. The cards are **Play a Round**,
    Hole Simulator and **Scores**. On Play a Round, Up/Down picks 9 or 18 holes for a solo round. If the
    server has a game in progress, the card resumes it at the first unfinished hole instead.
-   Scores shows a ranked table from `GET /api/players`, ranked by handicap, average, best, wins, birdies
-   or aces (use Left/Right to change). Back closes it.
+   Scores shows a ranked table from `GET /api/players`, ranked by handicap, average to par per 18 holes,
+   best 9-hole and 18-hole rounds, wins, birdies or aces (use Left/Right to change). Back closes it. **Sound**
+   opens the volume settings (also in the pause menu): Up/Down picks master, effects, crowd, ambience or
+   interface, Left/Right changes it by 10 %, Back closes. The volumes are saved.
+   While a round's top holes download, an overlay shows "Downloading hole 3 of 9…" and takes every key;
+   Back cancels and the round never starts.
 2. **Start:** the app's Start Game calls `POST /api/games`, the server sends `gameStarted`, and the sim
    loads hole 1 for the first player.
 3. **Turn:** "OBI'S TURN" shows big in the centre, then shrinks into the player badge in the top right.
@@ -66,12 +81,15 @@ with the connection and the HUD. Any scene with a `HoleInfo` and a `GolfBall` wo
    par, strokes, club, aim, distance, lie). The app shows its gameplay mode with the club wheel, aim
    buttons and swing. `club` and `aim` change the HUD, the aim arrow and the on-screen panel, and a `shot`
    is hit with the aim applied.
-4. **After each shot:** the sim sends `shotResult`, then after 2.5 s the next shot or player.
+4. **After each shot:** the sim sends `shotResult`, then after 2.5 s the next shot or player. Until then
+   `state` keeps `screen: "game"` with `canShoot: false` and a `waitReason`; during an instant replay the
+   screen is `replay`. A swing that arrives anyway is refused with `shotRejected {reason, id}` to the phones.
 5. **Hole complete:** the scorecard appears (screen `holeComplete`), and Select loads the next hole.
 6. **End:** a winner banner with confetti, then the final scorecard (screen `results`). Select returns to
    the menu, ready for the next game.
-7. **Pause:** Back (or Esc) opens the pause menu (screen `paused`, shots refused). Restart Hole replays the
-   hole. Main Menu leaves the round, which can be resumed from Play a Round.
+7. **Pause:** Back (or Esc) opens the pause menu (screen `paused`, shots refused, game sounds paused). Restart
+   Hole replays the hole (not on the scorecards). Sound opens the volumes. Main Menu leaves the round, which can
+   be resumed from Play a Round.
 
 Keyboard and gamepad do the same: arrows (Left/Right aim and Up/Down club in game), Enter (or A) for
 Select, Esc (or B) for Back. Space hits with the on-screen panel (Tab shows it).
