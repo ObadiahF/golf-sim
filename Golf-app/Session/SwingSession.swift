@@ -118,13 +118,19 @@ final class SwingSession {
     #if DEBUG
     var canSimulate: Bool { motion is SimulatedMotionSource }
 
-    /// Feeds a synthetic swing for the current club through the real pipeline (simulator only).
+    /// Feeds a synthetic swing for the current club through the real pipeline (simulator only). Not addressed
+    /// yet: addresses first and holds still long enough for the pose to be set, so one tap swings.
     func simulateSwing() {
         guard let simulated = motion as? SimulatedMotionSource else { return }
-        if stage == .idle { address() }
+        let addressing = stage == .idle || stage == .settling || isUnavailable
+        if stage != .settling && addressing { address() }
         let face = Double.random(in: -6...6)
-        simulated.play(club.isPutter ? .putt(impactRate: .random(in: 0.8...2.4), face: face) : .full(impactRate: .random(in: 16...26), face: face))
+        let spec: SyntheticSwing.Spec = club.isPutter ? .putt(impactRate: .random(in: 0.8...2.4), face: face) : .full(impactRate: .random(in: 16...26), face: face)
+        simulated.play(spec, after: addressing ? Self.addressTime : 0)
     }
+
+    /// Seconds from tapping Address until the pose is set when the phone is held still, with a little to spare.
+    static var addressTime: Double { settleDelay + settleHold + 0.3 }
     #endif
 
     // MARK: Pipeline

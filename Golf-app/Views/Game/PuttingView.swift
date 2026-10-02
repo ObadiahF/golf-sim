@@ -24,7 +24,7 @@ struct PuttingView: View {
             }
             .frame(height: fit.size(240, 176))
             .waiting(game.shotWait)
-            GameAim(game: game)
+            GameAim(game: game, compact: fit.tight)
             PuttResultStrip(result: meter.result, delivery: session.delivery)
         } bottom: {
             GameActions(game: game)

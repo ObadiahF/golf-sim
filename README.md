@@ -53,7 +53,8 @@ short.
 The screen stays awake while the app is in front. Motion stops when it goes to the background.
 
 In the **simulator** (no motion sensors) a Debug-only **Simulate swing** button plays a
-synthetic swing through the same detector, shot and network code. The simulator can reach a sim
+synthetic swing through the same detector, shot and network code; when not addressed yet it addresses
+and holds still first, so one tap hits. The simulator can reach a sim
 running on the same Mac (it also tries `127.0.0.1` during discovery).
 
 ## Play a round
@@ -77,8 +78,10 @@ name on the game server (Spring Boot + Postgres in `../Game-server`).
    holes** and tap **Start Game**. The sim loads hole 1. Starting a new game ends one in progress;
    **End game** abandons it (after a confirmation).
 5. **Play tab, remote mode** (any sim screen except a hole): a TV-remote D-pad. Arrows move,
-   **OK** selects, **Back** goes back. Between holes the scorecard shows on the phone too; press OK
-   to go on. During an instant replay (`screen: "replay"`) OK or Back skips it.
+   **OK** selects, **Back** goes back. The card above it names the TV's screen and what the buttons do
+   there (main menu, loading, pause, the Sound panel, replay, scorecards). Between holes the scorecard shows
+   on the phone too; press OK to go on, or **Replay last shot** (`nav up`) while the TV offers "▲ Replay"
+   (`state.canReplay`). During an instant replay (`screen: "replay"`) OK or Back skips it.
 6. **Play tab, gameplay mode** (switches automatically while the sim plays a hole): the header
    names the player up, with hole, par, strokes, distance and lie.
    - **Club wheel:** tap a club, or touch the ring and drag round to it. The sim suggests a club
@@ -90,13 +93,17 @@ name on the game server (Spring Boot + Postgres in `../Game-server`).
      (`state.waitReason`) replaces the instruction and swings aren't sent. If a shot still arrives too
      early, the sim's `shotRejected` reason shows in the Last shot strip.
    - **Menu** pauses the sim, **Mulligan** retakes the last shot, **Pick up** ends the hole for the
-     player at the maximum score. These stay pinned above the tab bar; the rest scrolls if it doesn't fit.
+     player at the maximum score. These stay pinned above the tab bar. The controls above them shrink to fit
+     (on an iPhone SE the wheel, meter and aim buttons get smaller); only if even the smallest sizes don't
+     fit does the rest scroll.
    - **Replay last shot** shows between turns while the TV offers "▲ Replay" and sends `nav up`. The sim's
      `state.canReplay` decides when it is present; otherwise `canShoot: false` with
      `waitReason: "Wait for the next turn"` does.
-   - **Putting:** the power meter starts empty for each putt (new turn, new hole, Address) and clears on
-     leaving the putting view.
-7. **Scores tab:** the live or last scorecard (front 9 / OUT, back 9 / IN, total) and the
+   - **Putting:** the power meter starts empty for each putt (new turn, new hole, Address, and the same
+     player's next putt: the sim taking a swing again with a new `strokes` count) and clears on leaving the
+     putting view.
+7. **Scores tab:** the game in progress, else the last finished one (an abandoned game doesn't hide it),
+   with a whole nine on screen (front 9 / OUT, back 9 / IN, total), and the
    leaderboard (handicap, average to par per 18 holes, wins, birdies, aces; Best 9 / Avg 9 /
    Best 18 / Avg 18; the best 9-hole and best 18-hole rounds as separate lists). Scores come from complete 9- and 18-hole rounds only; shorter games still
    count as rounds and wins.

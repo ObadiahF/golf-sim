@@ -6,13 +6,25 @@ struct ScoresView: View {
 
     let session: SwingSession
     @State private var page = Page.scorecard
-    @State private var lastGame: GameView?
+    @State private var recentGames: [GameView] = []
     @State private var board: Stats.Leaderboard?
     @State private var players: [Stats.Player] = []
     @State private var problem: String?
 
-    /// The live scorecard from the WebSocket wins over the last one fetched.
-    private var card: GameView? { session.game.game ?? lastGame }
+    private var card: GameView? { Self.shownGame(live: session.game.game, recent: recentGames) }
+
+    /// How many recent games to look through for the last finished one.
+    static let recentLimit = 10
+
+    /// The game in progress (the live scorecard from the WebSocket first), else the latest finished game, so an
+    /// abandoned game (End game, or a new game started over it) doesn't hide the last real round. With no
+    /// finished game, the latest one of any kind.
+    static func shownGame(live: GameView?, recent: [GameView]) -> GameView? {
+        let games = [live].compactMap { $0 } + recent.filter { $0.id != live?.id } // the live copy is newer
+        return games.first(where: \.isInProgress)
+            ?? games.filter(\.isFinished).max { $0.id < $1.id }
+            ?? games.max { $0.id < $1.id }
+    }
 
     var body: some View {
         ZStack {
@@ -78,7 +90,7 @@ struct ScoresView: View {
         }
         do {
             switch page {
-            case .scorecard: lastGame = try await api.recentGames(limit: 1).first
+            case .scorecard: recentGames = try await api.recentGames(limit: Self.recentLimit)
             case .leaderboard:
                 async let board = api.leaderboard()
                 async let players = api.players()

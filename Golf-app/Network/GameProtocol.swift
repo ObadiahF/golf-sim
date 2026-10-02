@@ -101,6 +101,8 @@ nonisolated enum GameProtocol {
         /// turns: that is when the sim's ReplayDirector offers it (not while the ball moves, nor during a replay).
         var offersReplay: Bool { isGame && (canReplay ?? (canShoot == false && waitReason == Self.betweenTurns)) }
         var showsScorecard: Bool { screen == "holeComplete" || screen == "results" }
+        /// On a scorecard the TV offers "▲ Replay" of the hole's last shot (only when the sim says so).
+        var offersScorecardReplay: Bool { showsScorecard && canReplay == true }
         var player: String? { currentPlayer.flatMap { $0.isEmpty ? nil : $0 } }
     }
 

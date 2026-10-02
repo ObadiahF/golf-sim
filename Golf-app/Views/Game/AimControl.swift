@@ -8,6 +8,10 @@ struct AimControl: View {
     let aim: Double
     let onTurn: (Double) -> Void
     let onReset: () -> Void
+    /// Shorter buttons and no "tap to reset", for the shortest screens.
+    var compact = false
+
+    private var height: CGFloat { compact ? 44 : 56 }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -19,9 +23,11 @@ struct AimControl: View {
                         .font(.system(size: 17, weight: .bold, design: .rounded).monospacedDigit())
                         .foregroundStyle(Theme.chalk)
                         .contentTransition(.numericText())
-                    Text("tap to reset").font(.system(size: 11, weight: .medium, design: .rounded)).foregroundStyle(Theme.muted)
+                    if !compact {
+                        Text("tap to reset").font(.system(size: 11, weight: .medium, design: .rounded)).foregroundStyle(Theme.muted)
+                    }
                 }
-                .frame(maxWidth: .infinity, minHeight: 56)
+                .frame(maxWidth: .infinity, minHeight: height)
             }
             .buttonStyle(PressDimStyle())
             .accessibilityLabel("Reset aim, now \(Self.label(aim))")
@@ -38,7 +44,7 @@ struct AimControl: View {
             Image(systemName: icon)
                 .font(.system(size: 24, weight: .heavy))
                 .foregroundStyle(Theme.fairwayBottom)
-                .frame(width: 72, height: 56)
+                .frame(width: 72, height: height)
                 .background(Theme.flag, in: .rect(cornerRadius: 14))
         }
         .accessibilityLabel(label)

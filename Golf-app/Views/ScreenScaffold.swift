@@ -5,14 +5,18 @@ import SwiftUI
 struct ScreenFit {
     /// Below this the screen is short: the spacing tightens.
     static let compactHeight: CGFloat = 620
-    /// The sizes `ScreenScaffold` tries, biggest first (1 = `regular`, 0 = `small`).
-    static let levels: [CGFloat] = [1, 0.75, 0.5, 0.25, 0]
+    /// The sizes `ScreenScaffold` tries, biggest first (1 = `regular`, 0 = `small`). Below 0 (`tight`) the big
+    /// controls shrink past `small` and the aim buttons get shorter, so the shortest screens (iPhone SE with the
+    /// Replay button or a banner) still fit everything above the pinned controls rather than scroll it out of sight.
+    static let levels: [CGFloat] = [1, 0.75, 0.5, 0.25, 0, -0.25, -0.5, -0.625, -0.75, -0.875, -1]
 
     let height: CGFloat
-    /// Where big controls sit between their small (0) and regular (1) sizes.
+    /// Where big controls sit between their small (0) and regular (1) sizes; below 0 is smaller than small.
     var level: CGFloat = 0
 
     var compact: Bool { height < Self.compactHeight }
+    /// Smaller than `small`: secondary controls (aim) go compact too.
+    var tight: Bool { level < 0 }
     var spacing: CGFloat { compact ? 6 : 10 }
 
     /// `regular` with room to spare, `small` without, or in between.
@@ -39,8 +43,8 @@ struct ScreenScaffold<Content: View, Bottom: View>: View {
                     ForEach(ScreenFit.levels, id: \.self) { level in
                         column(ScreenFit(height: height, level: level)).frame(maxHeight: .infinity, alignment: .top)
                     }
-                    ScrollView {
-                        column(ScreenFit(height: height)).frame(minHeight: height, alignment: .top)
+                    ScrollView { // the smallest sizes, so as little as possible is out of sight
+                        column(ScreenFit(height: height, level: ScreenFit.levels.last ?? 0)).frame(minHeight: height, alignment: .top)
                     }
                     .scrollBounceBehavior(.basedOnSize)
                 }

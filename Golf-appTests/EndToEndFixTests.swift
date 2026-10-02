@@ -120,7 +120,8 @@ struct EndToEndFixTests {
         #expect(ScreenFit(height: 500, level: 1).size(320, 220) == 320)
         #expect(ScreenFit(height: 500, level: 0).size(320, 220) == 220)
         #expect(ScreenFit(height: 500, level: 0.5).size(320, 220) == 270)
-        #expect(ScreenFit.levels.first == 1 && ScreenFit.levels.last == 0, "biggest first, ending at small")
+        #expect(ScreenFit.levels.first == 1 && ScreenFit.levels.contains(0), "biggest first, through small")
+        #expect(ScreenFit.levels == ScreenFit.levels.sorted(by: >))
         #expect(ScreenFit(height: 500).compact && !ScreenFit(height: 700).compact)
     }
 }

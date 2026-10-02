@@ -80,8 +80,10 @@ final class SimulatedMotionSource: MotionSource {
 
     func captureAddress() {}
 
-    func play(_ spec: SyntheticSwing.Spec) {
-        queue += SyntheticSwing.samples(spec, start: clock, noise: 0.05, seed: UInt64(clock * 1000))
+    /// Queues a swing, after holding still at address for `lead` seconds (time for the address pose to be set).
+    func play(_ spec: SyntheticSwing.Spec, after lead: Double = 0) {
+        queue += SyntheticSwing.still(seconds: lead, start: clock)
+        queue += SyntheticSwing.samples(spec, start: clock + lead, noise: 0.05, seed: UInt64(clock * 1000))
     }
 
     private func tick() {

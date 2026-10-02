@@ -66,6 +66,8 @@ final class GameLink {
     var offersReplay: Bool { simReady && state?.offersReplay == true }
     /// Between holes and after the last one, the sim shows the scorecard (Select continues).
     var showsScorecard: Bool { state?.showsScorecard == true }
+    /// The scorecard on the TV offers "▲ Replay" (the remote's Replay button and hint).
+    var offersScorecardReplay: Bool { simReady && state?.offersScorecardReplay == true }
     /// Why the server link is down, for the "Disconnected" banner; nil while connected.
     var outage: String? {
         switch connection {

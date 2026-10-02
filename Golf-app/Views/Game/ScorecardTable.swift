@@ -1,18 +1,56 @@
 import SwiftUI
 
 /// The scorecard, laid out like a paper card: a row per player, a column per hole. Names stay pinned on the
-/// left and TOT and ± on the right while the holes scroll between them (scrolled to the hole being played).
-/// An 18-hole card shows one nine at a time, front (OUT) or back (IN).
+/// left and TOT and ± on the right, and the hole columns narrow so a whole nine fits between them (names get
+/// any room left over). Only when a nine can't fit (an 18-hole card's OUT/IN, a narrow phone) do the holes
+/// scroll, to the hole being played. An 18-hole card shows one nine at a time, front (OUT) or back (IN).
 struct ScorecardTable: View {
     let game: GameView
     /// The nine picked; nil follows the hole being played.
     @State private var picked: Int?
+    /// The table's width, for `Columns`; 0 until measured.
+    @State private var width: CGFloat = 0
 
-    private static let cell: CGFloat = 28
+    private static let rowHeight: CGFloat = 28
     private static let headerHeight: CGFloat = 16
     private static let rowSpacing: CGFloat = 6
-    private static let nameWidth: CGFloat = 72
-    private static let sumWidth: CGFloat = 36
+    private static let sumWidth: CGFloat = 32
+    private static let columnSpacing: CGFloat = 4
+    private static let holeSpacing: CGFloat = 2
+
+    /// Hole and name column widths for a table `width` wide showing `holes` holes (and an OUT/IN column).
+    struct Columns: Equatable {
+        static let cellRange: ClosedRange<CGFloat> = 20...28
+        static let minName: CGFloat = 60
+        static let unmeasured = Columns(cell: cellRange.upperBound, name: 72)
+
+        var cell: CGFloat
+        var name: CGFloat
+
+        /// The widest hole cell (up to 28) that fits every hole beside a 60-point name, never below 20; the
+        /// name gets the rest. 0 (not measured yet) gives the old fixed sizes.
+        static func fit(width: CGFloat, holes: Int, subtotal: Bool) -> Columns {
+            guard width > 0, holes > 0 else { return .unmeasured }
+            let room = width - ScorecardTable.fixedWidth - minName - holesWidth(cell: 0, holes: holes, subtotal: subtotal)
+            let cell = min(cellRange.upperBound, max(cellRange.lowerBound, (room / CGFloat(holes)).rounded(.down)))
+            let holesWidth = holesWidth(cell: cell, holes: holes, subtotal: subtotal)
+            return Columns(cell: cell, name: max(minName, width - ScorecardTable.fixedWidth - holesWidth))
+        }
+
+        /// The holes and the OUT/IN column side by side.
+        static func holesWidth(cell: CGFloat, holes: Int, subtotal: Bool) -> CGFloat {
+            let columns = holes + (subtotal ? 1 : 0)
+            return cell * CGFloat(holes) + (subtotal ? ScorecardTable.sumWidth : 0) + ScorecardTable.holeSpacing * CGFloat(columns - 1)
+        }
+    }
+
+    /// TOT and ± and the gaps between the four parts of a row.
+    static var fixedWidth: CGFloat { sumWidth * 2 + columnSpacing * 3 }
+
+    private var columns: Columns {
+        let holes = nines[safe: shownNine]?.count ?? 0
+        return Columns.fit(width: width, holes: holes, subtotal: Self.subtotalLabel(shownNine, of: nines.count) != nil)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -32,31 +70,35 @@ struct ScorecardTable: View {
                 }
                 .pickerStyle(.segmented)
             }
-            HStack(alignment: .top, spacing: 6) {
-                column("Hole", par: "Par", width: Self.nameWidth, alignment: .leading) {
-                    Text($0.name).bold().lineLimit(1).truncationMode(.tail)
+            HStack(alignment: .top, spacing: Self.columnSpacing) {
+                column("Hole", par: "Par", width: columns.name, alignment: .leading) {
+                    Text($0.name).bold().lineLimit(1).minimumScaleFactor(0.8).truncationMode(.tail)
                 }
                 holesScroller
                 column("TOT", par: text(Self.sum((0..<game.holesCount).map(par))), width: Self.sumWidth) {
                     Text("\($0.total)").bold()
                 }
-                column("±", par: "", width: Self.sumWidth) { Text(formatToPar($0.toPar)) }
+                column("±", par: "", width: Self.sumWidth) { Text(formatToPar($0.toPar)).lineLimit(1).minimumScaleFactor(0.8) }
             }
             .font(.system(size: 15, weight: .semibold, design: .rounded).monospacedDigit())
             .foregroundStyle(Theme.chalk)
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
     /// The shown nine's holes and its OUT/IN, scrolling sideways with a visible indicator.
     private var holesScroller: some View {
         let holes = nines[safe: shownNine] ?? []
         let subtotal = Self.subtotalLabel(shownNine, of: nines.count)
+        let cell = columns.cell
         return ScrollViewReader { reader in
             ScrollView(.horizontal) {
-                HStack(spacing: 2) {
+                HStack(spacing: Self.holeSpacing) {
                     ForEach(holes, id: \.self) { hole in
-                        column("\(hole + 1)", par: par(hole).map(String.init) ?? "–") { score(strokes($0, hole), par: par(hole)) }
-                            .id(hole)
+                        column("\(hole + 1)", par: par(hole).map(String.init) ?? "–", width: cell) {
+                            score(strokes($0, hole), par: par(hole), width: cell)
+                        }
+                        .id(hole)
                     }
                     if let subtotal {
                         column(subtotal, par: text(Self.sum(holes.map(par))), width: Self.sumWidth) { player in
@@ -74,12 +116,12 @@ struct ScorecardTable: View {
     }
 
     /// A column: its title, the par row, then a cell per player, all on the shared row heights.
-    private func column<Cell: View>(_ title: String, par: String, width: CGFloat = cell, alignment: Alignment = .center,
+    private func column<Cell: View>(_ title: String, par: String, width: CGFloat, alignment: Alignment = .center,
                                     @ViewBuilder cell: @escaping (GameView.PlayerCard) -> Cell) -> some View {
         VStack(spacing: Self.rowSpacing) {
             header(title, width: width, alignment: alignment)
             header(par, width: width, alignment: alignment)
-            ForEach(game.players) { cell($0).frame(width: width, height: Self.cell, alignment: alignment) }
+            ForEach(game.players) { cell($0).frame(width: width, height: Self.rowHeight, alignment: alignment) }
         }
     }
 
@@ -135,10 +177,10 @@ struct ScorecardTable: View {
     }
 
     /// Strokes, circled under par and boxed over par, like a paper card.
-    private func score(_ strokes: Int?, par: Int?) -> some View {
+    private func score(_ strokes: Int?, par: Int?, width: CGFloat) -> some View {
         let diff = (strokes ?? 0) - (par ?? strokes ?? 0)
         return Text(strokes.map(String.init) ?? "·")
-            .frame(width: Self.cell, height: Self.cell)
+            .frame(width: width, height: Self.rowHeight)
             .background {
                 if strokes != nil, diff < 0 { Circle().stroke(Theme.good, lineWidth: 1.5) }
                 if strokes != nil, diff > 0 { RoundedRectangle(cornerRadius: 5).stroke(Theme.warn.opacity(0.8), lineWidth: 1.5) }

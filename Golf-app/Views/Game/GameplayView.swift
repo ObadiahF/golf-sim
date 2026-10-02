@@ -17,7 +17,7 @@ struct GameplayView: View {
                 AddressButton(stage: session.stage, size: fit.size(168, 116), action: session.address)
             }
             .waiting(game.shotWait)
-            GameAim(game: game)
+            GameAim(game: game, compact: fit.tight)
             LastShotStrip(result: game.lastShotResult, delivery: session.delivery)
         } bottom: {
             GameActions(game: game)

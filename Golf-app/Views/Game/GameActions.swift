@@ -9,11 +9,7 @@ struct GameActions: View {
     var body: some View {
         VStack(spacing: 8) {
             if game.offersReplay {
-                PillButton(title: "Replay last shot", systemImage: "play.rectangle.fill", tint: Theme.flag) {
-                    Haptics.press()
-                    game.replay()
-                }
-                .transition(.opacity)
+                ReplayButton(game: game).transition(.opacity)
             }
             HStack(spacing: 8) {
                 PillButton(title: "Menu", systemImage: "pause.fill") { game.nav(.back) }
@@ -31,14 +27,29 @@ struct GameActions: View {
     }
 }
 
+/// "Replay last shot": sends `nav up`, which replays the last shot while the TV offers "▲ Replay" (between
+/// turns in gameplay, and on the scorecards).
+struct ReplayButton: View {
+    let game: GameLink
+
+    var body: some View {
+        PillButton(title: "Replay last shot", systemImage: "play.rectangle.fill", tint: Theme.flag) {
+            Haptics.press()
+            game.replay()
+        }
+    }
+}
+
 /// The sim's aim, turned from the phone; shared by the gameplay and putting views. Greyed out while the server
 /// is down, and disabled the moment the sim leaves the hole, which stops a held aim button repeating while
 /// this screen fades out.
 struct GameAim: View {
     let game: GameLink
+    /// The screen is short of room (`ScreenFit.tight`): compact aim buttons.
+    var compact = false
 
     var body: some View {
-        AimControl(aim: game.state?.aim ?? 0, onTurn: game.aim(by:), onReset: game.aimReset)
+        AimControl(aim: game.state?.aim ?? 0, onTurn: game.aim(by:), onReset: game.aimReset, compact: compact)
             .usable(game.isConnected && game.state?.isGame == true)
     }
 }
