@@ -144,7 +144,9 @@ final class SwingSession {
         case .started: stage = .swinging
         case .fired(let impact): fire(impact)
         case .aborted: stage = .returning
-        case .rearmed: stage = .ready
+        case .rearmed:
+            stage = .ready
+            Haptics.addressSet() // the buzz that says "swing again"
         }
     }
 
