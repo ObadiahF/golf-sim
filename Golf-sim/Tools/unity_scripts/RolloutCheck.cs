@@ -1,7 +1,11 @@
 // Dev helper, run from the shell with the Unity CLI (not compiled into the project):
 //   unity command run_script --file Tools/unity_scripts/RolloutCheck.cs --entry RolloutCheck.Run
+//   unity command run_script --file Tools/unity_scripts/RolloutCheck.cs --entry RolloutCheck.Sample
 // How far shots run out on each surface (flat ground, the project's BallPhysics.asset): club shots landing on a
 // surface, a ball rolling into it at a given speed, and the green's Stimp, to tune bounce and rolling friction.
+// Run reports what the next shot would use: the asset plus the server's live physics profile when one is applied
+// (in Play mode, connected). Sample applies SampleProfile the way the "physics" message does, reports, checks the
+// asset was not touched, and resets to the built-in values.
 using System.Text;
 using GolfSim.Ball;
 using UnityEditor;
@@ -12,11 +16,34 @@ public static class RolloutCheck
     const float Yards = 1.0936f, Step = 0.002f;
     static readonly string[] Surfaces = { "green", "fairway", "rough", "native", "bunker" };
 
-    public static string Run()
+    const string SampleProfile = "{\"type\":\"physics\",\"profile\":{\"surfaces\":[{\"surface\":\"green\",\"rolling\":0.08}," +
+                                 "{\"surface\":\"fairway\"},{\"surface\":\"rough\",\"restitution\":0.3,\"friction\":0.9,\"rolling\":1.2}]}}";
+
+    public static string Run() => Report(BallPhysicsProfile.Resolve(LoadAsset()));
+
+    public static string Sample()
+    {
+        var asset = LoadAsset();
+        string before = JsonUtility.ToJson(asset);
+        BallPhysicsProfile.Apply(JsonUtility.FromJson<GolfSim.Net.PhysicsMessage>(SampleProfile).profile);
+        var live = BallPhysicsProfile.Resolve(asset);
+        string report = $"Sample profile: {BallPhysicsProfile.Describe(BallPhysicsProfile.Current)}\n" + Report(live);
+        bool untouched = JsonUtility.ToJson(asset) == before && live != asset && live.IsRuntimeCopy
+                         && BallPhysicsProfile.Resolve(live) == live && live.For("fairway").rolling == asset.For("fairway").rolling;
+        BallPhysicsProfile.Apply(null);
+        bool reset = BallPhysicsProfile.Resolve(asset) == asset;
+        return report + $"\nAsset untouched: {untouched}; reset returns the asset: {reset}\n\nBuilt-in:\n" + Report(asset);
+    }
+
+    static BallPhysicsSettings LoadAsset()
     {
         const string path = "Assets/GolfSim/Ball/Settings/BallPhysics.asset";
         AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate); // pick up edits made outside Unity
-        var settings = AssetDatabase.LoadAssetAtPath<BallPhysicsSettings>(path);
+        return AssetDatabase.LoadAssetAtPath<BallPhysicsSettings>(path);
+    }
+
+    static string Report(BallPhysicsSettings settings)
+    {
         var sb = new StringBuilder($"Green Stimp {PuttModel.GreenStimp(settings):0.0} ft\n\nRollout after landing (yd), by surface landed on\nclub      carry");
         foreach (var s in Surfaces) sb.Append($" {s,8}");
         sb.AppendLine();

@@ -180,7 +180,7 @@ final class SwingSession {
     private func trackPutt(_ sample: MotionSample, event: SwingDetector.Event?) {
         if event == .started { meter.begin() }
         guard event == .started || stage == .swinging else { return }
-        meter.track(distance: PuttModel.rollDistance(rate: sample.rate, scale: settings.puttScale, stimp: stimp, club: club))
+        meter.track(distance: PuttModel.rollDistance(rate: sample.rate, scale: settings.scale(for: club), stimp: stimp, club: club))
     }
 
     private var stimp: Double { PuttModel.stimp(of: game.state) }

@@ -21,6 +21,6 @@ public abstract class IntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
-        jdbc.execute("truncate hole_scores, game_players, games, players restart identity cascade");
+        jdbc.execute("truncate hole_scores, game_players, games, players, physics_overrides restart identity cascade");
     }
 }

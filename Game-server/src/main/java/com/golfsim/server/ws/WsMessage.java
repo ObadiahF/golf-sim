@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.golfsim.server.game.GameRequests;
 import com.golfsim.server.game.GameView;
+import com.golfsim.server.physics.PhysicsProfile;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -40,6 +41,7 @@ import java.util.List;
         @JsonSubTypes.Type(value = WsMessage.GameStarted.class, name = "gameStarted"),
         @JsonSubTypes.Type(value = WsMessage.Scorecard.class, name = "scorecard"),
         @JsonSubTypes.Type(value = WsMessage.GameFinished.class, name = "gameFinished"),
+        @JsonSubTypes.Type(value = WsMessage.Physics.class, name = "physics"),
         @JsonSubTypes.Type(value = WsMessage.Error.class, name = "error"),
 })
 public sealed interface WsMessage {
@@ -150,9 +152,10 @@ public sealed interface WsMessage {
      * @param remotes device names of the connected remotes
      * @param game    the IN_PROGRESS game, or null
      * @param state   the last {@code state} message from the sim, or null
+     * @param physics the live ball-physics profile (what {@code GET /api/physics} returns)
      */
-    record Hello(Role role, boolean simConnected, List<String> remotes, GameView game, JsonNode state)
-            implements ServerMessage {
+    record Hello(Role role, boolean simConnected, List<String> remotes, GameView game, JsonNode state,
+            PhysicsProfile physics) implements ServerMessage {
     }
 
     record SimStatus(boolean connected) implements ServerMessage {
@@ -166,6 +169,10 @@ public sealed interface WsMessage {
 
     /** The game left IN_PROGRESS; {@code game.status} is FINISHED or ABANDONED. */
     record GameFinished(GameView game) implements ServerMessage {
+    }
+
+    /** The ball-physics profile changed ({@code PUT} / {@code DELETE /api/physics}); sims use it from the next shot. */
+    record Physics(PhysicsProfile profile) implements ServerMessage {
     }
 
     record Error(String message) implements ServerMessage {

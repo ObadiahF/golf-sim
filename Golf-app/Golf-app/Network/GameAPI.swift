@@ -1,6 +1,6 @@
 import Foundation
 
-/// REST client for the game server (`/api`, bearer token): start games, scorecards, players, leaderboard.
+/// REST client for the game server (`/api`, bearer token): start games, scorecards, players, leaderboard, physics.
 nonisolated struct GameAPI: Sendable {
     enum APIError: LocalizedError, Equatable {
         case noServer
@@ -46,6 +46,19 @@ nonisolated struct GameAPI: Sendable {
     func players() async throws -> [Stats.Player] { try await request("players") }
 
     func leaderboard() async throws -> Stats.Leaderboard { try await request("leaderboard") }
+
+    /// The live ball-physics profile (only the overrides; see `CoursePhysics`).
+    func physics() async throws -> CoursePhysics.Profile { try await request("physics") }
+
+    /// Sets (number) or clears (nil) the listed fields; the server pushes the result to the sim. Returns the new profile.
+    func savePhysics(_ update: CoursePhysics.Profile) async throws -> CoursePhysics.Profile {
+        try await request("physics", method: "PUT", body: update)
+    }
+
+    /// Clears every override: the sim goes back to its built-in values.
+    func resetPhysics() async throws -> CoursePhysics.Profile {
+        try decode(try await send("physics", method: "DELETE", body: NoBody?.none))
+    }
 
     // MARK: Plumbing
 

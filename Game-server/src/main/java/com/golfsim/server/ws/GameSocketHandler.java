@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.golfsim.server.api.JsonFields;
 import com.golfsim.server.auth.TokenHandshakeInterceptor;
 import com.golfsim.server.game.GameService;
+import com.golfsim.server.physics.PhysicsService;
 import com.golfsim.server.ws.WsHub.Client;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -42,12 +43,15 @@ public class GameSocketHandler extends TextWebSocketHandler {
 
     private final WsHub hub;
     private final GameService games;
+    private final PhysicsService physics;
     private final ObjectMapper objectMapper;
     private final Validator validator;
 
-    public GameSocketHandler(WsHub hub, GameService games, ObjectMapper objectMapper, Validator validator) {
+    public GameSocketHandler(WsHub hub, GameService games, PhysicsService physics, ObjectMapper objectMapper,
+            Validator validator) {
         this.hub = hub;
         this.games = games;
+        this.physics = physics;
         this.objectMapper = objectMapper;
         this.validator = validator;
     }
@@ -66,7 +70,7 @@ public class GameSocketHandler extends TextWebSocketHandler {
         boolean firstSim = role == Role.SIM && !hub.simConnected();
         hub.add(client);
         hub.send(client, new WsMessage.Hello(role, hub.simConnected(), hub.remoteNames(),
-                games.current().orElse(null), hub.lastSimState()));
+                games.current().orElse(null), hub.lastSimState(), physics.current()));
         if (firstSim) {
             hub.sendTo(Role.REMOTE, new WsMessage.SimStatus(true));
         }

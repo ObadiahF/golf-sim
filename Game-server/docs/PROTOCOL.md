@@ -3,6 +3,7 @@
 This is the contract between the game server, the iPhone app (the "remote") and the Unity sim.
 The wire schema lives in one place in code: `src/main/java/com/golfsim/server/ws/WsMessage.java`
 (WebSocket) and `game/GameRequests.java`, `game/GameView.java`, `stats/StatsViews.java` (REST).
+Live ball physics (`/api/physics`, the `physics` message, `hello.physics`) is in `PROTOCOL-physics.md`.
 
 - Base URL: `http://<server-lan-ip>:8080` (the PC running `docker compose up`)
 - WebSocket: `ws://<server-lan-ip>:8080/ws?token=<token>&role=sim|remote&name=<device name>`
@@ -286,6 +287,7 @@ Any number of sims and remotes may connect; relays go to all of them.
 | `gameStarted` | server | everyone | a game was started (`POST /api/games`) |
 | `scorecard` | server | everyone | full game state after any score is recorded |
 | `gameFinished` | server | everyone | the game left IN_PROGRESS (finished or abandoned) |
+| `physics` | server | everyone | the ball-physics profile changed (`PROTOCOL-physics.md`) |
 
 Sending a message as the wrong role, or a server-only type, gets an `error`.
 
@@ -300,12 +302,14 @@ Sending a message as the wrong role, or a server-only type, gets an `error`.
   "simConnected": true,
   "remotes": ["Obi's iPhone", "Sams-iPhone"],
   "game": { "id": 1, "status": "IN_PROGRESS", "...": "GameView, or null when no game is in progress" },
-  "state": { "type": "state", "screen": "game", "currentPlayer": "Obi", "hole": 1, "par": 4 }
+  "state": { "type": "state", "screen": "game", "currentPlayer": "Obi", "hole": 1, "par": 4 },
+  "physics": { "surfaces": [ { "surface": "green", "rolling": 0.07 }, { "surface": "fairway" } ] }
 }
 ```
 
 `role` echoes yours. `remotes` lists connected remote device names (including you if you are one).
 `state` is the last `state` message any sim sent (verbatim), or `null` (no sim / none sent yet).
+`physics` is the live ball-physics profile (`GET /api/physics`).
 
 #### `simStatus`
 
@@ -455,60 +459,4 @@ On failure the sim gets `error`.
 
 ## 4. Flows
 
-### Remote navigation (menus)
-
-```
-app                              server                         sim
- |-- connect role=remote ------->|                               |
- |<-- hello {simConnected,state}-|                               |
- |-- nav {key:"down"} ---------->|-- nav {key:"down"} ---------->|  moves menu focus
- |-- nav {key:"select"} -------->|-- nav {key:"select"} -------->|  opens item
- |                               |<-- state {screen:"menu"} -----|  (whenever the screen changes)
- |<-- state {screen:"menu"} -----|                               |
-```
-
-The app shows the D-pad whenever the latest `state.screen` is not `"game"` (or there is no sim / no state).
-
-### Starting a game
-
-```
-app                              server                         sim
- |-- POST /api/games {players} ->|  abandons any IN_PROGRESS game (gameFinished, status ABANDONED)
- |<-- 201 GameView --------------|-- gameStarted {game} ------->|  loads course, hole 1, first player
- |<-- gameStarted {game} --------|                               |
- |                               |<-- state {screen:"game",...} -|
- |<-- state {screen:"game"} -----|<-- turn {player,hole:1} ------|
- |<-- turn ----------------------|                               |
-```
-
-### One turn
-
-```
-app                              server                         sim
- |-- club {club:"7I"} ---------->|-- club ---------------------->|  selects club
- |-- aim {delta:-2} ------------>|-- aim ----------------------->|  rotates aim 2 degrees left
- |-- shot {speed,launch,...} --->|-- shot ---------------------->|  hits the ball
- |                               |<-- shotResult {...} ----------|  ball at rest
- |<-- shotResult ----------------|<-- state {strokes, lie,...} --|
- |<-- state ---------------------|                               |
-   ... repeat until the ball is holed (holed:true) ...
- |                               |<-- holeScore {gameId,player,hole,par,strokes}
- |<-- scorecard {game} ----------|-- scorecard {game} ---------->|  (persisted in Postgres)
- |                               |<-- turn {player:"Sam",...} ---|  next player
- |<-- turn ----------------------|                               |
-```
-
-The sim decides turn order within a hole (Wii-style: e.g. farthest from the hole, or strictly in
-`players` order) and sends `holeScore` once a player has holed out (or picked up after `skip`).
-
-### Finishing a game
-
-```
-sim -- holeScore (last player, last hole) --> server
-server --> everyone: scorecard {game status FINISHED} then gameFinished {game, winners}
-sim shows the final scorecard and sends state {screen:"results"}; the app goes back to remote mode.
-```
-
-To quit early, the app calls `POST /api/games/{id}/end` (`ABANDONED` by default, or `{"status":"FINISHED"}`);
-everyone gets `gameFinished`. Starting a new game also abandons the current one. A game finished early only crowns
-players with complete cards, and only complete cards count in stats (see `POST /api/games/{id}/end`).
+Step-by-step flows (menus, starting a game, one turn, finishing) are in [PROTOCOL-flows.md](PROTOCOL-flows.md).

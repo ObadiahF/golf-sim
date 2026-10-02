@@ -77,7 +77,13 @@ namespace GolfSim.Ball
         /// <summary>The ball was put down at rest (reset to the tee, a drop, the next turn).</summary>
         public event Action<GolfBall> Placed;
 
-        public BallPhysicsSettings Settings => settings ? settings : BallPhysicsSettings.Defaults;
+        /// <summary>
+        /// The settings the next shot uses: the asset (or the defaults) with the server's live physics profile on top
+        /// (BallPhysicsProfile). The asset itself is never changed.
+        /// </summary>
+        public BallPhysicsSettings Settings => BallPhysicsProfile.Resolve(settings ? settings : BallPhysicsSettings.Defaults);
+        /// <summary>The settings the current (or last) shot was hit with: a profile change mid-shot waits for the next one.</summary>
+        public BallPhysicsSettings ShotSettings => shotSettings ? shotSettings : Settings;
 
         /// <summary>The surface the ball sits on: "tee" when teed up, else the terrain's surface (or "out of bounds").</summary>
         public string Lie
@@ -102,6 +108,7 @@ namespace GolfSim.Ball
         ObstacleField obstacles;
         BallState state;
         ShotRandom rng;
+        BallPhysicsSettings shotSettings;
         Vector3 origin, aim;
         float simTime, accumulator;
         bool landed, onTee;
@@ -127,7 +134,8 @@ namespace GolfSim.Ball
 
             origin = transform.position;
             aim = AimDirection;
-            var lie = LieEffectFor(shot);
+            shotSettings = Settings;
+            var lie = shotSettings.LieFor(Lie, shot.ballSpeed);
             state = BallPhysics.Launch(origin, aim, lie.Apply(shot));
             LastShot = shot;
             Seed = seed ?? ShotRandom.SeedFor(shot, origin);
@@ -164,7 +172,7 @@ namespace GolfSim.Ball
             var from = state.position;
             if (Status == BallStatus.Flying)
             {
-                BallPhysics.Fly(ref state, dt, Settings, Wind);
+                BallPhysics.Fly(ref state, dt, shotSettings, Wind);
                 HitObstacles(from, rolling: false);
                 Result.apex = Mathf.Max(Result.apex, state.position.y - origin.y);
                 if (!map.Contains(state.position)) { Finish(BallStatus.OutOfBounds); return; }
@@ -178,7 +186,7 @@ namespace GolfSim.Ball
             }
 
             if (InCup()) return;
-            var surface = Settings.For(map.SurfaceAt(state.position));
+            var surface = shotSettings.For(map.SurfaceAt(state.position));
             if (surface.hazard) { Finish(BallStatus.InWater); return; }
             bool moving = BallPhysics.Roll(ref state, dt, map.NormalAt(state.position), surface);
             if (moving && HitObstacles(from, rolling: true))
@@ -226,7 +234,7 @@ namespace GolfSim.Ball
                 Landed?.Invoke(this);
             }
 
-            var surface = Settings.For(map.SurfaceAt(state.position));
+            var surface = shotSettings.For(map.SurfaceAt(state.position));
             if (surface.hazard) { Finish(BallStatus.InWater); return; }
             if (InCup()) return;
 

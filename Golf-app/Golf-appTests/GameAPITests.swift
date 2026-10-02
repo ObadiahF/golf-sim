@@ -39,7 +39,7 @@ struct GameAPITests {
         }
     }
 
-    private let api: GameAPI = {
+    let api: GameAPI = {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [Stub.self]
         return GameAPI(baseURL: URL(string: "http://10.0.0.5:8080")!, session: URLSession(configuration: config))

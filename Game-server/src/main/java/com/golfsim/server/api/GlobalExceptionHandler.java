@@ -53,6 +53,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "Validation failed", request, fieldErrors);
     }
 
+    @ExceptionHandler(InvalidFieldsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidFields(InvalidFieldsException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Validation failed", request, ex.fieldErrors());
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex, HttpServletRequest request) {
         String fallback = "Malformed JSON request body";

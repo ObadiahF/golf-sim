@@ -1,10 +1,11 @@
 package com.golfsim.server.ws;
 
 import com.golfsim.server.game.GameEvents;
+import com.golfsim.server.physics.PhysicsService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-/** Pushes committed game changes to every connected sim and remote. */
+/** Pushes committed game and ball-physics changes to every connected sim and remote. */
 @Component
 public class GameEventRelay {
 
@@ -30,5 +31,10 @@ public class GameEventRelay {
     @TransactionalEventListener
     public void onEnded(GameEvents.Ended event) {
         hub.broadcast(new WsMessage.GameFinished(event.game()));
+    }
+
+    @TransactionalEventListener
+    public void onPhysics(PhysicsService.Changed event) {
+        hub.broadcast(new WsMessage.Physics(event.profile()));
     }
 }

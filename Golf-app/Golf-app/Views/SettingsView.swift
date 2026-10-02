@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Host (auto-discovered or typed), face direction, swing scale, the swing recorder, and a short how-to.
+/// Host (auto-discovered or typed), face direction, swing scale, club power and course physics, the swing
+/// recorder, and a short how-to.
 struct SettingsView: View {
     @Bindable var settings: AppSettings
     let link: SimLink
@@ -85,6 +86,23 @@ struct SettingsView: View {
                     Text("Swing")
                 } footer: {
                     Text("Raise the scale to make half swings count as full ones. The putt scale does the same for putts: raise it if a normal stroke comes up short, lower it if putts race past. Shots fly straight where you aim unless \"Curve shots by face angle\" is on; the phone's face reading is rough, so expect wild curves with it. Flip the face direction if fades come out as draws.")
+                }
+
+                Section {
+                    NavigationLink {
+                        ClubPowerView(settings: settings)
+                    } label: {
+                        Label("Club power", systemImage: "dial.medium")
+                    }
+                    NavigationLink {
+                        CoursePhysicsView(api: GameAPI.forSettings(settings), simConnected: game.simConnected)
+                    } label: {
+                        Label("Course physics", systemImage: "circle.bottomhalf.filled")
+                    }
+                } header: {
+                    Text("Tuning")
+                } footer: {
+                    Text("Club power: a percentage per club on top of the swing scale (this phone only). Course physics: how the ball bounces and rolls on each surface, saved on the game server for the sim.")
                 }
 
                 Section {

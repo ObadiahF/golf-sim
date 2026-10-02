@@ -14,7 +14,8 @@ namespace GolfSim.Net
     /// <summary>
     /// The sim's WebSocket to the game server (role=sim). A background task connects, reads frames into a
     /// queue, sends what the main thread queued, pings, and reconnects with backoff; Update (or Pump) raises
-    /// one C# event per message type on the main thread. Lives across scenes (DontDestroyOnLoad).
+    /// one C# event per message type on the main thread. Lives across scenes (DontDestroyOnLoad). The server's
+    /// ball-physics profile (hello, physics) goes straight to BallPhysicsProfile, whatever scene is up.
     /// </summary>
     public class SimConnection : MonoBehaviour
     {
@@ -144,7 +145,12 @@ namespace GolfSim.Net
             catch (Exception e) { Debug.LogWarning($"[SimConnection] Unreadable message ({e.Message}): {json}"); return; }
             switch (head?.type)
             {
-                case MessageType.Hello: HelloReceived?.Invoke(JsonUtility.FromJson<HelloMessage>(json)); break;
+                case MessageType.Hello:
+                    var hello = JsonUtility.FromJson<HelloMessage>(json);
+                    BallPhysicsProfile.Apply(hello.physics); // a sim that connects late gets the live tuning too
+                    HelloReceived?.Invoke(hello);
+                    break;
+                case MessageType.Physics: BallPhysicsProfile.Apply(JsonUtility.FromJson<PhysicsMessage>(json).profile); break;
                 case MessageType.Nav: NavReceived?.Invoke(JsonUtility.FromJson<NavMessage>(json).key); break;
                 case MessageType.Club: ClubReceived?.Invoke(JsonUtility.FromJson<ClubMessage>(json).club); break;
                 case MessageType.Aim: AimReceived?.Invoke(JsonUtility.FromJson<AimMessage>(json).delta); break;

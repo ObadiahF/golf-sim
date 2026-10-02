@@ -14,6 +14,7 @@ final class AppSettings {
         static let server = "server"
         static let players = "players"
         static let holes = "roundHoles"
+        static let clubPower = "clubPower"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -36,6 +37,9 @@ final class AppSettings {
     var players: [String] { didSet { defaults.set(players, forKey: Key.players) } }
     /// Holes in the next round: 9 or 18.
     var holes: Int { didSet { defaults.set(holes, forKey: Key.holes) } }
+    /// Per-club power on top of the swing scale, by club name (1 = 100%); clubs not listed are at 100%.
+    /// The putter has none: it has the putt scale.
+    private(set) var clubPower: [String: Double] { didSet { defaults.set(clubPower, forKey: Key.clubPower) } }
 
     /// The game server's base URL: the one typed in Settings, else the hosted server.
     var serverURL: URL? { AppConfig.serverURL(server.isEmpty ? defaultServer : server) }
@@ -51,9 +55,27 @@ final class AppSettings {
 
     static let scaleRange = 1.0...2.5
     static let puttScaleRange = 0.5...2.0
+    static let clubPowerRange = 0.5...1.5
+    static let clubPowerStep = 0.05
+    /// The clubs with a power setting: every club but the putter.
+    static var poweredClubs: [Club] { Club.bag.filter { !$0.isPutter } }
 
-    /// The speed scale for this club: the putt scale for the putter, the swing scale for the rest.
-    func scale(for club: Club) -> Double { club.isPutter ? puttScale : scale }
+    /// The speed scale for this club, the one place it is worked out: the putt scale for the putter, the swing
+    /// scale times the club's power for the rest.
+    func scale(for club: Club) -> Double { club.isPutter ? puttScale : scale * power(for: club) }
+
+    /// This club's power, 1 = 100% (always 1 for the putter).
+    func power(for club: Club) -> Double { club.isPutter ? 1 : clubPower[club.name] ?? 1 }
+
+    /// Sets a club's power, clamped to `clubPowerRange` and rounded to the 5% step (ignored for the putter).
+    func setPower(_ power: Double, for club: Club) {
+        guard !club.isPutter else { return }
+        let stepped = (power / Self.clubPowerStep).rounded() * Self.clubPowerStep
+        clubPower[club.name] = min(Self.clubPowerRange.upperBound, max(Self.clubPowerRange.lowerBound, stepped))
+    }
+
+    /// Every club back to 100%.
+    func resetClubPower() { clubPower = [:] }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -67,6 +89,8 @@ final class AppSettings {
         shapeShots = defaults.bool(forKey: Key.shapeShots)
         server = defaults.string(forKey: Key.server) ?? ""
         players = defaults.stringArray(forKey: Key.players) ?? []
+        let storedPower = defaults.dictionary(forKey: Key.clubPower) as? [String: Double] ?? [:]
+        clubPower = storedPower.filter { Self.clubPowerRange.contains($0.value) }
         let holes = defaults.integer(forKey: Key.holes)
         self.holes = AppConfig.roundLengths.contains(holes) ? holes : AppConfig.roundLengths[0]
     }

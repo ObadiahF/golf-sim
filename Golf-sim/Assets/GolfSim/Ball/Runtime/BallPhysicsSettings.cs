@@ -103,6 +103,28 @@ namespace GolfSim.Ball
 
         public SurfaceResponse For(string surface) => surfaces.Find(s => s.surface == surface) ?? fallback;
 
+        /// <summary>A runtime copy made by WithOverrides (live tuning), never saved; the asset it came from is untouched.</summary>
+        public bool IsRuntimeCopy => isRuntimeCopy;
+        [NonSerialized] bool isRuntimeCopy;
+
+        /// <summary>A runtime copy of these settings with the profile's overrides applied (BallPhysicsProfile).</summary>
+        public BallPhysicsSettings WithOverrides(PhysicsProfile profile)
+        {
+            var copy = Instantiate(this);
+            copy.name = name + " (live)";
+            copy.hideFlags = HideFlags.DontSave;
+            copy.isRuntimeCopy = true;
+            foreach (var o in profile.surfaces)
+            {
+                var s = o == null ? null : copy.surfaces.Find(x => x.surface == o.surface);
+                if (s == null) continue;
+                if (!float.IsNaN(o.rolling)) s.rolling = o.rolling;
+                if (!float.IsNaN(o.restitution)) s.restitution = o.restitution;
+                if (!float.IsNaN(o.friction)) s.friction = o.friction;
+            }
+            return copy;
+        }
+
         /// <summary>Air density from temperature and elevation (standard atmosphere, dry air).</summary>
         public float AirDensity
         {

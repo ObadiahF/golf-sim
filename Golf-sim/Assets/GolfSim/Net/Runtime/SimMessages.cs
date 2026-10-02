@@ -1,4 +1,5 @@
 using System;
+using GolfSim.Ball;
 using UnityEngine;
 
 namespace GolfSim.Net
@@ -21,7 +22,7 @@ namespace GolfSim.Net
         public const string HoleScore = "holeScore";
         // server -> clients
         public const string Hello = "hello", SimStatus = "simStatus", GameStarted = "gameStarted", Scorecard = "scorecard",
-            GameFinished = "gameFinished", Error = "error";
+            GameFinished = "gameFinished", Physics = "physics", Error = "error";
     }
 
     /// <summary>Base of every message; also used to peek at the type of an incoming frame.</summary>
@@ -158,7 +159,12 @@ namespace GolfSim.Net
         public string[] remotes = new string[0];
         /// <summary>The game in progress (id 0 when there is none).</summary>
         public GameView game;
+        /// <summary>The live ball-physics profile (empty from a server without one).</summary>
+        public PhysicsProfile physics;
     }
+
+    /// <summary>The ball-physics profile changed (PUT / DELETE /api/physics); applied from the next shot.</summary>
+    [Serializable] public class PhysicsMessage : SimMessage { public PhysicsProfile profile; }
 
     /// <summary>gameStarted, scorecard and gameFinished.</summary>
     [Serializable] public class GameMessage : SimMessage { public GameView game; }

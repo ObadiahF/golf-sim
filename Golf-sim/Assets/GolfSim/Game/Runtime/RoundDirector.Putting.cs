@@ -34,7 +34,8 @@ namespace GolfSim.Game
             if (puttingHud == null && hud != null) puttingHud = new PuttingHud(GetComponentInChildren<UIDocument>().rootVisualElement);
             ball.ShotStarted += OnPuttStarted;
             ball.ShotFinished += OnPuttFinished;
-            PuttPreview.AssistChanged += OnAssistChanged;
+            PuttPreview.AssistChanged += OnPuttingInputsChanged;
+            BallPhysicsProfile.Changed += OnPuttingInputsChanged; // the green's Stimp and the read follow live tuning
             TurnStarted += OnPuttingTurn;
             wasPutting = false;
             stroke = null;
@@ -42,7 +43,8 @@ namespace GolfSim.Game
 
         void UnbindPutting()
         {
-            PuttPreview.AssistChanged -= OnAssistChanged;
+            PuttPreview.AssistChanged -= OnPuttingInputsChanged;
+            BallPhysicsProfile.Changed -= OnPuttingInputsChanged;
             TurnStarted -= OnPuttingTurn;
             if (panel)
             {
@@ -117,7 +119,8 @@ namespace GolfSim.Game
 
         void OnPanelClub(string name) => SetClub(name);
 
-        void OnAssistChanged()
+        /// <summary>The assist level or the live physics changed: "state" (Stimp, plays-as) and the preview follow.</summary>
+        void OnPuttingInputsChanged()
         {
             if (ball) PublishState();
         }
@@ -134,7 +137,7 @@ namespace GolfSim.Game
             stroke = null;
             puttingHud?.ShowStroke(null);
             if (!wasPutting) return;
-            float stimp = preview.Stimp;
+            float stimp = PuttModel.GreenStimp(b.ShotSettings);
             stroke = new PuttingHud.Stroke
             {
                 target = Round.FlatDistance(b.LaunchPoint, hole.PinWorld),

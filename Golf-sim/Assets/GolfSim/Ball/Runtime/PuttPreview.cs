@@ -80,6 +80,7 @@ namespace GolfSim.Ball
         GreenReading reading;
         readonly List<Vector3> path = new List<Vector3>();
         Vector3 solvedFrom, solvedAim;
+        BallPhysicsSettings solvedSettings;
         PuttingAssist drawnAssist;
         bool solved;
 
@@ -111,16 +112,17 @@ namespace GolfSim.Ball
             reading.Visible = show && solved;
         }
 
-        /// <summary>Re-solves and redraws if the ball or aim moved since the last solve (cheap otherwise).</summary>
+        /// <summary>Re-solves and redraws if the ball, aim or physics changed since the last solve (cheap otherwise).</summary>
         public void Refresh()
         {
             if (!Bind()) return;
             var from = ball.transform.position;
             var aim = ball.AimDirection;
-            if (solved && from == solvedFrom && aim == solvedAim) return;
+            var settings = ball.Settings; // a new live physics profile is a new object
+            if (solved && from == solvedFrom && aim == solvedAim && settings == solvedSettings) return;
             solvedFrom = from;
             solvedAim = aim;
-            var settings = ball.Settings;
+            solvedSettings = settings;
             SolvedSpeed = PuttPredictor.SolveSpeed(map, settings, from, aim, hole.PinWorld, step: step);
             PlaysAs = PuttModel.RollDistance(SolvedSpeed, Stimp);
             Prediction = PuttPredictor.Simulate(map, settings, from, aim, PuttModel.PuttAt(SolvedSpeed), hole.PinWorld, path, step: step);

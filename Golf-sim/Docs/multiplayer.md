@@ -13,7 +13,8 @@ The game server keeps the scores in Postgres.
  swing shot (fallback) ─────────────────────────── UDP 4242 ───────────────────▶ UdpShotReceiver (LAN only)
 ```
 
-The wire contract is `Game-server/docs/PROTOCOL.md` (source of truth: `WsMessage.java`).
+The wire contract is `Game-server/docs/PROTOCOL.md` (source of truth: `WsMessage.java`); live ball physics is in
+`Game-server/docs/PROTOCOL-physics.md`.
 
 ## Where to find the code (Unity)
 
@@ -25,6 +26,7 @@ The wire contract is `Game-server/docs/PROTOCOL.md` (source of truth: `WsMessage
 | `GolfSim/Net/Runtime/GameApi.cs` | REST GETs (stats for the Scores screen) |
 | `GolfSim/Net/Runtime/TrainerHoles.cs` | downloads the Course Trainer's top holes into a cache, one fetch at a time; saves each round's hole list |
 | `GolfSim/Ball/Runtime/Shots.cs` | the one shot path for UDP, WebSocket and the on-screen panel: game gate, retry de-duplication, hit |
+| `GolfSim/Ball/Runtime/BallPhysicsProfile.cs` | the server's live physics profile on top of `BallPhysics.asset` (runtime copies, from the next shot) |
 | `GolfSim/Ball/Runtime/Clubs.cs` | the club table (same names as the app), carries, club suggestion |
 | `GolfSim/Ball/Runtime/AimLine.cs` | the aim arrow on the ground; `GolfBall.aimOffset` turns the shot |
 | `GolfSim/Game/Runtime/NavInput.cs` | one input path for keyboard, gamepad and the phone's D-pad |
@@ -115,6 +117,22 @@ From the rough the putter is an ordinary shot (no putting mode, `puttPlaysAs` 0)
 - **Keyboard:** with the Putter preset the shot panel shows a distance slider in metres (Use the read loads
   `puttPlaysAs`). After each putt the HUD shows a strength bar against the read.
 - `Tools/unity_scripts/PuttingCheck.cs` checks the preview against the real ball and saves screenshots.
+
+## Live ball physics
+
+The ground response (rolling resistance, bounce, bounce friction per surface) can be tuned while playing, without
+a rebuild: the app's Settings > Course physics saves a profile on the server (`PUT /api/physics`), the server sends
+it to the sim (`physics`, and in `hello` when the sim connects), and `SimConnection` hands it to
+`BallPhysicsProfile`. `GolfBall.Settings` is then a runtime copy of `BallPhysics.asset` with the overrides on top
+(the asset is never changed); `GolfBall.ShotSettings` is what the current shot was hit with, so a change applies
+from the next shot and replays match the shot. The green's Stimp (HUD, `state.stimp`, the preview and the meter)
+follows at once. The sim logs `[BallPhysics] Physics profile applied from the next shot: ...` on every change;
+offline it plays on the asset. Reset (or `DELETE /api/physics`) goes back to the asset.
+
+The loop: change a slider, Save, hit a shot, read the log or `RolloutCheck`. `Tools/unity_scripts/RolloutCheck.cs`:
+`Run` reports rollout per surface with the live profile applied, `Sample` applies a sample profile and checks the
+asset stays untouched. When a tuning is right, copy it into `BallPhysics.asset` (and `DefaultSurfaces()` and the
+app's `Model/CoursePhysics.swift`), then reset the profile.
 
 ## Sound and instant replay
 

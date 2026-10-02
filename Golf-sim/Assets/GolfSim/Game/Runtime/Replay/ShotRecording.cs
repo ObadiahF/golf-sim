@@ -28,6 +28,7 @@ namespace GolfSim.Game
         public Vector3 launch;
         public float aimOffset, windSpeed, windHeading;
         public bool collide;
+        /// <summary>What the shot was hit with (live tuning included), so the replay matches it.</summary>
         public BallPhysicsSettings settings;
         public string player, club, lie;
 
@@ -35,7 +36,7 @@ namespace GolfSim.Game
         {
             shot = ball.LastShot, seed = ball.Seed, launch = ball.LaunchPoint, aimOffset = ball.aimOffset,
             windSpeed = ball.windSpeed, windHeading = ball.windHeading, collide = ball.collideWithObstacles,
-            settings = ball.settings, player = player, club = club, lie = ball.Result.lie,
+            settings = ball.ShotSettings, player = player, club = club, lie = ball.Result.lie,
         };
     }
 
