@@ -78,12 +78,14 @@ namespace GolfSim.Game
         public float RestToPin => Flat(Rest - pin).magnitude;
         /// <summary>A rolled shot: never more than a few cm off the ground (putts, bumps).</summary>
         public bool Rolled => Apex < 0.3f;
-        /// <summary>Flat unit direction of the shot: launch to landing (or to rest).</summary>
+        /// <summary>Flat unit direction the shot was hit: launch to the first landing or tree hit, whichever comes first
+        /// (a ball that bounces back out of the trees lands somewhere else entirely), else to rest.</summary>
         public Vector3 Direction
         {
             get
             {
-                var d = Flat(LandPoint - Launch);
+                bool treeFirst = ObstacleTime >= 0f && (LandTime < 0f || ObstacleTime < LandTime);
+                var d = Flat((treeFirst ? Find(ShotEventKind.Obstacle).Value.position : LandPoint) - Launch);
                 if (d.sqrMagnitude < 1f) d = Flat(Rest - Launch);
                 if (d.sqrMagnitude < 0.01f) d = Flat(pin - Launch);
                 return d.sqrMagnitude > 1e-6f ? d.normalized : Vector3.forward;

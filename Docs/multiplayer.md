@@ -137,7 +137,8 @@ plays a sound or moves a replay camera.
   the HUD hides itself on the `replay` screen, so it always comes back, and leaving the hole drops the replay and the
   last shot). `ReplayCameraman`
   cuts it like TV: down-the-line on a long lens, a tower beside the flight with lead room, a landing-zone camera
-  looking back at the ball dropping in (slow motion), a tree camera, a low cup camera for holed putts and a
+  looking back at the ball dropping in (slow motion), a tree camera (square to a long rebound, wide enough for the
+  hit and the bounce-back, panning after the ball), a low cup camera for holed putts and a
   blimp shot of the whole tracer after long shots. Cameras are kept out of the terrain and trees with a clear view
   (`CameraSpots`). Tuning: the `settings` on `ReplayDirector` (Golf Game object in Play mode).
   `Tools/unity_scripts/ReplayCheck.cs` renders frames of each camera for a drive, an approach, a chip, a tree hit

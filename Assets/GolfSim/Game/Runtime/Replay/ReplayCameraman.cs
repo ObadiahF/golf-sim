@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace GolfSim.Game
@@ -110,7 +111,7 @@ namespace GolfSim.Game
             float dtlEnd = full ? Mathf.Clamp(focus * 0.4f, 1.4f, 3f) : focus - approach;
             dtlEnd = Mathf.Min(dtlEnd, focus - approach);
             if (dtlEnd < 0.5f) dtlEnd = Mathf.Min(0.5f, focus);
-            plan.shots.Add(DownTheLine(plan.start, dtlEnd, full));
+            plan.shots.Add(DownTheLine(plan.start, dtlEnd, full, hit >= 0f && hit < land ? hit : -1f));
 
             float next = dtlEnd;
             if (full && focus - approach - dtlEnd >= 1.2f)
@@ -143,18 +144,22 @@ namespace GolfSim.Game
         }
 
         /// <summary>Low behind the golfer, slightly offset, on a long lens: holds on the strike (the ball in the lower third),
-        /// then tilts up after the ball.</summary>
-        ReplayShot DownTheLine(float start, float end, bool full)
+        /// then tilts up after the ball. A ball into a tree short of 90 m (hit: its time, else -1) is followed to the tree
+        /// on a wider lens instead of panning on up the line past it.</summary>
+        ReplayShot DownTheLine(float start, float end, bool full, float hit)
         {
             float back = full ? 11f : 6.5f;
             var wanted = rec.Launch - dir * back + right * (full ? 1.6f : 1.1f) + Vector3.up * 1.45f;
             var early = rec.PositionAt(Mathf.Min(end, 1f));
             var pos = spots.Place(wanted, new[] { rec.Launch, early }, 1.2f, 1.5f);
             float fov = full ? s.downTheLineFov : s.downTheLineFov + 8f;
+            var lookAt = rec.Launch + dir * 90f + Vector3.up * 6f;
+            bool shortTree = hit >= 0f && Flat(rec.PositionAt(hit) - rec.Launch).magnitude < 90f;
+            if (shortTree) lookAt = rec.PositionAt(hit);
             return new ReplayShot
             {
-                name = "down the line", start = start, end = end, from = pos, to = pos + dir * 0.6f, fovFrom = fov, fovTo = fov * 1.12f,
-                lookAt = rec.Launch + dir * 90f + Vector3.up * 6f, track = 0.6f, frame = new Vector2(0f, -0.08f), sharpness = 3.2f,
+                name = "down the line", start = start, end = end, from = pos, to = pos + dir * 0.6f, fovFrom = fov, fovTo = fov * (shortTree ? 1.3f : 1.12f),
+                lookAt = lookAt, track = shortTree ? 0.8f : 0.6f, frame = new Vector2(0f, -0.08f), sharpness = 3.2f,
                 holdUntil = StrikeHold,
             };
         }
@@ -202,35 +207,71 @@ namespace GolfSim.Game
         }
 
         /// <summary>
-        /// On the tree, from open ground on the side the ball came in: the clatter in slow motion, then where it drops. The
-        /// camera must see the ball's path into the hit past the other trees; in dense woods it rises over the treetops,
-        /// holds on the hit if it can't see where the ball drops, and if nothing sees the hit there is no tree camera (null).
+        /// On the tree: the clatter in slow motion, then where the ball goes. Like a broadcast camera it stands off to the
+        /// side of the rebound (the hit to where the ball stops), far enough that the ball crosses the frame rather than
+        /// flying at the lens, on a lens wide enough for the whole path, panning after the ball. The camera must see the
+        /// ball's path into the hit past the other trees; in dense woods it rises over the treetops, holds on the hit if
+        /// it can't see where the ball drops, and if nothing sees the hit there is no tree camera (null).
         /// </summary>
         ReplayShot Tree(float start, float end, float hit)
         {
             var at = rec.PositionAt(hit);
             var before = rec.PositionAt(Mathf.Max(0f, hit - 0.25f));
+            var top = HighestAfter(hit); // a ball can pop up off the branches
             var incoming = Flat(at - rec.PositionAt(Mathf.Max(0f, hit - 0.6f)));
             var along = incoming.sqrMagnitude > 0.01f ? incoming.normalized : dir;
             var side = Vector3.Cross(Vector3.up, along);
+            var rebound = Flat(rec.Rest - at);
+            float span = rebound.magnitude;
             var subjects = new[] { at, before, rec.Rest + Vector3.up * 0.2f };
-            System.Func<Vector3, float> preference = d => Mathf.Max(CameraSpots.Toward(-along + side)(d), CameraSpots.Toward(-along - side)(d));
-            var pos = spots.Search(at, subjects, new[] { 32f, 24f, 45f }, 3f, preference, TreeIgnoreNear, out float seen);
+            System.Func<Vector3, float> preference;
+            float[] distances;
+            var pivot = at;
+            if (span < 8f)
+            {
+                // It drops by the tree: from the side the ball came in.
+                preference = d => Mathf.Max(CameraSpots.Toward(-along + side)(d), CameraSpots.Toward(-along - side)(d));
+                distances = new[] { 32f, 24f, 45f };
+            }
+            else
+            {
+                // Square to the rebound, beside its middle: the ball goes across the frame, never at the lens.
+                var across = Vector3.Cross(Vector3.up, rebound / span);
+                preference = d => Mathf.Max(CameraSpots.Toward(across)(d), CameraSpots.Toward(-across)(d));
+                pivot = Vector3.Lerp(at, rec.Rest, 0.5f);
+                float d0 = Mathf.Clamp(span * 0.9f, 28f, 60f);
+                distances = new[] { d0, d0 * 0.8f, d0 * 1.3f };
+            }
+            var pos = spots.Search(pivot, subjects, distances, 3f, preference, TreeIgnoreNear, out float seen);
             if (seen < 1f)
             {
                 float overTrees = Mathf.Max(spots.TreetopsAt(at), at.y) - CourseSurface.GroundAt(at) + 10f;
-                var high = spots.Search(at, subjects, new[] { 40f, 55f, 70f }, overTrees, preference, TreeIgnoreNear, out float seenHigh);
+                var high = spots.Search(pivot, subjects, distances.Select(d => d + 12f).ToArray(), overTrees, preference, TreeIgnoreNear, out float seenHigh);
                 if (seenHigh > seen) { pos = high; seen = seenHigh; }
             }
             if (seen < 0.6f) return null; // it sees at most one of the hit, the ball coming in and where it stops
 
             bool seesDrop = spots.CanSee(pos, subjects[2], TreeIgnoreNear);
-            float fov = Mathf.Clamp(Vector3.Angle(at - pos, rec.Rest - pos) * 1.6f, 22f, 40f);
+            // Wide enough for the hit, the pop-up and the finish at once (the pan keeps it centred on the ball).
+            float spread = Mathf.Max(Vector3.Angle(at - pos, rec.Rest - pos), Vector3.Angle(at - pos, top - pos), Vector3.Angle(top - pos, rec.Rest - pos));
+            float fov = Mathf.Clamp(spread * 0.8f, 26f, 50f);
             return new ReplayShot
             {
                 name = "tree", start = start, end = end, from = pos, to = pos + (at - pos).normalized * 2f, fovFrom = fov, fovTo = fov * 0.9f,
-                lookAt = seesDrop ? Vector3.Lerp(at, rec.Rest, 0.4f) : at, track = seesDrop ? 0.6f : 0.25f, frame = Vector2.zero, sharpness = 2.4f,
+                lookAt = seesDrop ? Vector3.Lerp(at, rec.Rest, 0.4f) : at, track = seesDrop ? 0.9f : 0.25f, frame = Vector2.zero, sharpness = 3.5f,
             };
+        }
+
+        /// <summary>The highest point of the path after this time.</summary>
+        Vector3 HighestAfter(float time)
+        {
+            var top = rec.PositionAt(time);
+            for (float t = time; t < rec.Duration; t += ShotRecording.SampleTime * 4f)
+            {
+                var p = rec.PositionAt(t);
+                if (p.y > top.y) top = p;
+            }
+            return top;
         }
 
         /// <summary>A blimp shot from high behind the tee: the whole tracer laid over the hole, ball at rest at the far end.</summary>
