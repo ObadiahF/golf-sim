@@ -14,6 +14,11 @@ Course Builder builds generated and real holes with one pipeline.
 
 The window uses `Tools/course_prep/.venv/bin/python` by default (set another path in the window if needed).
 
+## Use it from the browser
+
+`Tools/course_trainer/run.sh` serves a 3D walk-through of each generated hole with 👍 / 👎,
+quick-feedback chips and notes (see `Tools/course_trainer/README.md`).
+
 ## Use it from the command line
 
 ```sh
@@ -21,7 +26,7 @@ cd Tools/course_gen
 PY=../course_prep/.venv/bin/python
 $PY gen_hole.py presets
 $PY gen_hole.py generate --preset forest --par 4 --set water=0 tree_density=0.95
-$PY gen_hole.py rate ../../Assets/CourseData/generated/<id> up
+$PY gen_hole.py rate ../../Assets/CourseData/generated/<id> up [--comment "nice dunes"] [--tag too_long more_trees]
 $PY gen_hole.py train
 $PY gen_hole.py status
 $PY gallery.py --out /tmp/gallery          # 3 holes per preset on one PNG
@@ -40,6 +45,7 @@ $PY -m pytest tests
 | `terrain.py`, `noise.py` | fractal noise relief + course shaping (smoothed corridor, raised green/tee pads, dug bunkers, pond beds with banks) |
 | `generate.py` | writes `hole.json`, `heightmap.raw`, `gen.json`, `preview.png` (reuses `course_prep` water carving, RAW writer, preview) |
 | `preference.py` | Bayesian logistic regression on style features, shared + per-preset; Thompson sampling over 48 candidates; 10% pure exploration; no model with no ratings |
+| `feedback.py` | quick-feedback tags ("more trees", "too long" ...) -> knob + direction; each tag on a vote adds a weighted paired-comparison row to training |
 | `gen_hole.py` | CLI used by Unity; prunes old unrated packages (keeps 12) |
 
 Data: `data/ratings.jsonl` (append-only, latest vote per hole wins, commit it to keep your taste)

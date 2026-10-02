@@ -26,3 +26,22 @@ def test_prune_keeps_newest_unrated(tmp_path):
 def test_parse_overrides():
     assert parse_overrides(["tree_density=0.9", "water = 0"]) == {"tree_density": 0.9, "water": 0.0}
     assert parse_overrides(None) == {}
+
+
+def test_cli_generate_then_rate_with_comment_and_tags(isolated_data, monkeypatch, capsys):
+    import gen_hole
+
+    out = isolated_data / "holes"
+    monkeypatch.setattr("sys.argv", ["gen_hole.py", "generate", "--preset", "links", "--seed", "2",
+                                     "--spacing", "3", "--out", str(out)])
+    gen_hole.main()
+    result = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert result["preset"] == "links" and "attempts" not in result
+
+    monkeypatch.setattr("sys.argv", ["gen_hole.py", "rate", result["package"], "up", "--comment", "nice dunes",
+                                     "--tag", "too_long", "more_bunkers"])
+    gen_hole.main()
+    entry = json.loads((isolated_data / "ratings.jsonl").read_text())
+    assert entry["id"] == result["id"] and entry["rating"] == 1 and entry["comment"] == "nice dunes"
+    assert entry["tags"] == ["too_long", "more_bunkers"]
+    assert gen_hole.status()["ratings"] == 1

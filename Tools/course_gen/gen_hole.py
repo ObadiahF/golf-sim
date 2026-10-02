@@ -3,7 +3,7 @@
 
   python gen_hole.py presets [--json]
   python gen_hole.py generate --preset forest [--seed 42] [--set tree_density=0.9 water=0] [--par 4]
-  python gen_hole.py rate <package_dir> up|down
+  python gen_hole.py rate <package_dir> up|down [--comment "text"] [--tag more_trees too_long]
   python gen_hole.py train
   python gen_hole.py status [--json]
 
@@ -22,6 +22,7 @@ import numpy as np
 import _prep  # noqa: F401
 from _prep import PROJECT_ROOT
 from generate import DEFAULT_SPACING, GEN_FILE, read_generator_info, write_package
+from feedback import TAGS
 from preference import (MODEL_PATH, PreferenceModel, choose_style, load_ratings, rated_ids, record_rating,
                         summary, train)
 from style import PARAMS, PRESETS, apply_overrides
@@ -53,61 +54,89 @@ def prune_unrated(out_root: Path, keep: int, protect: Path) -> list[str]:
     return removed
 
 
+def presets_info() -> dict:
+    return {"presets": [{"name": p.name, "label": p.label, "theme": p.theme} for p in PRESETS.values()],
+            "params": PARAMS}
+
+
 def cmd_presets(args):
     if args.json:
-        print(json.dumps({"presets": [{"name": p.name, "label": p.label, "theme": p.theme} for p in PRESETS.values()],
-                          "params": PARAMS}))
+        print(json.dumps(presets_info()))
         return
     for p in PRESETS.values():
         print(f"{p.name:10} {p.label:15} theme={p.theme}")
 
 
-def cmd_generate(args):
-    seed = args.seed if args.seed is not None else random.randrange(1_000_000)
+def generate_hole(preset: str, par: int | None = None, seed: int | None = None, overrides: dict | None = None,
+                  out_root: Path = DEFAULT_OUT, spacing: float = DEFAULT_SPACING, keep_unrated: int = KEEP_UNRATED,
+                  use_model: bool = True) -> tuple[dict, list[str]]:
+    """Generate one package (steered by the learned taste) and prune old unrated ones.
+    Returns (result, pruned ids); `result` is the JSON line the CLI prints for Unity."""
+    seed = seed if seed is not None else random.randrange(1_000_000)
     rng = np.random.default_rng(seed)
-    overrides = parse_overrides(args.set)
-    model = None if args.no_model else PreferenceModel.load()
-    style, liked = choose_style(args.preset, rng, model, lambda s: apply_overrides(s, overrides, args.par))
-    out_root = Path(args.out)
-    package = write_package(style, seed, out_root, args.spacing,
+    model = PreferenceModel.load() if use_model else None
+    style, liked = choose_style(preset, rng, model, lambda s: apply_overrides(s, overrides or {}, par))
+    out_root = Path(out_root)
+    package = write_package(style, seed, out_root, spacing,
                             extra={"modelScore": None if liked is None else round(liked, 3)})
-    removed = prune_unrated(out_root, args.keep_unrated, package)
+    removed = prune_unrated(out_root, keep_unrated, package)
     info = read_generator_info(package)
-    print(f"Generated {info['id']} (par {style.par}, {info['attempts']} layout attempt(s))")
+    return {"id": info["id"], "package": str(package), "par": style.par, "preset": style.preset,
+            "theme": style.theme, "seed": seed, "modelScore": info["modelScore"],
+            "attempts": info["attempts"]}, removed
+
+
+def rate_package(package: Path, rating: str, comment: str | None = None, tags=None) -> dict:
+    """Record 'up' / 'down' (plus optional comment and feedback tags) for a generated package."""
+    info = read_generator_info(Path(package))
+    return record_rating(info, {"up": 1, "down": -1}[rating], comment=comment, tags=tags)
+
+
+def train_and_save() -> dict | None:
+    ratings = load_ratings()
+    if not ratings:
+        return None
+    model = train(ratings)
+    model.save()
+    return summary(model)
+
+
+def status(preset: str | None = None) -> dict:
+    ratings = load_ratings()
+    s = summary(PreferenceModel.load(), preset)
+    return {"ratings": len(ratings), "up": sum(r["rating"] > 0 for r in ratings),
+            "trainedOn": s["ratings"], "preset": s["preset"], "likes": s["likes"], "dislikes": s["dislikes"]}
+
+
+def cmd_generate(args):
+    result, removed = generate_hole(args.preset, args.par, args.seed, parse_overrides(args.set), Path(args.out),
+                                    args.spacing, args.keep_unrated, not args.no_model)
+    print(f"Generated {result['id']} (par {result['par']}, {result.pop('attempts')} layout attempt(s))")
     if removed:
         print(f"Pruned {len(removed)} old unrated hole(s)")
-    print(json.dumps({"id": info["id"], "package": str(package), "par": style.par, "preset": style.preset,
-                      "theme": style.theme, "seed": seed, "modelScore": info["modelScore"]}))
+    print(json.dumps(result))
 
 
 def cmd_rate(args):
-    info = read_generator_info(Path(args.package))
-    rating = {"up": 1, "down": -1}[args.rating]
-    record_rating(info, rating)
-    print(f"Recorded {args.rating} for {info['id']} ({len(load_ratings())} rated holes)")
+    entry = rate_package(Path(args.package), args.rating, args.comment, args.tag)
+    print(f"Recorded {args.rating} for {entry['id']} ({len(load_ratings())} rated holes)")
 
 
 def cmd_train(args):
-    ratings = load_ratings()
-    if not ratings:
+    s = train_and_save()
+    if s is None:
         print("No ratings yet: rate some generated holes first.")
         return
-    model = train(ratings)
-    model.save()
-    s = summary(model)
     print(f"Trained on {s['ratings']} ratings -> {MODEL_PATH}")
     print("  likes: " + (", ".join(s["likes"]) or "(nothing clear yet)"))
     print("  dislikes: " + (", ".join(s["dislikes"]) or "(nothing clear yet)"))
 
 
 def cmd_status(args):
-    ratings = load_ratings()
-    s = summary(PreferenceModel.load())
-    status = {"ratings": len(ratings), "up": sum(r["rating"] > 0 for r in ratings),
-              "trainedOn": s["ratings"], "likes": s["likes"], "dislikes": s["dislikes"]}
-    print(json.dumps(status) if args.json else
-          f"{status['ratings']} ratings ({status['up']} up); model trained on {status['trainedOn']}\n"
-          f"  likes: {', '.join(s['likes']) or '-'}\n  dislikes: {', '.join(s['dislikes']) or '-'}")
+    st = status()
+    print(json.dumps(st) if args.json else
+          f"{st['ratings']} ratings ({st['up']} up); model trained on {st['trainedOn']}\n"
+          f"  likes: {', '.join(st['likes']) or '-'}\n  dislikes: {', '.join(st['dislikes']) or '-'}")
 
 
 def main():
@@ -132,6 +161,8 @@ def main():
     r = sub.add_parser("rate", help="Thumbs up / down for a generated hole")
     r.add_argument("package", help="generated hole folder (contains gen.json)")
     r.add_argument("rating", choices=["up", "down"])
+    r.add_argument("--comment", help="free-text feedback stored with the vote")
+    r.add_argument("--tag", nargs="*", choices=list(TAGS), help="quick-feedback tags (nudge training)")
     r.set_defaults(func=cmd_rate)
 
     t = sub.add_parser("train", help="Retrain the preference model from all ratings")

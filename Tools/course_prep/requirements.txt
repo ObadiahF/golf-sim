@@ -5,3 +5,7 @@ shapely
 pillow
 scipy
 pytest
+# course_trainer web UI server (Tools/course_trainer)
+fastapi
+uvicorn
+httpx2
