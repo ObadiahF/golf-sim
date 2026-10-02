@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,6 +48,11 @@ public class WsHub {
 
     public Optional<Client> get(String sessionId) {
         return Optional.ofNullable(clients.get(sessionId));
+    }
+
+    /** Every connected client (package-private, for tests). */
+    Collection<Client> clients() {
+        return List.copyOf(clients.values());
     }
 
     public boolean simConnected() {

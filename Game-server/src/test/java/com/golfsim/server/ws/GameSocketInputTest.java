@@ -141,6 +141,32 @@ class GameSocketInputTest extends SocketTestBase {
         }
     }
 
+    /** Relays are byte-for-byte, so anything after the JSON object would reach the other side's parser. */
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"type\":\"nav\",\"key\":\"up\"}garbage", "{\"type\":\"nav\",\"key\":\"up\"} {\"x\":"})
+    void trailingDataIsRefusedNotRelayed(String message) throws Exception {
+        try (WsTestClient sim = sim(); WsTestClient remote = remote()) {
+            remote.await("hello");
+            remote.send(message);
+            assertThat(remote.await("error").get("message").asText()).isEqualTo("Invalid JSON");
+            sim.assertNo("nav");
+            remote.send(" {\"type\":\"ping\"}\n");
+            remote.await("pong");
+        }
+    }
+
+    @Test
+    void binaryFramesGetAnErrorAndTheConnectionStaysOpen() throws Exception {
+        try (WsTestClient remote = remote()) {
+            remote.await("hello");
+            remote.sendBinary("{\"type\":\"ping\"}");
+            assertThat(remote.await("error").get("message").asText()).isEqualTo("Binary messages are not supported");
+            remote.send("{\"type\":\"ping\"}");
+            remote.await("pong");
+            assertThat(remote.isOpen()).isTrue();
+        }
+    }
+
     @Test
     void simUpdatesAndScoresAreCheckedToo() throws Exception {
         long id = games.start(new GameRequests.StartGame(List.of("Obi"), 2, null)).id();

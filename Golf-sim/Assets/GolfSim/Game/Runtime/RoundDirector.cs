@@ -38,11 +38,19 @@ namespace GolfSim.Game
         {
             Phase.Menu => AudioSettingsPanel.AnyOpen ? StateMessage.Settings : StateMessage.Menu,
             Phase.Loading => StateMessage.Loading,
+            _ when HoleGoing => StateMessage.Loading,
             _ when replaying => StateMessage.Replay,
             Phase.HoleSummary => StateMessage.HoleComplete,
             Phase.Finished => StateMessage.Results,
             _ => !HomeMenu.IsOpen ? StateMessage.Game : AudioSettingsPanel.AnyOpen ? StateMessage.Settings : StateMessage.Paused,
         };
+
+        /// <summary>
+        /// The hole is on its way out under a round or practice (pause menu > Main Menu / Restart Hole): the scene is
+        /// fading out, or its ball is already gone, before OnSceneLoaded moves the phase on. The pause menu closing
+        /// meanwhile must not send a "game" state with canShoot (the phone would flip to its swing view).
+        /// </summary>
+        bool HoleGoing => phase is (Phase.Playing or Phase.BetweenShots) && (ScreenFade.Loading || !ball);
 
         SimConnection connection;
         RoundHud hud;
@@ -310,6 +318,7 @@ namespace GolfSim.Game
             {
                 Phase.Menu => "Start a game on the sim first",
                 Phase.Loading => "Loading the next hole",
+                _ when HoleGoing => "Loading the next hole",
                 Phase.BetweenShots => "Wait for the next turn",
                 Phase.HoleSummary or Phase.Finished => "Press Select on the remote to continue",
                 _ => null,

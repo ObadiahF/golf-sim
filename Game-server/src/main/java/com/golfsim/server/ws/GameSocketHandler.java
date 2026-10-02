@@ -17,9 +17,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.adapter.NativeWebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
@@ -31,6 +33,12 @@ public class GameSocketHandler extends TextWebSocketHandler {
     private static final int SEND_TIME_LIMIT_MS = 5_000;
     private static final int SEND_BUFFER_BYTES = 512 * 1024;
     private static final String ASSEMBLER = MessageAssembler.class.getName();
+    /**
+     * Clients ping every ~20 s; one that sends nothing for this long is frozen or gone (a suspended phone, a dead
+     * network behind the tunnel) and is closed, so it stops being listed and a dead sim stops counting as connected.
+     */
+    static final long READ_IDLE_TIMEOUT_MS = 60_000;
+    private static final String TOMCAT_READ_IDLE_TIMEOUT = "org.apache.tomcat.websocket.READ_IDLE_TIMEOUT_MS";
 
     private final WsHub hub;
     private final GameService games;
@@ -46,6 +54,10 @@ public class GameSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
+        if (session instanceof NativeWebSocketSession wrapper
+                && wrapper.getNativeSession(jakarta.websocket.Session.class) instanceof jakarta.websocket.Session ws) {
+            ws.getUserProperties().put(TOMCAT_READ_IDLE_TIMEOUT, READ_IDLE_TIMEOUT_MS);
+        }
         Role role = (Role) session.getAttributes().get(TokenHandshakeInterceptor.ROLE);
         String name = (String) session.getAttributes()
                 .getOrDefault(TokenHandshakeInterceptor.NAME, role.wireName() + "-" + session.getId().substring(0, 6));
@@ -99,7 +111,7 @@ public class GameSocketHandler extends TextWebSocketHandler {
         } catch (InvalidTypeIdException e) {
             reject(client, e.getTypeId() == null ? "Missing \"type\"" : "Unknown message type '" + e.getTypeId() + "'");
         } catch (MismatchedInputException e) {
-            reject(client, JsonFields.invalidValue(e, "Invalid message"));
+            reject(client, JsonFields.invalidValue(e, "Invalid JSON")); // e.g. trailing data after the object
         } catch (JsonProcessingException e) {
             reject(client, JsonChecks.parseError(e));
         } catch (Rejected e) {
@@ -109,6 +121,14 @@ public class GameSocketHandler extends TextWebSocketHandler {
         } catch (RuntimeException e) {
             log.error("Failed to handle message from {} {}: {}", client.role(), client.name(), json, e);
             reject(client, "Unexpected server error");
+        }
+    }
+
+    /** Binary frames are refused like any other invalid message, instead of closing the connection (1003). */
+    @Override
+    protected void handleBinaryMessage(WebSocketSession session, BinaryMessage frame) {
+        if (frame.isLast()) {
+            hub.get(session.getId()).ifPresent(client -> reject(client, "Binary messages are not supported"));
         }
     }
 

@@ -10,7 +10,7 @@ The wire schema lives in one place in code: `src/main/java/com/golfsim/server/ws
 - All bodies are JSON (UTF-8). Timestamps are ISO-8601 UTC strings, e.g. `"2026-10-02T07:43:47.309802Z"`.
 - JSON input is strict, on REST and WebSocket alike: integer fields take JSON integers only (`1.7` and `9.0` are
   refused, as is `"9"` for a number), numbers must be finite (`1e400` overflows to infinity and is refused), and a
-  key may appear only once per object.
+  key may appear only once per object. Nothing may follow the JSON value (`{...}garbage` is refused).
 - Units: shot speed m/s, angles degrees (+ is right), spin rpm (+ side curves right), distances yards.
 
 ## 1. Auth
@@ -48,7 +48,7 @@ Every error uses the same body:
 
 | Status | When |
 |--------|------|
-| 400 | validation failure (`fieldErrors` filled), malformed JSON (`"Malformed JSON request body"`), a value of the wrong type (`"Invalid value for 'holes'"`), unknown player for a game, hole out of range, duplicate names, a non-normalised path (`"Malformed request path"`) |
+| 400 | validation failure (`fieldErrors` filled, e.g. `{"limit": "must be greater than or equal to 1"}` for `?limit=0`), malformed JSON (`"Malformed JSON request body"`), a value of the wrong type (`"Invalid value for 'holes'"`), unknown player for a game, hole out of range, duplicate names, a non-normalised path (`"Malformed request path"`) |
 | 401 | missing or wrong token: `"message": "Missing or invalid API token"` |
 | 404 | unknown game id, unknown player name, unknown route (with a valid token) |
 | 405 | wrong HTTP method for the route (e.g. `DELETE /api/games/1`, `POST /api/ping`); the `Allow` header lists the right ones |
@@ -97,7 +97,7 @@ Returned by every `/api/games` endpoint and embedded in WebSocket messages (`hel
 ```
 
 - `players`: 1..8 names, unique ignoring case. Turn order = list order.
-- `holes`: integer 1..18, default 9. `courseName`: optional, max 100.
+- `holes`: integer 1..18, default 9. `courseName`: optional, max 100, no control characters (tab, newline, NUL...).
 - Any game still IN_PROGRESS is set to `ABANDONED` first (WS: `gameFinished` for it). Simultaneous starts are
   handled one after another: each gets `201`, and the last one is the game left IN_PROGRESS.
 
@@ -246,7 +246,8 @@ Any number of sims and remotes may connect; relays go to all of them.
 
 ### Framing and rules
 
-- Every frame is one JSON text frame: an object with a string `type` plus that type's fields.
+- Every frame is one JSON text frame: an object with a string `type` plus that type's fields, and nothing after it.
+  A binary frame gets `error {"message": "Binary messages are not supported"}`; the connection stays open.
 - Field names are case-sensitive camelCase; unknown extra fields are ignored by validation.
 - Relayed messages (remote -> sim, sim -> remotes) are validated, then forwarded **byte-for-byte unchanged**,
   so extra fields reach the other side. The sender gets nothing back on success.
@@ -257,6 +258,8 @@ Any number of sims and remotes may connect; relays go to all of them.
   extra fields included, because relayed messages are forwarded as sent. Duplicate keys are refused.
 - Keepalive: send `{"type":"ping"}` every ~20 s, whether or not you are sending other traffic; the server answers
   `{"type":"pong"}`. Treat the server as gone only after ~60 s without receiving anything (a `pong` counts).
+  The server closes a connection it has received nothing from for 60 s (a frozen or vanished client), so a
+  listener that never sends must still ping.
   Reconnect on close (back off 1 s, 2 s, 5 s ...); the `hello` you get after reconnecting has everything you need
   to resync.
 
@@ -345,7 +348,7 @@ The sim loads the course and starts the round with `game.id`, `game.players` (tu
 ```
 
 Error messages you may see: `Missing "type"`, `Unknown message type '<t>'`, `Expected a JSON object`,
-`Invalid JSON`, `Invalid JSON: Duplicate field '<key>'`, `Invalid number` (`NaN` / `Infinity` tokens), `Invalid value for '<field>'`,
+`Invalid JSON` (also for data after the object), `Invalid JSON: Duplicate field '<key>'`, `Binary messages are not supported`, `Invalid number` (`NaN` / `Infinity` tokens), `Invalid value for '<field>'`,
 `Invalid value for '<field>': numbers must be finite`, `Message too large (max 65536 characters)`, `<type>: <field> <constraint>` (e.g. `club: club must not be blank`),
 `'<type>' must be sent by a sim|remote`, `'<type>' is sent by the server only`, `no sim connected`,
 and the REST messages for `holeScore` (e.g. `Game 9 not found`, `hole must be between 1 and 9`).

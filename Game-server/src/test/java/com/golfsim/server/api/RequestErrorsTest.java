@@ -93,6 +93,31 @@ class RequestErrorsTest extends IntegrationTest {
     }
 
     @Test
+    void trailingDataAfterTheBodyIs400() throws Exception {
+        startGame("{\"players\":[\"Obi\"],\"holes\":1}garbage").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Malformed JSON request body"));
+        startGame("{\"players\":[\"Obi\"],\"holes\":1} {\"x\":1}").andExpect(status().isBadRequest());
+    }
+
+    /** Postgres refuses NUL (it used to come back as a "please retry" 409) and turns a lone surrogate into '?'. */
+    @ParameterizedTest
+    @ValueSource(strings = {"x\\u0000y", "tab\\there", "a\\ud800b"})
+    void courseNamesWithControlOrInvalidCharactersAre400(String jsonEscaped) throws Exception {
+        startGame("{\"players\":[\"Obi\"],\"holes\":1,\"courseName\":\"" + jsonEscaped + "\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.courseName").value("must not contain control or invalid characters"));
+        startGame("{\"players\":[\"Obi\"],\"holes\":1,\"courseName\":\"Pebble 😀 Beach\"}").andExpect(status().isCreated());
+    }
+
+    @Test
+    void outOfRangeQueryParameterIsNamed() throws Exception {
+        call(get("/api/games?limit=0")).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.limit").value("must be greater than or equal to 1"));
+        call(get("/api/games?limit=101")).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.limit").exists());
+    }
+
+    @Test
     void duplicateKeysAre400() throws Exception {
         startGame("{\"players\":[\"Obi\"],\"holes\":1,\"holes\":2}").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Malformed JSON request body"));

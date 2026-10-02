@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
@@ -14,6 +15,12 @@ public final class GameRequests {
     public static final int MAX_HOLES = 18;
     public static final int MAX_PLAYERS = 8;
 
+    /**
+     * Free text with no control characters or lone surrogates: Postgres refuses NUL (which surfaced as a misleading
+     * "please retry" 409) and stores a lone surrogate as {@code ?}, so the response would not match what was saved.
+     */
+    static final String PLAIN_TEXT = "[^\\p{Cc}\\p{Cs}]*";
+
     private GameRequests() {
     }
 
@@ -21,7 +28,8 @@ public final class GameRequests {
     public record StartGame(
             @NotEmpty @Size(max = MAX_PLAYERS) List<@PlayerName String> players,
             @Min(1) @Max(MAX_HOLES) Integer holes,
-            @Size(max = 100) String courseName) {
+            @Size(max = 100) @Pattern(regexp = PLAIN_TEXT, message = "must not contain control or invalid characters")
+            String courseName) {
 
         public int holesOrDefault() {
             return holes == null ? 9 : holes;

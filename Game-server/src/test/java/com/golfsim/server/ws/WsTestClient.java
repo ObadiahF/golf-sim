@@ -10,6 +10,8 @@ import java.net.URI;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.nio.charset.StandardCharsets;
+import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
@@ -40,6 +42,10 @@ class WsTestClient extends TextWebSocketHandler implements AutoCloseable {
 
     void send(String json) throws Exception {
         session.sendMessage(new TextMessage(json));
+    }
+
+    void sendBinary(String json) throws Exception {
+        session.sendMessage(new BinaryMessage(json.getBytes(StandardCharsets.UTF_8)));
     }
 
     /** Waits for the next message of the given type, skipping any others. */

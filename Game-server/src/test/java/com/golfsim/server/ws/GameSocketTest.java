@@ -7,7 +7,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.golfsim.server.game.GameRequests;
 import com.golfsim.server.game.GameView;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.socket.adapter.NativeWebSocketSession;
+import org.springframework.web.socket.handler.WebSocketSessionDecorator;
 
 class GameSocketTest extends SocketTestBase {
 
@@ -31,6 +34,31 @@ class GameSocketTest extends SocketTestBase {
             sim.close();
             assertThat(remote.await("simStatus").get("connected").asBoolean()).isFalse();
         }
+    }
+
+    /** A frozen client (suspended phone, dead network behind the tunnel) is closed once it goes silent. */
+    @Test
+    void silentClientsAreClosedAndUnlisted() throws Exception {
+        try (WsTestClient silent = remote("Frozen")) {
+            silent.await("hello");
+            Map<String, Object> props = nativeUserProperties(hub.clients().iterator().next());
+            assertThat(props.get("org.apache.tomcat.websocket.READ_IDLE_TIMEOUT_MS"))
+                    .isEqualTo(GameSocketHandler.READ_IDLE_TIMEOUT_MS);
+            props.put("org.apache.tomcat.websocket.READ_IDLE_TIMEOUT_MS", 500L); // Tomcat checks every ~10 s
+            for (int i = 0; i < 300 && silent.isOpen(); i++) {
+                Thread.sleep(100);
+            }
+            assertThat(silent.isOpen()).isFalse();
+            for (int i = 0; i < 50 && !hub.remoteNames().isEmpty(); i++) {
+                Thread.sleep(50);
+            }
+            assertThat(hub.remoteNames()).isEmpty();
+        }
+    }
+
+    private static Map<String, Object> nativeUserProperties(WsHub.Client client) {
+        var session = WebSocketSessionDecorator.unwrap(client.session());
+        return ((NativeWebSocketSession) session).getNativeSession(jakarta.websocket.Session.class).getUserProperties();
     }
 
     @Test

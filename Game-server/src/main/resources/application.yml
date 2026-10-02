@@ -8,9 +8,11 @@ spring:
     serialization:
       write-dates-as-timestamps: false
       fail-on-empty-beans: false
-    # Strict input (REST and WebSocket): 1.7 is not an integer, "9" is not a number, and a key may appear once.
+    # Strict input (REST and WebSocket): 1.7 is not an integer, "9" is not a number, a key may appear once, and
+    # nothing may follow the JSON value (WebSocket messages are relayed byte-for-byte, garbage included).
     deserialization:
       accept-float-as-int: false
+      fail-on-trailing-tokens: true
     mapper:
       allow-coercion-of-scalars: false
     parser:

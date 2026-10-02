@@ -18,6 +18,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -39,6 +40,16 @@ public class GlobalExceptionHandler {
         for (FieldError fe : ex.getBindingResult().getFieldErrors()) {
             fieldErrors.putIfAbsent(fe.getField(), fe.getDefaultMessage());
         }
+        return build(HttpStatus.BAD_REQUEST, "Validation failed", request, fieldErrors);
+    }
+
+    /** A {@code @RequestParam} or path variable outside its bounds (e.g. {@code ?limit=0}), named in fieldErrors. */
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponse> handleParameterValidation(HandlerMethodValidationException ex,
+            HttpServletRequest request) {
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        ex.getParameterValidationResults().forEach(result -> result.getResolvableErrors().forEach(error ->
+                fieldErrors.putIfAbsent(result.getMethodParameter().getParameterName(), error.getDefaultMessage())));
         return build(HttpStatus.BAD_REQUEST, "Validation failed", request, fieldErrors);
     }
 
