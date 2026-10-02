@@ -56,6 +56,8 @@ namespace GolfSim.CourseEditor
         public HoleArea[] areas = new HoleArea[0];
         public Vector2[] trees = new Vector2[0]; // individually mapped trees (x, z)
         public WaterBody[] water = new WaterBody[0];
+        [Tooltip("CourseTheme name for generated holes; empty for real courses (catalog default theme).")]
+        public string theme;
 
         [NonSerialized] public string assetPath;
 
