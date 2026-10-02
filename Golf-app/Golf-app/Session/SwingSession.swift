@@ -27,13 +27,17 @@ final class SwingSession {
     /// The game server; shots go through it when a sim is connected there, else over UDP.
     let game: GameLink
 
-    private(set) var stage: Stage = .idle
+    private(set) var stage: Stage = .idle {
+        didSet { if stage != oldValue { recorder.mark("stage \(stage)") } }
+    }
     private(set) var lastShot: Shot?
     private(set) var lastShotID: Int?
     private(set) var delivery: Delivery?
     private(set) var result: SimResult?
     /// The putting power meter (filled live while putting).
     private(set) var meter = PuttMeter()
+    /// Raw swing data for tuning detection (Settings > Record swings).
+    let recorder = SwingRecorder()
 
     @ObservationIgnored private let motion: MotionSource
     @ObservationIgnored private var detector: SwingDetector
@@ -50,6 +54,9 @@ final class SwingSession {
         game = GameLink(settings: settings)
         self.motion = motion ?? Self.defaultMotionSource()
         detector = SwingDetector(thresholds: settings.club.detection)
+        if let device = self.motion as? DeviceMotionSource {
+            device.onRaw = { [recorder] motion, sample in recorder.add(motion, sample) }
+        }
         link.onDelivery = { [weak self] id, delivery in self?.update(id: id, delivery: delivery) }
         link.onResult = { [weak self] result in
             guard let self, result.id == lastShotID else { return }
@@ -140,6 +147,7 @@ final class SwingSession {
         let event = detector.process(sample)
         if club.isPutter { trackPutt(sample, event: event) }
         guard let event else { return }
+        recorder.mark("\(event) club=\(club.short)", time: sample.time)
         switch event {
         case .started: stage = .swinging
         case .fired(let impact): fire(impact)

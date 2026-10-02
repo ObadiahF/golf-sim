@@ -18,6 +18,8 @@ final class DeviceMotionSource: MotionSource {
     private var address: CMAttitude?
     /// The accelerometer's reading at address (gravity, as the phone was held still).
     private var addressDown: CMAcceleration?
+    /// Gets every raw reading with its sample (the swing recorder).
+    var onRaw: ((CMDeviceMotion, MotionSample) -> Void)?
 
     var isAvailable: Bool { manager.isDeviceMotionAvailable }
 
@@ -32,7 +34,9 @@ final class DeviceMotionSource: MotionSource {
                 addressDown = Self.down(motion)
             }
             guard let address, let addressDown else { return }
-            handler(Self.sample(motion, relativeTo: address, down: addressDown))
+            let sample = Self.sample(motion, relativeTo: address, down: addressDown)
+            onRaw?(motion, sample)
+            handler(sample)
         }
     }
 

@@ -25,7 +25,7 @@ struct AppHeader: View {
         }
         .padding(.top, 8)
         .sheet(isPresented: $showSettings) {
-            SettingsView(settings: session.settings, link: session.link, game: session.game)
+            SettingsView(settings: session.settings, link: session.link, game: session.game, recorder: session.recorder)
         }
     }
 }

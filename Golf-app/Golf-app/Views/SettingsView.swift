@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Host (auto-discovered or typed), face direction, swing scale, and a short how-to.
+/// Host (auto-discovered or typed), face direction, swing scale, the swing recorder, and a short how-to.
 struct SettingsView: View {
     @Bindable var settings: AppSettings
     let link: SimLink
     let game: GameLink
+    @Bindable var recorder: SwingRecorder
     @State private var hostDraft = ""
     @State private var serverDraft = ""
     /// Why the typed server address was refused.
@@ -83,10 +84,22 @@ struct SettingsView: View {
                     Text("Raise the scale to make half swings count as full ones. The putt scale does the same for putts: raise it if a normal stroke comes up short, lower it if putts race past. Flip the face direction if fades come out as draws (it depends on which way the screen faces in your grip).")
                 }
 
+                Section {
+                    Toggle("Record swings", isOn: $recorder.isRecording)
+                    if !recorder.isEmpty {
+                        Text("\(recorder.swings) swings counted so far").foregroundStyle(.secondary)
+                        ShareLink(item: SwingRecording(recorder: recorder), preview: SharePreview("Swing recording"))
+                    }
+                } header: {
+                    Text("Swing recording")
+                } footer: {
+                    Text("Turn on, practice a few swings (including any that don't count), then share the file (AirDrop it to the Mac). It keeps the last five minutes of sensor data. Turning it on again starts over.")
+                }
+
                 Section("How to swing") {
                     Label("Hold the phone like a club grip, screen facing you.", systemImage: "hand.raised")
-                    Label("Tap Address, take your stance and hold still until it buzzes.", systemImage: "figure.golf")
-                    Label("Swing. After each shot, return to address and hold still to re-arm.", systemImage: "arrow.uturn.backward")
+                    Label("Tap Start (or Address), take your stance and hold still until it buzzes.", systemImage: "figure.golf")
+                    Label("Swing. After each shot, return to address and hold still; the next buzz means swing again.", systemImage: "arrow.uturn.backward")
                     Label("Keep a firm grip and room around you. Use a wrist strap.", systemImage: "exclamationmark.triangle")
                 }
             }
