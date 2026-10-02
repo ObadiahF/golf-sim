@@ -51,3 +51,9 @@ __pycache__/
 /Assets/CourseData/**/TerrainData.asset.meta
 /Assets/CourseData/**/Water*.asset
 /Assets/CourseData/**/Water*.asset.meta
+
+# Course generator: generated holes are disposable (ratings keep their parameters); model is derived
+/Assets/CourseData/generated/
+/Assets/CourseData/generated.meta
+/Tools/course_gen/data/preference_model.npz
+.pytest_cache/

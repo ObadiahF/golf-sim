@@ -21,6 +21,7 @@ COURSE_SOURCES = PROJECT_ROOT / "CourseSources"
 GREEN_SEARCH = 35.0    # meters from the hole line's end
 BUNKER_SEARCH = 45.0   # meters either side of the hole line
 FAIRWAY_SEARCH = 25.0
+MIN_LENGTH = {"3": 100.0, "4": 230.0, "5": 380.0}   # shorter = pitch-and-putt / mis-tagged
 
 DEFAULT_PRIORS = {
     "source": "built-in defaults",
@@ -72,12 +73,21 @@ def measure_course(osm_path: Path) -> list[dict]:
 
     greens, fairways, bunkers, water = (utm_areas("green"), utm_areas("fairway"),
                                         utm_areas("bunker"), utm_areas("water"))
+    lines = {id(h): proj.to_utm(h.geom) for h in holes}
+
+    def nearest_hole(shape):
+        return min(holes, key=lambda h: lines[id(h)].distance(shape))
+
+    # Each bunker / pond belongs to the closest hole only, so neighbouring holes don't double count.
+    owner_bunkers = [id(nearest_hole(b)) for b in bunkers]
+    owner_water = [id(nearest_hole(w)) for w in water]
+
     out = []
     for hole in holes:
         par = str(hole.tags.get("par", ""))
-        if par not in ("3", "4", "5"):
+        line = lines[id(hole)]
+        if par not in MIN_LENGTH or line.length < MIN_LENGTH[par]:
             continue
-        line = proj.to_utm(hole.geom)
         end = Point(line.coords[-1])
         corridor = line.buffer(BUNKER_SEARCH)
         green = min((g for g in greens if g.distance(end) < GREEN_SEARCH), key=lambda g: g.distance(end), default=None)
@@ -88,8 +98,8 @@ def measure_course(osm_path: Path) -> list[dict]:
             "length": line.length,
             "green_area": green.area if green is not None else None,
             "fairway_width": float(np.median(widths)) if widths else None,
-            "bunkers": sum(1 for b in bunkers if b.intersects(corridor)),
-            "water": any(w.distance(line) < 60 for w in water),
+            "bunkers": sum(1 for b, o in zip(bunkers, owner_bunkers) if o == id(hole) and b.intersects(corridor)),
+            "water": any(o == id(hole) and w.distance(line) < 60 for w, o in zip(water, owner_water)),
         })
     return out
 
