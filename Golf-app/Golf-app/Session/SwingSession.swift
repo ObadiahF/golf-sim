@@ -53,7 +53,7 @@ final class SwingSession {
         link = SimLink(settings: settings)
         game = GameLink(settings: settings)
         self.motion = motion ?? Self.defaultMotionSource()
-        detector = SwingDetector(thresholds: settings.club.detection)
+        detector = SwingDetector(thresholds: settings.detection(for: settings.club))
         if let device = self.motion as? DeviceMotionSource {
             device.onRaw = { [recorder] motion, sample in recorder.add(motion, sample) }
         }
@@ -86,6 +86,7 @@ final class SwingSession {
         }
         if stage == .idle || isUnavailable { motion.start { [weak self] in self?.handle($0) } }
         meter.reset() // a new putt starts from empty
+        detector.thresholds = settings.detection(for: club) // picks up a sensitivity changed in Settings
         settleStart = nil
         stillSince = nil
         stage = .settling
@@ -107,7 +108,7 @@ final class SwingSession {
 
     private func useClub(_ index: Int) {
         settings.clubIndex = index
-        detector.thresholds = settings.club.detection
+        detector.thresholds = settings.detection(for: settings.club)
     }
 
     /// Starts the swing services (UDP discovery and the game server).
@@ -152,6 +153,9 @@ final class SwingSession {
         case .started: stage = .swinging
         case .fired(let impact): fire(impact)
         case .aborted: stage = .returning
+        case .cancelled:
+            meter.reset()
+            stage = .ready // still at address: no buzz, it's already the pose the last one set
         case .rearmed:
             motion.captureAddress() // a fresh pose: a fast swing can leave the old one drifted
             stage = .ready

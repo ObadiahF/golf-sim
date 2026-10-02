@@ -53,8 +53,8 @@ struct SwingDetectorTests {
         let events = run(waggle + SyntheticSwing.still(seconds: 1.5, start: 1))
         #expect(impacts(events).isEmpty)
         #expect(events.contains(.started))
-        #expect(events.contains(.aborted))
-        #expect(events.last == .rearmed)
+        #expect(events.contains(.cancelled)) // never left address: armed again without a return
+        #expect(!events.contains(.aborted))
     }
 
     @Test func backswingOnlyDoesNotFire() {
@@ -121,6 +121,24 @@ struct SwingDetectorTests {
         let hits = impacts(run(samples, .putter))
         try #require(hits.count == 1)
         #expect(abs(hits[0].rate - 1.4) / 1.4 < 0.15)
+    }
+
+    @Test func shortPuttFires() throws {
+        // A ~30 cm tap: about 0.4 rad/s at the phone, 4 degrees back.
+        var spec = SyntheticSwing.Spec.putt(impactRate: 0.4)
+        spec.top = 4
+        let hits = impacts(run(SyntheticSwing.samples(spec, noise: 0.02), .putter))
+        try #require(hits.count == 1)
+        #expect(abs(hits[0].rate - 0.4) / 0.4 < 0.15)
+    }
+
+    @Test func sensitivityLetsSmallerSwingsFire() {
+        var spec = SyntheticSwing.Spec.putt(impactRate: 0.28)
+        spec.top = 3
+        let samples = SyntheticSwing.samples(spec)
+        #expect(impacts(run(samples, .putter)).isEmpty)
+        #expect(impacts(run(samples, .putter.scaled(sensitivity: 1.5))).count == 1)
+        #expect(impacts(run(SyntheticSwing.samples(.full(impactRate: 9)), .fullSwing.scaled(sensitivity: 0.5))).isEmpty)
     }
 
     @Test func puttIsTooGentleForFullSwingThresholds() {

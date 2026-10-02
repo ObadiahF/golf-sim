@@ -16,9 +16,18 @@ nonisolated struct SwingThresholds: Hashable, Sendable {
 
     static let fullSwing = SwingThresholds(startRate: 6, peakFactor: 1.6, awayAngle: 45, rearmAngle: 25, stillRate: 0.8)
     static let wedge = SwingThresholds(startRate: 5, peakFactor: 1.6, awayAngle: 35, rearmAngle: 25, stillRate: 0.8)
-    /// Putts are slow and short: low rates, small angles.
-    /// startRate 0.45 lets a ~1 m putt fire (peak 0.68 rad/s); tremor at address stays under 0.25.
-    static let putter = SwingThresholds(startRate: 0.45, peakFactor: 1.5, awayAngle: 4, rearmAngle: 6, stillRate: 0.25)
+    /// Putts are slow and short: low rates, small angles. A 1 m putt peaks around 0.75 rad/s at the phone and a
+    /// 30 cm tap around 0.4; these let a ~20 cm putt fire (peak 0.31 rad/s). Tremor at address stays under 0.25.
+    static let putter = SwingThresholds(startRate: 0.25, peakFactor: 1.25, awayAngle: 2, rearmAngle: 6, stillRate: 0.25)
+
+    /// More sensitive (above 1) or less (below 1): the speed and backswing a swing needs divide by `sensitivity`.
+    /// What counts as held still doesn't change.
+    func scaled(sensitivity: Double) -> SwingThresholds {
+        var t = self
+        t.startRate /= sensitivity
+        t.awayAngle /= sensitivity
+        return t
+    }
 }
 
 /// One club in the bag. The phone measures speed and face angle; launch and spin come from

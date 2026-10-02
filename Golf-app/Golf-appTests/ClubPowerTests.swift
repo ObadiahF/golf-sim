@@ -56,3 +56,22 @@ struct ClubPowerTests {
         #expect(settings.scale(for: .putter) == 1.2) // the putter keeps the putt scale
     }
 }
+
+@MainActor
+struct ClubSensitivityTests {
+    @Test func sensitivityIsStoredSteppedAndScalesDetection() throws {
+        let settings = try testSettings("ClubSensitivityTests")
+        #expect(settings.detection(for: .putter) == SwingThresholds.putter)
+        settings.setSensitivity(1.53, for: .putter)
+        #expect(abs(settings.sensitivity(for: .putter) - 1.5) < 1e-9)
+        settings.setSensitivity(9, for: .putter)
+        #expect(settings.sensitivity(for: .putter) == AppSettings.sensitivityRange.upperBound)
+        #expect(abs(settings.detection(for: .putter).startRate - SwingThresholds.putter.startRate / 2) < 1e-9)
+        #expect(settings.detection(for: .putter).stillRate == SwingThresholds.putter.stillRate)
+        #expect(settings.detection(for: Club.bag[0]) == Club.bag[0].detection) // other clubs untouched
+        let reloaded = AppSettings(defaults: try #require(UserDefaults(suiteName: "ClubSensitivityTests")))
+        #expect(reloaded.sensitivity(for: .putter) == AppSettings.sensitivityRange.upperBound)
+        reloaded.resetSensitivity()
+        #expect(reloaded.sensitivity(for: .putter) == 1)
+    }
+}

@@ -15,6 +15,7 @@ final class AppSettings {
         static let players = "players"
         static let holes = "roundHoles"
         static let clubPower = "clubPower"
+        static let clubSensitivity = "clubSensitivity"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -40,6 +41,8 @@ final class AppSettings {
     /// Per-club power on top of the swing scale, by club name (1 = 100%); clubs not listed are at 100%.
     /// The putter has none: it has the putt scale.
     private(set) var clubPower: [String: Double] { didSet { defaults.set(clubPower, forKey: Key.clubPower) } }
+    /// Per-club swing detection sensitivity by club name (1 = 100%, higher notices smaller swings); every club.
+    private(set) var clubSensitivity: [String: Double] { didSet { defaults.set(clubSensitivity, forKey: Key.clubSensitivity) } }
 
     /// The game server's base URL: the one typed in Settings, else the hosted server.
     var serverURL: URL? { AppConfig.serverURL(server.isEmpty ? defaultServer : server) }
@@ -57,6 +60,8 @@ final class AppSettings {
     static let puttScaleRange = 0.5...2.0
     static let clubPowerRange = 0.5...1.5
     static let clubPowerStep = 0.05
+    static let sensitivityRange = 0.5...2.0
+    static let sensitivityStep = 0.1
     /// The clubs with a power setting: every club but the putter.
     static var poweredClubs: [Club] { Club.bag.filter { !$0.isPutter } }
 
@@ -70,12 +75,30 @@ final class AppSettings {
     /// Sets a club's power, clamped to `clubPowerRange` and rounded to the 5% step (ignored for the putter).
     func setPower(_ power: Double, for club: Club) {
         guard !club.isPutter else { return }
-        let stepped = (power / Self.clubPowerStep).rounded() * Self.clubPowerStep
-        clubPower[club.name] = min(Self.clubPowerRange.upperBound, max(Self.clubPowerRange.lowerBound, stepped))
+        clubPower[club.name] = Self.stepped(power, Self.clubPowerStep, Self.clubPowerRange)
     }
 
     /// Every club back to 100%.
     func resetClubPower() { clubPower = [:] }
+
+    /// This club's detection sensitivity, 1 = 100%.
+    func sensitivity(for club: Club) -> Double { clubSensitivity[club.name] ?? 1 }
+
+    /// Sets a club's sensitivity, clamped to `sensitivityRange` and rounded to the 10% step.
+    func setSensitivity(_ sensitivity: Double, for club: Club) {
+        clubSensitivity[club.name] = Self.stepped(sensitivity, Self.sensitivityStep, Self.sensitivityRange)
+    }
+
+    /// Every club back to 100% sensitivity.
+    func resetSensitivity() { clubSensitivity = [:] }
+
+    /// The swing detection thresholds for this club with its sensitivity applied.
+    func detection(for club: Club) -> SwingThresholds { club.detection.scaled(sensitivity: sensitivity(for: club)) }
+
+    /// `value` rounded to `step` and clamped to `range`.
+    private static func stepped(_ value: Double, _ step: Double, _ range: ClosedRange<Double>) -> Double {
+        min(range.upperBound, max(range.lowerBound, (value / step).rounded() * step))
+    }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -91,6 +114,8 @@ final class AppSettings {
         players = defaults.stringArray(forKey: Key.players) ?? []
         let storedPower = defaults.dictionary(forKey: Key.clubPower) as? [String: Double] ?? [:]
         clubPower = storedPower.filter { Self.clubPowerRange.contains($0.value) }
+        let storedSensitivity = defaults.dictionary(forKey: Key.clubSensitivity) as? [String: Double] ?? [:]
+        clubSensitivity = storedSensitivity.filter { Self.sensitivityRange.contains($0.value) }
         let holes = defaults.integer(forKey: Key.holes)
         self.holes = AppConfig.roundLengths.contains(holes) ? holes : AppConfig.roundLengths[0]
     }

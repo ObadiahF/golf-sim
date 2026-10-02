@@ -37,8 +37,10 @@ nonisolated struct SwingDetector: Sendable {
     enum Event: Equatable, Sendable {
         case started
         case fired(Impact)
-        /// The motion was not a swing (waggle, half backswing, timeout).
+        /// The motion was not a swing (half backswing, timeout): wait for the phone to come back to address.
         case aborted
+        /// A twitch or waggle that never left address: armed again straight away (no return needed).
+        case cancelled
         /// Back at address and ready for the next swing.
         case rearmed
     }
@@ -115,7 +117,10 @@ nonisolated struct SwingDetector: Sendable {
         if !wentAway, s.rate < thresholds.stillRate {
             let start = stillSince ?? s.time
             stillSince = start
-            if s.time - start >= waggleTimeout { return abort() }
+            if s.time - start >= waggleTimeout {
+                reset()
+                return .cancelled
+            }
         } else {
             stillSince = nil
         }

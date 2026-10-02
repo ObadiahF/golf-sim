@@ -92,7 +92,7 @@ struct SettingsView: View {
                     NavigationLink {
                         ClubPowerView(settings: settings)
                     } label: {
-                        Label("Club power", systemImage: "dial.medium")
+                        Label("Club power & sensitivity", systemImage: "dial.medium")
                     }
                     NavigationLink {
                         CoursePhysicsView(api: GameAPI.forSettings(settings), simConnected: game.simConnected)
@@ -102,7 +102,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Tuning")
                 } footer: {
-                    Text("Club power: a percentage per club on top of the swing scale (this phone only). Course physics: how the ball bounces and rolls on each surface, saved on the game server for the sim.")
+                    Text("Club power & sensitivity: per club, how far a swing sends the ball and how small a swing counts (this phone only). Course physics: how the ball bounces and rolls on each surface, saved on the game server for the sim.")
                 }
 
                 Section {
