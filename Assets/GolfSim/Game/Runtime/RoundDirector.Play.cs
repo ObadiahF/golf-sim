@@ -40,10 +40,12 @@ namespace GolfSim.Game
             if (flyCam) flyCam.showHelp = round == null && hud == null;
             ball.ShotFinished += OnShotFinished;
             ball.Placed += OnBallPlaced;
+            BindPutting();
         }
 
         void Unbind()
         {
+            UnbindPutting();
             if (ball)
             {
                 ball.ShotFinished -= OnShotFinished;

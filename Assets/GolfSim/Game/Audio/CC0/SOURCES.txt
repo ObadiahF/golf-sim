@@ -1,0 +1,245 @@
+Golf sim recorded sounds (Assets/GolfSim/Game/Audio/CC0) -- all files CC0 1.0 (Creative Commons Zero / public domain dedication).
+Licence verified individually on each source page on 2026-10-02 (freesound.org sound pages show 'Creative Commons 0' linking to
+http://creativecommons.org/publicdomain/zero/1.0/ ; Kenney packs' pages and bundled License.txt state 'Creative Commons Zero, CC0').
+Freesound audio was taken from the official HQ MP3 preview (cdn.freesound.org/previews/...-hq.mp3), same licence as the original.
+Attribution not required by CC0; listed here for provenance.
+
+crowd_applause_1.wav  (5.23 s)
+  Title:   R19-34-Golf Crowd Applauds.wav
+  Author:  craigsmith (freesound.org)
+  Source:  https://freesound.org/s/479967/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 0.0-5.3 s (take 1); mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 1.2 s
+
+crowd_applause_2.wav  (4.80 s)
+  Title:   R19-34-Golf Crowd Applauds.wav
+  Author:  craigsmith (freesound.org)
+  Source:  https://freesound.org/s/479967/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 8.6-13.4 s (take 2); mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 1.5 s
+
+crowd_applause_3.wav  (4.79 s)
+  Title:   CRWDApls_Unenthusiastic Clapping_ShaneVincent_GSC24_XY-AKG214-96k.wav
+  Author:  ShangusBurger (freesound.org)
+  Source:  https://freesound.org/s/763819/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 0.8-6.0 s; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 1.2 s; +20 dB gain (quiet source)
+
+crowd_cheer_1.wav  (6.00 s)
+  Title:   R19-35-Golf Crowd Reacts to Good Shot.wav
+  Author:  craigsmith (freesound.org)
+  Source:  https://freesound.org/s/486219/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 1.7-7.7 s; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 2.0 s
+
+crowd_cheer_2.wav  (6.00 s)
+  Title:   Crowd Cheer 5
+  Author:  Krizin (freesound.org)
+  Source:  https://freesound.org/s/651646/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 0.0-6.0 s; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 2.0 s
+
+crowd_roar_1.wav  (6.00 s)
+  Title:   crowd roar.WAV
+  Author:  jonsept (freesound.org)
+  Source:  https://freesound.org/s/449915/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 0.0-6.0 s; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 2.0 s
+
+crowd_roar_2.wav  (6.00 s)
+  Title:   AF Crowd Cheer Nat End .wav
+  Author:  mglennsound (freesound.org)
+  Source:  https://freesound.org/s/678546/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 1.0-7.0 s; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 2.0 s
+
+crowd_ooh_1.wav  (2.80 s)
+  Title:   Group Ooh 1
+  Author:  CHallSmith (freesound.org)
+  Source:  https://freesound.org/s/870650/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt full (2.8 s); mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.6 s
+
+crowd_ooh_2.wav  (3.38 s)
+  Title:   CRWDReac_Crowd Gasping In Surprise, Voiced 01_ShaneVincent_GSC24_XY-AKG214-96k.wav
+  Author:  ShangusBurger (freesound.org)
+  Source:  https://freesound.org/s/763875/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt full (3.5 s); mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.8 s
+
+crowd_ooh_3.wav  (3.82 s)
+  Title:   CRWDReac_Crowd Gasping In Surprise, Voiced 02_ShaneVincent_GSC24_SpacedOmni-MK012.wav
+  Author:  ShangusBurger (freesound.org)
+  Source:  https://freesound.org/s/764320/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt full (4.4 s); mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 1.0 s
+
+crowd_groan_1.wav  (3.08 s)
+  Title:   Group Groan 1
+  Author:  CHallSmith (freesound.org)
+  Source:  https://freesound.org/s/870630/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt full (3.1 s); mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.8 s
+
+crowd_groan_2.wav  (1.84 s)
+  Title:   crowd `oh - - disappointed.mp3
+  Author:  mrrap4food (freesound.org)
+  Source:  https://freesound.org/s/619007/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 0.0-2.2 s; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.5 s
+
+crowd_groan_3.wav  (4.97 s)
+  Title:   CRWDReac_Crowd Sigh In Disappointment_ShaneVincent_GSC24_XY-AKG214-96k.wav
+  Author:  ShangusBurger (freesound.org)
+  Source:  https://freesound.org/s/763880/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 0.8-5.8 s; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 1.5 s; +19 dB gain (quiet source)
+
+amb_birds_1.wav  (30.00 s)
+  Title:   Springtime birdsong with soft wind ambiance
+  Author:  rubindaniel (freesound.org)
+  Source:  https://freesound.org/s/847380/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 20-52 s; stereo, 44.1 kHz 16-bit; 30 s excerpt with 2 s equal-power crossfade of tail into head for seamless looping; peak-normalised to 1 dBFS
+
+amb_birds_2.wav  (30.00 s)
+  Title:   Woods_ambience_summer_UK_birds_light_wind_through_trees
+  Author:  nickmaysoundmusic (freesound.org)
+  Source:  https://freesound.org/s/523372/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 40-72 s; stereo, 44.1 kHz 16-bit; 30 s excerpt with 2 s equal-power crossfade of tail into head for seamless looping; peak-normalised to 1 dBFS
+
+amb_wind_1.wav  (30.00 s)
+  Title:   wind light breeze whips through grass aspen sparse corn gusts rustle.flac
+  Author:  kyles (freesound.org)
+  Source:  https://freesound.org/s/454359/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 28-60 s; stereo, 44.1 kHz 16-bit; 30 s excerpt with 2 s equal-power crossfade of tail into head for seamless looping; peak-normalised to 3 dBFS
+
+splash_1.wav  (1.32 s)
+  Title:   Splash
+  Author:  swordofkings128 (freesound.org)
+  Source:  https://freesound.org/s/398032/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 0.0-1.33 s; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.4 s
+
+splash_2.wav  (1.00 s)
+  Title:   water splash 2
+  Author:  swordofkings128 (freesound.org)
+  Source:  https://freesound.org/s/398039/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 0.0-1.0 s; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.3 s
+
+wood_knock_1.wav  (0.47 s)
+  Title:   hit - wooden - tree 01.wav
+  Author:  Anthousai (freesound.org)
+  Source:  https://freesound.org/s/406282/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt full; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.15 s
+
+leaves_1.wav  (1.79 s)
+  Title:   Rustling Foliage in Forest
+  Author:  sillygrizzlies (freesound.org)
+  Source:  https://freesound.org/s/635053/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 2.3-4.1 s; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-in 0.05 s, fade-out 0.4 s
+
+leaves_2.wav  (2.19 s)
+  Title:   Rustling Foliage in Forest
+  Author:  sillygrizzlies (freesound.org)
+  Source:  https://freesound.org/s/635053/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 4.1-6.3 s; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-in 0.05 s, fade-out 0.5 s
+
+rock_clack_1.wav  (0.55 s)
+  Title:   Stone on Stone Hit
+  Author:  xtra1 (freesound.org)
+  Source:  https://freesound.org/s/858891/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 1.2-1.9 s (hit 2); mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.3 s
+
+rock_clack_2.wav  (0.63 s)
+  Title:   Stone on Stone Hit
+  Author:  xtra1 (freesound.org)
+  Source:  https://freesound.org/s/858891/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 2.4-3.1 s (hit 3); mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.3 s
+
+rock_clack_3.wav  (0.64 s)
+  Title:   Stone on Stone Hit
+  Author:  xtra1 (freesound.org)
+  Source:  https://freesound.org/s/858891/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 3.4-4.1 s (hit 4); mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.3 s
+
+cup_rattle_1.wav  (1.93 s)
+  Title:   Golf ball in hole.wav
+  Author:  Scottrex05 (freesound.org)
+  Source:  https://freesound.org/s/593482/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 0.95-2.95 s (drop 1); mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.5 s
+
+cup_rattle_2.wav  (1.53 s)
+  Title:   Golf ball in hole.wav
+  Author:  Scottrex05 (freesound.org)
+  Source:  https://freesound.org/s/593482/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt 4.25-5.85 s (drop 2); mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.5 s
+
+ui_swoosh_1.wav  (0.33 s)
+  Title:   swoosh-1.mp3
+  Author:  lesaucisson (freesound.org)
+  Source:  https://freesound.org/s/585257/
+  Licence: CC0 1.0 (page: 'Creative Commons 0', http://creativecommons.org/publicdomain/zero/1.0/)
+  Edit:    excerpt full; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS; fade-out 0.1 s
+
+ui_tick_1.wav  (0.020 s)
+  Title:   Interface Sounds (1.0) / Audio/tick_002.ogg
+  Author:  Kenney (www.kenney.nl)
+  Source:  https://kenney.nl/assets/interface-sounds
+  Licence: CC0 1.0 (pack License.txt: 'Creative Commons Zero, CC0')
+  Edit:    converted from OGG; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS
+
+ui_tick_2.wav  (0.054 s)
+  Title:   UI Audio / Audio/rollover2.ogg
+  Author:  Kenney (www.kenney.nl)
+  Source:  https://kenney.nl/assets/ui-audio
+  Licence: CC0 1.0 (pack License.txt: 'Creative Commons Zero, CC0')
+  Edit:    converted from OGG; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS
+
+ui_select_1.wav  (0.040 s)
+  Title:   Interface Sounds (1.0) / Audio/select_002.ogg
+  Author:  Kenney (www.kenney.nl)
+  Source:  https://kenney.nl/assets/interface-sounds
+  Licence: CC0 1.0 (pack License.txt: 'Creative Commons Zero, CC0')
+  Edit:    converted from OGG; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS
+
+ui_back_1.wav  (0.061 s)
+  Title:   Interface Sounds (1.0) / Audio/back_001.ogg
+  Author:  Kenney (www.kenney.nl)
+  Source:  https://kenney.nl/assets/interface-sounds
+  Licence: CC0 1.0 (pack License.txt: 'Creative Commons Zero, CC0')
+  Edit:    converted from OGG; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS
+
+wood_knock_2.wav  (0.330 s)
+  Title:   Impact Sounds / Audio/impactWood_medium_000.ogg
+  Author:  Kenney (www.kenney.nl)
+  Source:  https://kenney.nl/assets/impact-sounds
+  Licence: CC0 1.0 (pack License.txt: 'Creative Commons Zero, CC0')
+  Edit:    converted from OGG; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS
+
+wood_knock_3.wav  (0.330 s)
+  Title:   Impact Sounds / Audio/impactWood_medium_001.ogg
+  Author:  Kenney (www.kenney.nl)
+  Source:  https://kenney.nl/assets/impact-sounds
+  Licence: CC0 1.0 (pack License.txt: 'Creative Commons Zero, CC0')
+  Edit:    converted from OGG; mono, 44.1 kHz 16-bit; leading silence (<-50 dBFS) removed; short fade-in; fade-out on tail; peak-normalised to -1 dBFS
+
+Considered but NOT used:
+  - freesound 618256 / 618282 / 618276 (yukon456, golf cheer/driver/chip): marked CC0 but description says they were ripped from a PGA TOUR YouTube video, so the uploader likely cannot license them. Skipped.
+  - Kenney Impact Sounds impactMining_000/001 (rock): source is clipped. Replaced with freesound stone hits.
+  - freesound 264376 (small crowd gasp): source appears clipped/overloaded. Skipped.
+  - freesound 538152 (Game Rustle Leaves): synthetic (Beepbox), not a real recording. Skipped.
+  - freesound 764900 (bush rustle): almost silent (-54 dBFS peak). Skipped.
+
+Everything in ../Synth was generated by Tools/audio/synth_sounds.py (procedural, no recordings).

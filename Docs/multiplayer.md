@@ -76,6 +76,50 @@ with the connection and the HUD. Any scene with a `HoleInfo` and a `GolfBall` wo
 Keyboard and gamepad do the same: arrows (Left/Right aim and Up/Down club in game), Enter (or A) for
 Select, Esc (or B) for Back. Space hits with the on-screen panel (Tab shows it).
 
+## Putting
+
+With the putter on the green (or within 3 m of it on the fringe) the sim is in **putting mode**
+(`RoundDirector.Putting.cs`): the camera drops low behind the ball looking at the cup, the HUD shows the putt
+card (feet and metres, the rise or fall in cm, how long it plays, the Stimp and the read level), and `state`
+carries `putting: true`, `puttDistance` (m), `elevation` (m, + uphill), `stimp` (ft), `puttPlaysAs` (m) and
+`puttingAssist`. The app then shows its putting view with a power meter. Shots stay ordinary `shot` messages.
+
+- **Break preview** (`Ball/Runtime/PuttPreview.cs`, `PuttPredictor.cs`, `GreenReading.cs`): rolls a copy of the
+  putt over the terrain with the ball's own physics at the speed that finishes 40 cm past the hole along the aim,
+  and draws it as dots with slope arrows. **P** (or the panel's Assist button) cycles Full / Partial (the line
+  fades out after `revealFraction`, 60 %) / Off. It re-solves when the ball or aim moves.
+- **Distance** (`Ball/Runtime/PuttModel.cs`, and `Model/PuttModel.swift` in the app with the same constants):
+  roll = Stimp (m) × (ball speed / 1.83 m/s)². The green is Stimp 11.2. `puttPlaysAs` is the flat-green roll of
+  the putt the preview solved, so the meter's target already includes the slope.
+- **Keyboard:** with the Putter preset the shot panel shows a distance slider in metres (Use the read loads
+  `puttPlaysAs`). After each putt the HUD shows a strength bar against the read.
+- `Tools/unity_scripts/PuttingCheck.cs` checks the preview against the real ball and saves screenshots.
+
+## Sound and instant replay
+
+Both only listen to the ball's and the round's events (`RoundDirector` adds them to its object); no gameplay code
+plays a sound or moves a replay camera.
+
+- **Sound** (`Game/Runtime/Audio/`): `GameAudio` plays `AudioCatalog` sounds (`Game/Resources/AudioCatalog.asset`:
+  clips, volume and pitch ranges, 3D or 2D, bus) with master / SFX / crowd / UI / ambience volumes saved in
+  PlayerPrefs (`GameAudio.MasterVolume`, `GameAudio.SetVolume`). `ShotSounds` does the strike (driver, iron or
+  putter by the club, louder with ball speed), landings by surface, trees, rocks, the splash and the cup;
+  `CrowdReactions` the gallery (roar, cheer, applause, "ooh", groan, from the score and the shot); `UiSounds` the
+  D-pad ticks, the turn banner swoosh and the replay sting. Clips: `Game/Audio/CC0/` (CC0 recordings, sources in
+  its `SOURCES.txt`) and `Game/Audio/Synth/` (`Tools/audio/synth_sounds.py`). `Tools/unity_scripts/SetupAudio.cs`
+  rebuilds the catalog's clip lists from those folders.
+- **Replay** (`Game/Runtime/Replay/`): `ShotRecorder` re-simulates each finished shot from the same spot and seed
+  into a `ShotRecording` (path every 4 ms plus its events). In a round, `ReplayDirector` replays shots that
+  `ReplaySettings.Reason` finds interesting (drives over 250 yd, approaches from 30 m+ finishing within 3 m, holed
+  shots from off the green, holed putts over 6 m, trees, water), or the last shot when a player presses **Up**
+  between turns. It holds the next turn (`RoundDirector.Hold`) and **Select or Back skips it**. `ReplayCameraman`
+  cuts it like TV: down-the-line on a long lens, a tower beside the flight with lead room, a landing-zone camera
+  looking back at the ball dropping in (slow motion), a tree camera, a low cup camera for holed putts and a
+  blimp shot of the whole tracer after long shots. Cameras are kept out of the terrain and trees with a clear view
+  (`CameraSpots`). Tuning: the `settings` on `ReplayDirector` (Golf Game object in Play mode).
+  `Tools/unity_scripts/ReplayCheck.cs` renders frames of each camera for a drive, an approach, a chip, a tree hit
+  and a holed putt, and checks the round flow.
+
 ## Running it
 
 1. **Server.** The sim uses the hosted server by default, `wss://golf-server.obadiahfusco.xyz`

@@ -34,11 +34,11 @@ namespace GolfSim.Ball
     /// </summary>
     public class GolfBall : MonoBehaviour
     {
-        const float Step = 0.002f;           // same step the model was calibrated with
+        public const float Step = 0.002f;           // same step the model was calibrated with
         const int MaxStepsPerFrame = 2000;   // never fall more than 4 s behind after a hitch
-        const float RollSpeed = 0.35f;       // m/s off the ground below which bouncing turns into rolling
-        const float CupRadius = 0.054f;
-        const float CupCaptureSpeed = 1.6f;  // m/s; faster balls lip out
+        public const float RollSpeed = 0.35f;       // m/s off the ground below which bouncing turns into rolling
+        public const float CupRadius = 0.054f;
+        public const float CupCaptureSpeed = 1.6f;  // m/s; faster balls lip out
         const float RestAgainstSpeed = 0.15f; // m/s; a rolling ball this slow after hitting a trunk or rock stops against it
         const float MaxShotTime = 60f;       // s; a safety net, no real shot gets near it
         const float TeeRadius = 1f;          // m; a ball this close to the tee marker is teed up (clean lie)

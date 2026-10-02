@@ -71,6 +71,21 @@ namespace GolfSim.Net
         public float distanceToPin;
         public string lie;
 
+        // Putting mode (ball on the green, or the putter just off it): the phone shows its putting view and power
+        // meter. Optional for readers: false / 0 / "" outside putting mode (JsonUtility always writes them).
+        // Doubles so the JSON shows 5.03, not 5.0300002.
+        public bool putting;
+        /// <summary>Metres to the pin, to the centimetre (putting mode).</summary>
+        public double puttDistance;
+        /// <summary>Metres the pin sits above (+) or below (-) the ball (putting mode).</summary>
+        public double elevation;
+        /// <summary>Green speed, Stimpmeter feet: roll distance = stimp (m) x (ball speed / 1.83 m/s)² (PuttModel).</summary>
+        public double stimp;
+        /// <summary>Metres the putt that finishes 40 cm past the hole along the aim would roll on a flat green: the power meter's target.</summary>
+        public double puttPlaysAs;
+        /// <summary>full, partial or off: how much of the break line the sim draws.</summary>
+        public string puttingAssist;
+
         public StateMessage() : base(MessageType.State) { }
     }
 

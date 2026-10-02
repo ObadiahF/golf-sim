@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using GolfSim.Course;
 using UnityEngine;
@@ -83,7 +84,26 @@ namespace GolfSim.Ball
         }
 
         /// <summary>Loads a club's typical shot into the sliders (see Clubs.Bag).</summary>
-        public void SelectClub(string clubName) => Apply(Clubs.Find(clubName).shot);
+        public void SelectClub(string clubName)
+        {
+            SelectedClub = Clubs.Find(clubName).name;
+            Apply(Clubs.Find(clubName).shot);
+        }
+
+        /// <summary>The last club preset loaded (a preset button or SelectClub).</summary>
+        public string SelectedClub { get; private set; } = Clubs.Bag[0].name;
+        /// <summary>A club preset button was pressed (the game follows it, e.g. into putting mode).</summary>
+        public event Action<string> ClubPicked;
+        /// <summary>Extra controls drawn under the sliders (e.g. PuttPanel's distance slider).</summary>
+        public event Action DrawExtras;
+        /// <summary>Overrides where LineUp puts the camera (e.g. low behind a putt); null = behind the ball.</summary>
+        public Func<Pose?> lineUpPose;
+        /// <summary>The ball speed slider, m/s.</summary>
+        public float BallSpeed
+        {
+            get => mph * ShotData.MetersPerSecondPerMph;
+            set => mph = value / ShotData.MetersPerSecondPerMph;
+        }
 
         /// <summary>Watches the ball settle, then glides behind it facing the pin, ready for the next shot.</summary>
         IEnumerator LineUpNextShot()
@@ -101,6 +121,7 @@ namespace GolfSim.Ball
 
         Pose BehindBall()
         {
+            if (lineUpPose?.Invoke() is Pose custom) return custom;
             var aim = Aim();
             var pos = ball.transform.position + Offset(aim, back: 6f, side: 2f, up: 2f);
             var lookAt = ball.transform.position + aim * 40f + Vector3.up * 6f;
@@ -123,7 +144,7 @@ namespace GolfSim.Ball
             GUILayout.BeginHorizontal();
             foreach (var club in Clubs.Bag)
             {
-                if (GUILayout.Button(club.name)) Apply(club.shot);
+                if (GUILayout.Button(club.name)) { SelectClub(club.name); ClubPicked?.Invoke(club.name); }
                 if (++column % 4 == 0) { GUILayout.EndHorizontal(); GUILayout.BeginHorizontal(); }
             }
             GUILayout.EndHorizontal();
@@ -137,6 +158,7 @@ namespace GolfSim.Ball
             windMph = Slider("Wind", windMph, 0f, 30f, $"{windMph:0} mph");
             windFrom = Slider("Wind from", windFrom, 0f, 359f, Compass(windFrom));
             followBall = GUILayout.Toggle(followBall, " Camera follows ball");
+            DrawExtras?.Invoke();
 
             GUILayout.Space(6);
             GUILayout.BeginHorizontal();

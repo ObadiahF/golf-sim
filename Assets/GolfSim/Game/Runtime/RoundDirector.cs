@@ -24,6 +24,9 @@ namespace GolfSim.Game
         /// <summary>A player's turn began (sent to the phones as "turn"; the HUD announces it from this too).</summary>
         public event Action<TurnMessage> TurnStarted;
 
+        /// <summary>While this returns true the scheduled next step (next turn, scorecard) waits, e.g. for an instant replay.</summary>
+        public static Func<bool> Hold;
+
         public CourseRound course;
 
         /// <summary>The round being played, or null (menu or practice).</summary>
@@ -95,6 +98,8 @@ namespace GolfSim.Game
             Instance = this;
             if (!course) course = CourseRound.Load();
             hud = CreateHud();
+            gameObject.AddComponent<ReplayDirector>(); // presentation: sounds and replays follow the ball and round events
+            gameObject.AddComponent<GameAudio>();
             TurnStarted += turn => hud?.Banner.AnnounceTurn(turn.player, Array.IndexOf(round.players, turn.player),
                                                              RoundHud.TurnInfo(turn.hole, round.Par, turn.strokes));
             connection = SimConnection.Create(ServerConfig.Load());
@@ -133,7 +138,7 @@ namespace GolfSim.Game
         void Update()
         {
             NavInput.Poll();
-            if (pending != null && !HomeMenu.IsOpen && Time.realtimeSinceStartup >= pendingAt) RunPending();
+            if (pending != null && !HomeMenu.IsOpen && Hold?.Invoke() != true && Time.realtimeSinceStartup >= pendingAt) RunPending();
         }
 
         /// <summary>Runs the scheduled step (next turn) now instead of after its delay; for tests and tools.</summary>
@@ -310,6 +315,7 @@ namespace GolfSim.Game
                 s.aim = (float)Math.Round(ball.aimOffset, 1);
                 s.distanceToPin = Mathf.Round(YardsToPin);
                 s.lie = round == null ? practiceLie : round.CurrentBall?.lie ?? "";
+                FillPutting(s);
             }
             if (round?.CurrentBall is { } current)
             {
@@ -323,6 +329,7 @@ namespace GolfSim.Game
         void PublishState(bool force = false)
         {
             var state = BuildState();
+            ShowPutting(state);
             hud?.Render(state, LieLabel(state.lie));
             string json = state.ToJson();
             if (!force && json == lastState) return;

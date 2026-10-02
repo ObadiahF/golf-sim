@@ -21,7 +21,6 @@ using UnityEngine.SceneManagement;
 public static class RoundPlayTest
 {
     const float Frame = 0.02f;
-    const float GreenDecel = 0.55f; // m/s² a putt slows by on a Stimp-11 green (BallPlayTest.Putt)
     static int nextId = 9_000_000;
 
     static RoundDirector D => RoundDirector.Instance;
@@ -54,8 +53,7 @@ public static class RoundPlayTest
         if (club.IsPutter)
         {
             float d = Vector3.ProjectOnPlane(hole.PinWorld - ball.transform.position, Vector3.up).magnitude;
-            shot = ShotData.FromMph(0, 1f, 0, 0, 0);
-            shot.ballSpeed = Mathf.Sqrt(2f * GreenDecel * d) * 1.05f;
+            shot = PuttModel.PuttAt(PuttModel.SpeedFor(d + PuttModel.Overshoot, PuttModel.GreenStimp(ball.Settings)));
         }
         var msg = new RemoteShotMessage
         {

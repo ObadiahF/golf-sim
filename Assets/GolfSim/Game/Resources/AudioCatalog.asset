@@ -1,0 +1,235 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d53dc4b373f8147c1a49a0d434e063f5, type: 3}
+  m_Name: AudioCatalog
+  m_EditorClassIdentifier: GolfSim.Game::GolfSim.Game.AudioCatalog
+  master: 1
+  sfx: 0.9
+  crowd: 0.75
+  ui: 0.6
+  ambience: 0.35
+  sounds:
+  - id: 0
+    bus: 0
+    clips:
+    - {fileID: 8300000, guid: 9b9519bf9ffe246f4a360808ef1414f6, type: 3}
+    - {fileID: 8300000, guid: ae52c5c68dc084174ab8c6302fc393a8, type: 3}
+    - {fileID: 8300000, guid: d5c8d8523c4284bc49b94039f46a7652, type: 3}
+    - {fileID: 8300000, guid: 3a983f649ea9d4e6b920827a777740b7, type: 3}
+    volume: {x: 0.9, y: 1}
+    pitch: {x: 0.97, y: 1.03}
+    spatial: 1
+    minDistance: 18
+  - id: 1
+    bus: 0
+    clips:
+    - {fileID: 8300000, guid: 1727cfdae57e0436498968bf272dbd25, type: 3}
+    - {fileID: 8300000, guid: 7a917b5d4bc8a4a74a51e484caafe13a, type: 3}
+    - {fileID: 8300000, guid: 28b8db8ce65ad4ec08db09637b56360d, type: 3}
+    - {fileID: 8300000, guid: 1ed1c89a8553c4b70b3b828f86b9701d, type: 3}
+    volume: {x: 0.85499996, y: 0.95}
+    pitch: {x: 0.96, y: 1.04}
+    spatial: 1
+    minDistance: 16
+  - id: 2
+    bus: 0
+    clips:
+    - {fileID: 8300000, guid: 7826c50ce3d264178879f8b7097ebdfc, type: 3}
+    - {fileID: 8300000, guid: fe50b74738cf64a819ba953a35eecac0, type: 3}
+    - {fileID: 8300000, guid: c35b692fdc93f4c8583fbec482369642, type: 3}
+    volume: {x: 0.71999997, y: 0.8}
+    pitch: {x: 0.96, y: 1.04}
+    spatial: 1
+    minDistance: 8
+  - id: 3
+    bus: 0
+    clips:
+    - {fileID: 8300000, guid: fe46d3bf6c06f40b3aa3cf9cd214719d, type: 3}
+    - {fileID: 8300000, guid: 06a2750079eda4615a34a30eea34b05f, type: 3}
+    - {fileID: 8300000, guid: e6cfe0a8fc8d34859810eb1a182a919a, type: 3}
+    volume: {x: 0.67499995, y: 0.75}
+    pitch: {x: 0.92, y: 1.08}
+    spatial: 1
+    minDistance: 10
+  - id: 4
+    bus: 0
+    clips:
+    - {fileID: 8300000, guid: 9bd775643137b4cecbd70913f0163c0f, type: 3}
+    - {fileID: 8300000, guid: d70a7c9c929ce440991ec9f540cd93b5, type: 3}
+    - {fileID: 8300000, guid: e7a4ba37df735468ba0c3528108df466, type: 3}
+    volume: {x: 0.71999997, y: 0.8}
+    pitch: {x: 0.92, y: 1.08}
+    spatial: 1
+    minDistance: 10
+  - id: 5
+    bus: 0
+    clips:
+    - {fileID: 8300000, guid: 9145fb675bb8d4ea4807cdf713693d67, type: 3}
+    - {fileID: 8300000, guid: 9beed10f8dba34378a8fb97eae68d2a3, type: 3}
+    - {fileID: 8300000, guid: 3a47f9a64c8894816806118ae9409c5a, type: 3}
+    volume: {x: 0.67499995, y: 0.75}
+    pitch: {x: 0.94, y: 1.06}
+    spatial: 1
+    minDistance: 10
+  - id: 6
+    bus: 0
+    clips:
+    - {fileID: 8300000, guid: 2ddbb30da2cef437280f19a29e3ee6ed, type: 3}
+    - {fileID: 8300000, guid: b066c9f02981249cb9bd4a796961b6af, type: 3}
+    - {fileID: 8300000, guid: b4964031f4d2c4b5da7634378a1d4191, type: 3}
+    volume: {x: 0.9, y: 1}
+    pitch: {x: 0.92, y: 1.08}
+    spatial: 1
+    minDistance: 12
+  - id: 7
+    bus: 0
+    clips:
+    - {fileID: 8300000, guid: 71d840d04248e43a784fdcee3cf24c76, type: 3}
+    - {fileID: 8300000, guid: c340ae4c8129740ed90acb18c084c0d3, type: 3}
+    volume: {x: 0.80999994, y: 0.9}
+    pitch: {x: 0.9, y: 1.1}
+    spatial: 1
+    minDistance: 12
+  - id: 8
+    bus: 0
+    clips:
+    - {fileID: 8300000, guid: 943058916bfea4f42a7278cd5903956e, type: 3}
+    - {fileID: 8300000, guid: d40553767f4fd493bbcf53a08019a1f9, type: 3}
+    - {fileID: 8300000, guid: 82acad0f52f9f4a9393fff1ea50f8a3f, type: 3}
+    volume: {x: 0.80999994, y: 0.9}
+    pitch: {x: 0.92, y: 1.08}
+    spatial: 1
+    minDistance: 12
+  - id: 9
+    bus: 0
+    clips:
+    - {fileID: 8300000, guid: 849689cf3a356495d8c1e544c7530f8e, type: 3}
+    - {fileID: 8300000, guid: ffb7c345f39424f33b370b11fabbebe0, type: 3}
+    volume: {x: 0.9, y: 1}
+    pitch: {x: 0.94, y: 1.06}
+    spatial: 1
+    minDistance: 14
+  - id: 10
+    bus: 0
+    clips:
+    - {fileID: 8300000, guid: bd28ef8c812c34323b486c9a63c63846, type: 3}
+    - {fileID: 8300000, guid: 0dcdfe115ac184f46a015d6b9c7787ba, type: 3}
+    volume: {x: 0.9, y: 1}
+    pitch: {x: 0.95, y: 1.05}
+    spatial: 1
+    minDistance: 10
+  - id: 11
+    bus: 1
+    clips:
+    - {fileID: 8300000, guid: d30958bc7dc27401dbc8f4580ba8f5de, type: 3}
+    - {fileID: 8300000, guid: 63e237e098a7e41218cfb533f8e83639, type: 3}
+    - {fileID: 8300000, guid: fc708b8cec4ef40548f4380f3eb4be46, type: 3}
+    volume: {x: 0.765, y: 0.85}
+    pitch: {x: 0.97, y: 1.03}
+    spatial: 0
+    minDistance: 10
+  - id: 12
+    bus: 1
+    clips:
+    - {fileID: 8300000, guid: 295ef93daf17149eb9bfa88a604ea162, type: 3}
+    - {fileID: 8300000, guid: 9279a4023ce3a4550bf005be4a3881de, type: 3}
+    volume: {x: 0.85499996, y: 0.95}
+    pitch: {x: 0.97, y: 1.03}
+    spatial: 0
+    minDistance: 10
+  - id: 13
+    bus: 1
+    clips:
+    - {fileID: 8300000, guid: 35a00690f1f824168bf4b348caeb0ac4, type: 3}
+    - {fileID: 8300000, guid: 2c466f223655b4ee983099a96fed8700, type: 3}
+    volume: {x: 0.71999997, y: 0.8}
+    pitch: {x: 0.98, y: 1.02}
+    spatial: 0
+    minDistance: 10
+  - id: 14
+    bus: 1
+    clips:
+    - {fileID: 8300000, guid: ecdc5dc949f7c4248af839bd254b10eb, type: 3}
+    - {fileID: 8300000, guid: eb44341141a8e441e91138295593ed8d, type: 3}
+    - {fileID: 8300000, guid: d863b8088397c4c1fb9384bd2a1b0984, type: 3}
+    volume: {x: 0.765, y: 0.85}
+    pitch: {x: 0.96, y: 1.04}
+    spatial: 0
+    minDistance: 10
+  - id: 15
+    bus: 1
+    clips:
+    - {fileID: 8300000, guid: be38d0d2952b7494d8b8d1b9cfc102c9, type: 3}
+    - {fileID: 8300000, guid: fe791354c58fb4c1c8d59277f48afa92, type: 3}
+    - {fileID: 8300000, guid: ff62f2224224c4bc7ae55f7278ccfd27, type: 3}
+    volume: {x: 0.765, y: 0.85}
+    pitch: {x: 0.96, y: 1.04}
+    spatial: 0
+    minDistance: 10
+  - id: 16
+    bus: 2
+    clips:
+    - {fileID: 8300000, guid: 940d3a12ade6c459c97398a7d4e4dffb, type: 3}
+    volume: {x: 0.63, y: 0.7}
+    pitch: {x: 0.95, y: 1.05}
+    spatial: 0
+    minDistance: 10
+  - id: 17
+    bus: 2
+    clips:
+    - {fileID: 8300000, guid: 5c6367892f650483cbccacb24886cbd9, type: 3}
+    - {fileID: 8300000, guid: accad3d4928584512b68764235ed7d6f, type: 3}
+    volume: {x: 0.45, y: 0.5}
+    pitch: {x: 0.97, y: 1.03}
+    spatial: 0
+    minDistance: 10
+  - id: 18
+    bus: 2
+    clips:
+    - {fileID: 8300000, guid: 4f40f2e7f7ca14090bb93563907878aa, type: 3}
+    volume: {x: 0.54, y: 0.6}
+    pitch: {x: 0.98, y: 1.02}
+    spatial: 0
+    minDistance: 10
+  - id: 19
+    bus: 2
+    clips:
+    - {fileID: 8300000, guid: ad9bd2ce2c50d487ea1278d99f67c3fb, type: 3}
+    volume: {x: 0.495, y: 0.55}
+    pitch: {x: 0.98, y: 1.02}
+    spatial: 0
+    minDistance: 10
+  - id: 20
+    bus: 2
+    clips:
+    - {fileID: 8300000, guid: 95da56306f80644d3b1535cf07324538, type: 3}
+    volume: {x: 0.63, y: 0.7}
+    pitch: {x: 1, y: 1}
+    spatial: 0
+    minDistance: 10
+  - id: 21
+    bus: 3
+    clips:
+    - {fileID: 8300000, guid: 9927579a5e7e342fb8215b40b403797b, type: 3}
+    - {fileID: 8300000, guid: 614f4279aa67d43bea50e2a3c64b79a4, type: 3}
+    volume: {x: 0.71999997, y: 0.8}
+    pitch: {x: 1, y: 1}
+    spatial: 0
+    minDistance: 10
+  - id: 22
+    bus: 3
+    clips:
+    - {fileID: 8300000, guid: 21970142a21434809b4a3ab5d955ecf0, type: 3}
+    volume: {x: 0.54, y: 0.6}
+    pitch: {x: 1, y: 1}
+    spatial: 0
+    minDistance: 10
