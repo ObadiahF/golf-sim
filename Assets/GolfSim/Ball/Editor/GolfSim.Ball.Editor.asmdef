@@ -1,0 +1,7 @@
+{
+    "name": "GolfSim.Ball.Editor",
+    "rootNamespace": "GolfSim.Ball.Editor",
+    "references": ["GolfSim.Ball", "CourseBuilder.Runtime", "CourseBuilder.Editor"],
+    "includePlatforms": ["Editor"],
+    "autoReferenced": false
+}

@@ -21,7 +21,8 @@ namespace GolfSim.CourseEditor
             res = alpha.GetLength(0);
             cellSize = sizeMeters / res;
 
-            var clearLayers = keepClear.Select(layers.IndexOf).Where(i => i >= 0).ToArray();
+            // By name, so stripe layers count as part of their surface.
+            var clearLayers = Enumerable.Range(0, surfaces.Length).Where(i => keepClear.Contains(surfaces[i])).ToArray();
             blocked = new float[res, res];
             for (int z = 0; z < res; z++)
                 for (int x = 0; x < res; x++)

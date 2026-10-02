@@ -17,6 +17,7 @@ namespace GolfSim.CourseEditor
     {
         public const string DefaultPath = "Assets/CourseBuilder/Settings/DefaultSurfaceLayers.asset";
         const float PlaceholderTileSize = 4f;
+        const string StripeSuffix = "#stripe";
 
         [Serializable]
         public class Entry
@@ -24,6 +25,17 @@ namespace GolfSim.CourseEditor
             public string surface;
             public TerrainLayer layer;
             public Color placeholderColor = Color.magenta;
+
+            [Header("Mowing stripes (optional)")]
+            [Tooltip("Variant of the layer (usually slightly darker) painted in alternating bands.")]
+            public TerrainLayer stripeLayer;
+            [Min(0), Tooltip("Band width in meters. 0 = no stripes.")]
+            public float stripeWidth;
+            [Tooltip("Band direction in degrees from the line of play: 0 = bands run tee to green, 90 = across.")]
+            public float stripeAngle;
+
+            public bool HasStripes => stripeLayer && stripeWidth > 0f;
+            public bool IsStripe => surface.EndsWith(StripeSuffix);
         }
 
         public List<Entry> entries = DefaultEntries();
@@ -66,17 +78,38 @@ namespace GolfSim.CourseEditor
 
         /// <summary>
         /// In-memory copy holding the base entry plus only the given surfaces, in priority order.
-        /// HDRP terrain renders at most 8 layers, so each hole gets just the layers it uses.
+        /// Each terrain layer costs rendering time, so a hole gets just the layers it uses.
+        /// Striped surfaces expand into the surface plus a stripe entry painted right above it.
         /// </summary>
         public SurfaceLayerSet Subset(ICollection<string> surfaces)
         {
             var subset = CreateInstance<SurfaceLayerSet>();
             subset.name = name;
-            subset.entries = entries.Where((e, i) => i == 0 || surfaces.Contains(e.surface)).ToList();
+            subset.waterMaterial = waterMaterial;
+            subset.entries = new List<Entry>();
+            for (int i = 0; i < entries.Count; i++)
+            {
+                var e = entries[i];
+                if (i != 0 && !surfaces.Contains(e.surface)) continue;
+                subset.entries.Add(e);
+                if (e.HasStripes)
+                    subset.entries.Add(new Entry
+                    {
+                        surface = e.surface + StripeSuffix,
+                        layer = e.stripeLayer,
+                        placeholderColor = e.placeholderColor * 0.85f,
+                        stripeWidth = e.stripeWidth,
+                        stripeAngle = e.stripeAngle,
+                    });
+            }
             return subset;
         }
 
-        public string[] SurfaceNames() => entries.ConvertAll(e => e.surface).ToArray();
+        /// <summary>Surface name per entry; stripe entries report their parent surface.</summary>
+        public string[] SurfaceNames() => entries.ConvertAll(e => BaseSurface(e.surface)).ToArray();
+
+        public static string BaseSurface(string surface) =>
+            surface.EndsWith(StripeSuffix) ? surface.Substring(0, surface.Length - StripeSuffix.Length) : surface;
 
         /// <summary>The configured layer per entry, creating placeholder layers where none is assigned.</summary>
         public TerrainLayer[] ResolveLayers() => entries.ConvertAll(e => e.layer ? e.layer : Placeholder(e)).ToArray();

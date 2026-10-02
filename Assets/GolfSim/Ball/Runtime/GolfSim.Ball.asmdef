@@ -1,0 +1,6 @@
+{
+    "name": "GolfSim.Ball",
+    "rootNamespace": "GolfSim.Ball",
+    "references": ["CourseBuilder.Runtime", "Unity.InputSystem"],
+    "autoReferenced": true
+}

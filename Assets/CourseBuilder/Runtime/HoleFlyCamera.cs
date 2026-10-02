@@ -17,6 +17,10 @@ namespace GolfSim.Course
         [Tooltip("Keeps the camera at least this high above the terrain.")]
         public float minGroundClearance = 1.5f;
         public bool showHelp = true;
+        [Tooltip("While set, the camera turns to keep this in view (e.g. the ball in flight). Right-click looking cancels it.")]
+        public Transform trackTarget;
+        [Tooltip("How quickly tracking catches up with the target.")]
+        public float trackSharpness = 6f;
 
         const string Help =
             "Right mouse: look   WASD: move   Q/E: down/up\n" +
@@ -53,12 +57,25 @@ namespace GolfSim.Course
         {
             bool looking = mouse.rightButton.isPressed;
             Cursor.lockState = looking ? CursorLockMode.Locked : CursorLockMode.None;
-            if (!looking) return;
+            if (looking) trackTarget = null; // the user takes over
+            else
+            {
+                Track();
+                return;
+            }
 
             Vector2 delta = mouse.delta.ReadValue() * lookSensitivity;
             yaw += delta.x;
             pitch = Mathf.Clamp(pitch - delta.y, -89f, 89f);
             transform.rotation = Quaternion.Euler(pitch, yaw, 0f);
+        }
+
+        void Track()
+        {
+            if (!trackTarget) return;
+            var wanted = Quaternion.LookRotation(trackTarget.position - transform.position);
+            transform.rotation = Quaternion.Slerp(transform.rotation, wanted, 1f - Mathf.Exp(-trackSharpness * Time.unscaledDeltaTime));
+            SyncAngles();
         }
 
         void Move(Keyboard kb, Mouse mouse)
@@ -91,9 +108,10 @@ namespace GolfSim.Course
         static float Axis(UnityEngine.InputSystem.Controls.KeyControl positive, UnityEngine.InputSystem.Controls.KeyControl negative) =>
             (positive.isPressed ? 1f : 0f) - (negative.isPressed ? 1f : 0f);
 
-        public void JumpTo(HoleView view)
+        public void JumpTo(HoleView view) => JumpTo(HoleViews.Get(hole, view));
+
+        public void JumpTo(Pose pose)
         {
-            var pose = HoleViews.Get(hole, view);
             transform.SetPositionAndRotation(pose.position, pose.rotation);
             SyncAngles();
         }

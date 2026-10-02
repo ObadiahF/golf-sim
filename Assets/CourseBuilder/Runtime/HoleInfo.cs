@@ -14,6 +14,9 @@ namespace GolfSim.Course
         public Vector3 pinPosition;
         public Vector3[] holePath = new Vector3[0];
 
+        [Tooltip("Surface name for each terrain layer index (green, fairway, rough...), for ball physics.")]
+        public string[] terrainLayerSurfaces = new string[0];
+
         [Tooltip("Asset path of the hole.json this hole was generated from.")]
         public string sourcePackage;
 

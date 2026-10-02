@@ -19,7 +19,7 @@ namespace GolfSim.CourseEditor
     /// <summary>Builds a hole (terrain + paint + markers) in the open scene from a hole package.</summary>
     public static class HoleTerrainBuilder
     {
-        const int MaxHdrpTerrainLayers = 8;
+        const int LayersPerPass = 4; // URP terrain draws 4 layers per pass; more layers add passes
 
         public static GameObject Build(HolePackage pkg, HoleBuildOptions options)
         {
@@ -39,8 +39,8 @@ namespace GolfSim.CourseEditor
                 Progress("Surface layers", 0.3f);
                 options.layers.AddMissingDefaults();
                 layers = options.layers.Subset(pkg.areas.Select(a => a.surface).ToHashSet());
-                if (layers.entries.Count > MaxHdrpTerrainLayers)
-                    Debug.LogWarning($"[CourseBuilder] {layers.entries.Count} surface layers; HDRP terrain only renders {MaxHdrpTerrainLayers}.");
+                if (layers.entries.Count > LayersPerPass * 2)
+                    Debug.Log($"[CourseBuilder] {layers.entries.Count} terrain layers = {(layers.entries.Count + LayersPerPass - 1) / LayersPerPass} render passes.");
                 data.terrainLayers = layers.ResolveLayers();
                 data.alphamapResolution = pkg.heightmapResolution - 1;
 
@@ -92,7 +92,7 @@ namespace GolfSim.CourseEditor
 
             var tee = pkg.ToLocal(pkg.tee, terrain);
             var pin = pkg.ToLocal(pkg.pin, terrain);
-            HoleMarkers.Create(root.transform, tee, pin);
+            HoleMarkers.Create(root.transform, tee, pin, terrain, pkg.Folder);
             HoleMarkers.AimTee(root.transform, tee, pin);
 
             var info = root.AddComponent<HoleInfo>();
@@ -104,6 +104,7 @@ namespace GolfSim.CourseEditor
             info.pinPosition = pin;
             info.holePath = Enumerable.Range(0, pkg.holePath.Count).Select(i => pkg.ToLocal(pkg.holePath[i], terrain)).ToArray();
             info.sourcePackage = pkg.assetPath;
+            info.terrainLayerSurfaces = layers.SurfaceNames();
 
             Undo.RegisterCreatedObjectUndo(root, $"Generate Hole {pkg.holeRef}");
             EditorSceneManager.MarkSceneDirty(root.scene);

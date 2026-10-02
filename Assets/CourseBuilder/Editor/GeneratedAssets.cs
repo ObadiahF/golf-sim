@@ -39,11 +39,20 @@ namespace GolfSim.CourseEditor
             return asset;
         }
 
-        public static Material ColorMaterial(string name, Color color) =>
+        public static Material ColorMaterial(string name, Color color, bool doubleSided = false) =>
             LoadOrCreate($"{Root}/Materials/{name}.mat", () =>
             {
                 var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-                return new Material(shader) { color = color }; // .color targets the shader's [MainColor]
+                var mat = new Material(shader) { color = color }; // .color targets the shader's [MainColor]
+                if (doubleSided)
+                {
+                    mat.SetFloat("_Cull", 0f); // URP Lit: render both faces
+                    mat.doubleSidedGI = true;
+                }
+                return mat;
             });
+
+        public static Material ShaderMaterial(string name, string shaderName) =>
+            LoadOrCreate($"{Root}/Materials/{name}.mat", () => new Material(Shader.Find(shaderName)));
     }
 }

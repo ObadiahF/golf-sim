@@ -43,6 +43,15 @@ __pycache__/
 # Third-party Asset Store content (large, licensed): re-extract instead of committing
 /Assets/TerrainDemoScene_URP/
 /Assets/TerrainDemoScene_URP.meta
+/Assets/VegetationSpawner/
+/Assets/VegetationSpawner.meta
+/Assets/PinwheelStudio/
+/Assets/PinwheelStudio.meta
+/Assets/Visual Design Cafe/
+/Assets/Visual Design Cafe.meta
+/Assets/WebGpuWater/
+/Assets/WebGpuWater.meta
+/Packages/com.abstractocclusion.webgpuwater/
 /Assets/Temp/
 /Assets/Temp.meta
 
@@ -51,3 +60,9 @@ __pycache__/
 /Assets/CourseData/**/TerrainData.asset.meta
 /Assets/CourseData/**/Water*.asset
 /Assets/CourseData/**/Water*.asset.meta
+/Assets/CourseData/**/Cup*.asset
+/Assets/CourseData/**/Cup*.asset.meta
+
+# Claude Code agent worktrees
+/.claude/
+/Packages/com.vdc.nature-renderer.free.uas.json

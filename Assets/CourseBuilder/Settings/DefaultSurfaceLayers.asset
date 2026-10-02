@@ -16,28 +16,55 @@ MonoBehaviour:
   - surface: native
     layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
     placeholderColor: {r: 0.55, g: 0.52, b: 0.36, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
   - surface: rough
     layer: {fileID: 8574412962073106934, guid: dfa64948ee6da4072a1c269651b862a4, type: 2}
     placeholderColor: {r: 0.24, g: 0.42, b: 0.16, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
   - surface: scrub
     layer: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
     placeholderColor: {r: 0.45, g: 0.44, b: 0.28, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
   - surface: woods
     layer: {fileID: 8574412962073106934, guid: 7df1222ec114943d98d65ceccb635575, type: 2}
     placeholderColor: {r: 0.13, g: 0.25, b: 0.1, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
   - surface: fairway
     layer: {fileID: 8574412962073106934, guid: 3489d497a70f945f4a443a7a9775c52b, type: 2}
     placeholderColor: {r: 0.36, g: 0.62, b: 0.22, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: 3094979ac48d348d98328c5877f0bbbe, type: 2}
+    stripeWidth: 4
+    stripeAngle: 90
   - surface: tee
     layer: {fileID: 8574412962073106934, guid: 4e07cd4221b5c40029ac54c35f859d27, type: 2}
     placeholderColor: {r: 0.4, g: 0.66, b: 0.26, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
   - surface: green
     layer: {fileID: 8574412962073106934, guid: 2783c71fa1a4149a781d3bec57aa0de8, type: 2}
     placeholderColor: {r: 0.3, g: 0.72, b: 0.28, a: 1}
+    stripeLayer: {fileID: 8574412962073106934, guid: b69bd7c2a3afd49f1bf43eabad8fb447, type: 2}
+    stripeWidth: 1
+    stripeAngle: 0
   - surface: bunker
     layer: {fileID: 8574412962073106934, guid: 9b389e7f3cc2c415596d6c316275361c, type: 2}
     placeholderColor: {r: 0.9, g: 0.82, b: 0.6, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
   - surface: water
     layer: {fileID: 0}
     placeholderColor: {r: 0.16, g: 0.32, b: 0.48, a: 1}
+    stripeLayer: {fileID: 0}
+    stripeWidth: 0
+    stripeAngle: 0
   waterMaterial: {fileID: 2100000, guid: 606a2cf006c309d47bb99f421ada20ca, type: 2}

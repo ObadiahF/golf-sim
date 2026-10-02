@@ -1,14 +1,17 @@
+using GolfSim.Course;
 using UnityEngine;
 
 namespace GolfSim.CourseEditor
 {
-    /// <summary>Placeholder tee and pin markers built from primitives. Swap for real models later.</summary>
+    /// <summary>Tee markers (placeholder spheres) and a regulation pin: flagstick, cloth flag and cup.</summary>
     public static class HoleMarkers
     {
-        const float FlagstickHeight = 2.13f; // 7 ft regulation
-        const float FlagstickRadius = 0.03f;
+        const float FlagstickHeight = 2.13f;   // 7 ft above the green
+        const float FlagstickRadius = 0.0095f; // 3/4 in fiberglass
+        static readonly Color StickColor = new Color(0.95f, 0.95f, 0.92f);
+        static readonly Color FlagColor = new Color(0.80f, 0.06f, 0.06f);
 
-        public static void Create(Transform parent, Vector3 teeLocal, Vector3 pinLocal)
+        public static void Create(Transform parent, Vector3 teeLocal, Vector3 pinLocal, Terrain terrain, string meshFolder)
         {
             var tee = new GameObject("Tee").transform;
             tee.SetParent(parent, false);
@@ -20,11 +23,21 @@ namespace GolfSim.CourseEditor
             var pin = new GameObject("Pin").transform;
             pin.SetParent(parent, false);
             pin.localPosition = pinLocal;
-            float d = FlagstickRadius * 2;
-            Primitive(PrimitiveType.Cylinder, pin, "Flagstick", new Vector3(0, FlagstickHeight / 2, 0),
-                new Vector3(d, FlagstickHeight / 2, d), GeneratedAssets.ColorMaterial("Flagstick", new Color(0.95f, 0.85f, 0.2f)));
-            Primitive(PrimitiveType.Cube, pin, "Flag", new Vector3(0.25f, FlagstickHeight - 0.18f, 0),
-                new Vector3(0.5f, 0.35f, 0.01f), GeneratedAssets.ColorMaterial("Flag", new Color(0.85f, 0.1f, 0.1f)));
+
+            // The stick stands on the cup bottom, so it runs down into the hole like the real thing.
+            float bottom = -CupBuilder.Depth, length = FlagstickHeight - bottom, d = FlagstickRadius * 2f;
+            Primitive(PrimitiveType.Cylinder, pin, "Flagstick", new Vector3(0, bottom + length / 2f, 0),
+                new Vector3(d, length / 2f, d), GeneratedAssets.ColorMaterial("FlagstickWhite", StickColor));
+
+            var flag = new GameObject("Flag");
+            flag.transform.SetParent(pin, false);
+            flag.transform.localPosition = new Vector3(0f, FlagstickHeight - 0.03f, 0f);
+            flag.AddComponent<MeshFilter>().sharedMesh =
+                GeneratedAssets.LoadOrCreate($"{GeneratedAssets.Root}/Meshes/Flag.asset", () => FlagWave.BuildMesh(0.8f, 0.6f));
+            flag.AddComponent<MeshRenderer>().sharedMaterial = GeneratedAssets.ColorMaterial("FlagCloth", FlagColor, doubleSided: true);
+            flag.AddComponent<FlagWave>().ApplyHeading();
+
+            CupBuilder.Create(pin, terrain, meshFolder);
         }
 
         /// <summary>Faces the tee markers toward the pin so they sit across the line of play.</summary>

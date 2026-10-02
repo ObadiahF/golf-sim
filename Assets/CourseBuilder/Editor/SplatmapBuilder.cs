@@ -26,7 +26,37 @@ namespace GolfSim.CourseEditor
             foreach (var mask in masks)
                 if (mask != null) PolygonRasterizer.Blur(mask, blurRadius);
 
+            for (int k = 0; k < layerCount; k++)
+            {
+                var entry = layers.entries[k];
+                var parent = entry.IsStripe ? masks[layers.IndexOf(SurfaceLayerSet.BaseSurface(entry.surface))] : null;
+                if (parent != null) masks[k] = Stripes(parent, entry, pkg, cellSize);
+            }
+
             return Compose(masks, resolution, layerCount);
+        }
+
+        /// <summary>
+        /// Mowing stripes: the parent surface's coverage, kept only in alternating bands aligned
+        /// to the line of play. Composed above the parent, so the stripe layer shows in the bands.
+        /// </summary>
+        static float[,] Stripes(float[,] parent, SurfaceLayerSet.Entry entry, HolePackage pkg, float cellSize)
+        {
+            int res = parent.GetLength(0);
+            Vector2 play = (pkg.pin - pkg.tee).sqrMagnitude > 1f ? (pkg.pin - pkg.tee).normalized : Vector2.up;
+            Vector2 along = Quaternion.Euler(0f, 0f, -entry.stripeAngle) * play;
+            Vector2 across = new Vector2(-along.y, along.x); // bands alternate across their running direction
+            var mask = new float[res, res];
+            for (int z = 0; z < res; z++)
+                for (int x = 0; x < res; x++)
+                {
+                    if (parent[z, x] <= 0f) continue;
+                    var pos = new Vector2((x + 0.5f) * cellSize, (z + 0.5f) * cellSize) - pkg.tee;
+                    // Sharpened sine: flat bands with a soft ~20% transition, like light catching mown grass.
+                    float band = Mathf.Clamp01(0.5f + 2f * Mathf.Sin(Mathf.PI * Vector2.Dot(pos, across) / entry.stripeWidth));
+                    mask[z, x] = parent[z, x] * band;
+                }
+            return mask;
         }
 
         /// <summary>Highest-priority layer takes its coverage first; lower layers share what remains.</summary>

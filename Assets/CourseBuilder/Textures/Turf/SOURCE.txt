@@ -1,0 +1,2 @@
+Grass 005 by ambientCG (https://ambientcg.com/a/Grass005), CC0 1.0 public domain.
+MaskMap packed from AmbientOcclusion (G) and inverted Roughness (A).
