@@ -1,0 +1,53 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: game-server
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+      fail-on-empty-beans: false
+    # Strict input (REST and WebSocket): 1.7 is not an integer, "9" is not a number, and a key may appear once.
+    deserialization:
+      accept-float-as-int: false
+    mapper:
+      allow-coercion-of-scalars: false
+    parser:
+      strict-duplicate-detection: true
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/golf}
+    username: ${DB_USER:golf}
+    password: ${DB_PASSWORD:golf}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+app:
+  name: ${spring.application.name}
+  version: '@project.version@'
+
+golf:
+  # Shared secret known to the server, the iPhone app and the sim. REST: "Authorization: Bearer <token>", WS: "?token=<token>".
+  api-token: ${GOLF_API_TOKEN:golf-sim-dev-token}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Backend server for the Unity golf sim

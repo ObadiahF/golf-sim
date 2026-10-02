@@ -1,0 +1,73 @@
+# Everything runs through Docker Compose:
+#   docker compose up --build -d          postgres + game-server
+#   docker compose run --rm test          mvn test against the golf_test database
+#   docker compose run --rm wsclient --role remote   fake remote/sim WebSocket client
+#   docker compose exec postgres psql -U golf golf
+#   docker compose down                   stop (data kept in the pgdata volume)
+#
+# No container or image names are hard-coded, so a second stack can run side by side:
+#   PORT=8081 docker compose -p gsfix up --build -d   (containers gsfix-*, volumes gsfix_*)
+
+x-db-env: &db-env
+  DB_USER: ${POSTGRES_USER:-golf}
+  DB_PASSWORD: ${POSTGRES_PASSWORD:-golf}
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: golf
+      POSTGRES_USER: ${POSTGRES_USER:-golf}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-golf}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d golf"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  game-server:
+    build: .
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      <<: *db-env
+      DB_URL: jdbc:postgresql://postgres:5432/golf
+      GOLF_API_TOKEN: ${GOLF_API_TOKEN:-golf-sim-dev-token}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Runs the test suite in a Maven + JDK 21 container against the golf_test database.
+  test:
+    image: maven:3.9-eclipse-temurin-21
+    profiles: [test]
+    working_dir: /workspace
+    command: ["mvn", "-B", "-ntp", "test"]
+    environment:
+      <<: *db-env
+      DB_URL: jdbc:postgresql://postgres:5432/golf_test
+    volumes:
+      - .:/workspace
+      - m2:/root/.m2
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Fake sim/remote WebSocket client for manual testing: docker compose run --rm wsclient --role sim
+  wsclient:
+    build: ./tools/wsclient
+    profiles: [tools]
+    environment:
+      WS_URL: ws://game-server:8080/ws
+      GOLF_API_TOKEN: ${GOLF_API_TOKEN:-golf-sim-dev-token}
+    stdin_open: true
+    tty: true
+
+volumes:
+  pgdata:
+  m2:
