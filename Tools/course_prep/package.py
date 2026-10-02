@@ -53,7 +53,7 @@ def select_hole(features: list[Feature], ref: str, course: str | None) -> HoleCh
     raise SystemExit(f"Expected exactly one hole {ref}, found {len(matches)}:\n  {detail}\n{hint}")
 
 
-def _flat(coords) -> list[float]:
+def flat_points(coords) -> list[float]:
     return [round(v, 3) for xy in coords for v in xy[:2]]
 
 
@@ -76,9 +76,14 @@ def _local_areas(features: list[Feature], frame: HoleFrame, proj: Projector) -> 
     return out
 
 
-def _area_json(f: Feature, poly: Polygon) -> dict:
+def area_json(surface: str, source_id: str, poly: Polygon) -> dict:
+    """One hole.json area entry; shared by real (OSM) and generated holes."""
     rings = [poly.exterior, *poly.interiors]
-    return {"surface": f.surface, "osmId": f.osm_id, "rings": [{"points": _flat(r.coords)} for r in rings]}
+    return {"surface": surface, "osmId": source_id, "rings": [{"points": flat_points(r.coords)} for r in rings]}
+
+
+def _area_json(f: Feature, poly: Polygon) -> dict:
+    return area_json(f.surface, f.osm_id, poly)
 
 
 def _trees(features: list[Feature], frame: HoleFrame, proj: Projector) -> list[dict]:
@@ -93,7 +98,7 @@ def _trees(features: list[Feature], frame: HoleFrame, proj: Projector) -> list[d
             row = proj.to_utm(f.geom)
             count = max(1, int(row.length // TREE_ROW_SPACING))
             points.extend(row.interpolate(i / count, normalized=True) for i in range(count + 1))
-    return [_xz(frame.to_local(p)) for p in points if tile.contains(p)]
+    return [xz_json(frame.to_local(p)) for p in points if tile.contains(p)]
 
 
 def _pin(features: list[Feature], line_end_utm: Point, proj: Projector) -> Point:
@@ -102,7 +107,7 @@ def _pin(features: list[Feature], line_end_utm: Point, proj: Projector) -> Point
     return min(near, key=line_end_utm.distance) if near else line_end_utm
 
 
-def _xz(p: Point) -> dict:
+def xz_json(p: Point) -> dict:
     return {"x": round(p.x, 3), "y": round(p.y, 3)}
 
 
@@ -135,9 +140,9 @@ def build_package(features: list[Feature], hole: HoleChoice, dem_sources: list[s
         "heightmapResolution": frame.resolution,
         "minElevation": round(lo, 3),
         "maxElevation": round(hi, 3),
-        "holePath": {"points": _flat(frame.to_local(line_utm).coords)},
-        "tee": _xz(frame.to_local(Point(line_utm.coords[0]))),
-        "pin": _xz(frame.to_local(pin_utm)),
+        "holePath": {"points": flat_points(frame.to_local(line_utm).coords)},
+        "tee": xz_json(frame.to_local(Point(line_utm.coords[0]))),
+        "pin": xz_json(frame.to_local(pin_utm)),
         "areas": [_area_json(f, poly) for f, poly in areas],
         "trees": _trees(features, frame, proj),
         "water": water,
