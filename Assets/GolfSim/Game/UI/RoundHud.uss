@@ -1,10 +1,15 @@
 /* In-round HUD and scorecard; colors and buttons come from Menu.uss. */
 .hud-root { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 
+/* The top row: the stats card (left), the toast in the space between and the turn badge (right), so they never overlap. */
+.hud-top { position: absolute; left: 28px; right: 28px; top: 28px; flex-direction: row; align-items: flex-start; }
+.hud-top__middle { flex-grow: 1; flex-shrink: 1; flex-basis: 0; align-items: center; margin: 6px 24px 0 24px; }
+
 .hud {
     position: absolute; left: 28px; top: 28px; padding: 18px 24px; border-radius: 18px;
     background-color: var(--surface); border-width: 1px; border-color: var(--border);
 }
+.hud-top > .hud { position: relative; left: 0; top: 0; flex-shrink: 0; } /* the putt card (PuttingHud) stays absolute */
 .hud--hidden { display: none; }
 .hud__eyebrow { font-size: 18px; color: var(--accent); -unity-font-style: bold; letter-spacing: 3px; margin: 0; }
 .hud__player { font-size: 40px; -unity-font-style: bold; margin: 0 0 10px 0; }
@@ -14,7 +19,7 @@
 .hud__value { font-size: 24px; -unity-font-style: bold; margin: 2px 0 0 0; }
 
 .toast {
-    position: absolute; top: 34px; left: 30%; right: 30%; padding: 14px 24px; border-radius: 16px;
+    max-width: 760px; padding: 14px 24px; border-radius: 16px;
     background-color: rgba(8, 12, 16, 0.78); border-width: 1px; border-color: var(--accent);
     font-size: 30px; -unity-font-style: bold; -unity-text-align: middle-center; white-space: normal;
     opacity: 0; transition: opacity 0.25s;
@@ -53,7 +58,7 @@
 .turn-banner__detail { font-size: 34px; color: #c9d4de; margin: 4px 0 0 0; }
 
 .turn-badge {
-    position: absolute; right: 28px; top: 28px; flex-direction: row; align-items: center;
+    flex-shrink: 0; flex-direction: row; align-items: center;
     padding: 14px 24px 14px 18px; border-radius: 18px; background-color: var(--surface);
     border-width: 2px; border-color: var(--accent); opacity: 0; transition: opacity 0.25s;
 }

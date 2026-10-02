@@ -1,5 +1,7 @@
 // Dev check (Play mode, Hole Simulator), run with the Unity CLI (not compiled into the project):
 //   unity command run_script --file Tools/unity_scripts/ObstacleCheck.cs --entry ObstacleCheck.All
+// The CLI stops a call after 30 s on the main thread, so All runs the tests a few at a time: repeat it until it prints
+// the summary (AllReset starts over). Or run the entries below one by one; each takes 10 s or less on an idle Mac.
 // Ball vs trees and rocks (ObstacleField) and the lie penalty, driven with GolfBall.Advance (the Editor doesn't
 // tick Play mode in the background). Synthetic tests swap the hole's obstacles for one test object (Play-mode
 // only, restored afterwards).
@@ -8,10 +10,11 @@
 //   RockRoll    a ball rolled into a boulder bounces back
 //   Canopy      7 irons through a crown (trunk missed): hit shots drop short
 //   Replay      the same shot and seed lands on the same spot
-//   Stress      200 random shots and spots: no NaN, nothing stuck, under the ground or inside a trunk
+//   Stress1..4  200 random shots and spots, 50 per entry: no NaN, nothing stuck, under the ground or inside a trunk
 //   Lies        7 iron from 153 yd on fairway, rough, bunker, native and woods (trees off)
 //   Crowns      every drawn tree has its measured crown (HoleInfo.obstacles), no wider than the drawn tree's bounds
-//   Drive       the default opening drive (Driver at the pin) and a fan of tee shots: every tree hit is on a drawn tree
+//   Drive       the default opening drive (Driver at the pin) and a fan of drives: every tree hit is on a drawn tree
+//   DriveIrons  the same fan with a 5 iron and a wedge
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -19,6 +22,7 @@ using System.Reflection;
 using System.Text;
 using GolfSim.Ball;
 using GolfSim.Course;
+using UnityEditor;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -30,16 +34,40 @@ public static class ObstacleCheck
     static GolfBall Ball => Object.FindAnyObjectByType<GolfBall>();
     static HoleInfo Hole => Object.FindAnyObjectByType<HoleInfo>();
 
+    const string Progress = "ObstacleCheck.All";
+    const char Separator = '\u001e';
+    const long PartMs = 5000; // one call starts tests until this much time has gone (the longest takes ~8 s, more under load)
+
+    static readonly System.Func<string>[] Tests = { Crowns, Drive, DriveIrons, TreeLine, OverTree, RockRoll, Canopy, Replay, Lies, Stress1, Stress2, Stress3, Stress4 };
+
+    /// <summary>Runs the next tests for about 5 s (a long one alone); once all have run, prints them all and a PASS / FAIL summary.</summary>
     public static string All()
     {
-        var sb = new StringBuilder();
-        foreach (var test in new System.Func<string>[] { Crowns, Drive, TreeLine, OverTree, RockRoll, Canopy, Replay, Lies, Stress })
+        string saved = SessionState.GetString(Progress, "");
+        var results = saved.Length > 0 ? saved.Split(Separator).ToList() : new List<string>();
+        var watch = Stopwatch.StartNew();
+        while (results.Count < Tests.Length && watch.ElapsedMilliseconds < PartMs)
         {
-            try { sb.AppendLine(test()); }
-            catch (System.Exception e) { sb.AppendLine($"{test.Method.Name}: EXCEPTION {e}"); }
+            var test = Tests[results.Count];
+            try { results.Add(test()); }
+            catch (System.Exception e) { results.Add($"{test.Method.Name} FAIL: EXCEPTION {e}"); }
         }
         Ball.ResetToTee();
-        return sb.ToString();
+        if (results.Count < Tests.Length)
+        {
+            SessionState.SetString(Progress, string.Join(Separator, results));
+            return $"{results.Count} of {Tests.Length} tests run ({string.Join(", ", Tests.Take(results.Count).Select(t => t.Method.Name))}): run All again";
+        }
+        SessionState.EraseString(Progress);
+        int failed = results.Count(r => r.Contains("FAIL"));
+        return $"{(failed == 0 ? "ALL PASS" : $"FAILED {failed} of {Tests.Length}")}\n{string.Join("\n", results)}";
+    }
+
+    /// <summary>Forgets an unfinished All, so the next one starts from the first test.</summary>
+    public static string AllReset()
+    {
+        SessionState.EraseString(Progress);
+        return "All starts over";
     }
 
     // ---- tests ----
@@ -155,21 +183,28 @@ public static class ObstacleCheck
         return (pass ? "PASS " : "FAIL ") + sb;
     }
 
-    public static string Stress()
+    public static string Stress1() => Stress(0, 50);
+    public static string Stress2() => Stress(50, 100);
+    public static string Stress3() => Stress(100, 150);
+    public static string Stress4() => Stress(150, 200);
+
+    /// <summary>Random shots number first..end-1 (each from its own seed, so any range repeats exactly).</summary>
+    static string Stress(int first, int end)
     {
         var hole = Hole;
         var ball = Ball;
         var terrain = hole.GetComponentInChildren<Terrain>();
         var size = terrain.terrainData.size;
-        var rand = new System.Random(7);
+        System.Random rand = null;
         float R(float a, float b) => a + (float)rand.NextDouble() * (b - a);
         int nan = 0, stuck = 0, under = 0, inside = 0, hits = 0;
         var statuses = new Dictionary<BallStatus, int>();
         long steps = 0;
         var watch = new Stopwatch();
         float worstUnder = 0f;
-        for (int i = 0; i < 200; i++)
+        for (int i = first; i < end; i++)
         {
+            rand = new System.Random(7 + i);
             // Half the shots start next to a tree, so the forest gets a workout.
             Vector3 spot;
             if (i % 2 == 0)
@@ -214,7 +249,7 @@ public static class ObstacleCheck
         ball.aimOffset = 0f;
         ball.ResetToTee();
         bool pass = nan == 0 && stuck == 0 && under == 0 && inside == 0;
-        return $"Stress {(pass ? "PASS" : "FAIL")}: 200 shots, NaN {nan}, stuck {stuck}, under ground {under} (worst {worstUnder:0.000} m), " +
+        return $"Stress {first}-{end - 1} {(pass ? "PASS" : "FAIL")}: {statuses.Values.Sum()} shots, NaN {nan}, stuck {stuck}, under ground {under} (worst {worstUnder:0.000} m), " +
                $"inside a trunk/rock {inside}, shots that hit something {hits}; {string.Join(", ", statuses.Select(kv => $"{kv.Key} {kv.Value}"))}; " +
                $"{steps} steps in {watch.ElapsedMilliseconds} ms = {watch.Elapsed.TotalMilliseconds * 1000.0 / steps:0.00} µs per 2 ms step " +
                $"(whole ball sim, {ball.Obstacles.Count} obstacles)";
@@ -250,14 +285,17 @@ public static class ObstacleCheck
                $"avg {ratioSum / Mathf.Max(1, onDrawn):0.00}x, worst {worst:0.00}x ({worstModel}), wider than drawn (>{WiderThanDrawn}x) {wider} ({onDrawn} matched to a drawn tree)";
     }
 
-    public static string Drive()
+    public static string Drive() => Drive("Driver");
+    public static string DriveIrons() => Drive("5 Iron", "Wedge");
+
+    static string Drive(params string[] clubs)
     {
         var ball = Ball;
         var drawn = DrawnTrees();
         var sb = new StringBuilder();
         int total = 0, ghosts = 0;
         string opening = "";
-        foreach (var club in new[] { "Driver", "5 Iron", "Wedge" })
+        foreach (var club in clubs)
             for (float aim = -40f; aim <= 40f; aim += 4f)
             {
                 var hits = new List<ObstacleHit>();
@@ -267,7 +305,7 @@ public static class ObstacleCheck
                 ball.aimOffset = aim;
                 var r = Shoot(Clubs.Find(club).shot, collide: true);
                 ball.HitObstacle -= record;
-                if (club == "Driver" && aim == 0f) opening = $"{r}";
+                if (club == "Driver" && aim == 0f) opening = $"opening drive {r}; ";
                 foreach (var h in hits)
                 {
                     total++;
@@ -279,7 +317,7 @@ public static class ObstacleCheck
             }
         ball.aimOffset = 0f;
         ball.ResetToTee();
-        return $"Drive {(ghosts == 0 ? "PASS" : "FAIL")}: opening drive {opening}; fan of 63 tee shots: {total} hits, {ghosts} off the drawn trees" + sb;
+        return $"Drive {string.Join(", ", clubs)} {(ghosts == 0 ? "PASS" : "FAIL")}: {opening}fan of {21 * clubs.Length} tee shots: {total} hits, {ghosts} off the drawn trees" + sb;
     }
 
     // ---- helpers ----

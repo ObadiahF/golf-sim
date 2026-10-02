@@ -63,7 +63,7 @@ namespace GolfSim.Game
         {
             bool playing = s.screen == StateMessage.Game || s.screen == StateMessage.Paused;
             bool inRound = !string.IsNullOrEmpty(s.currentPlayer);
-            hudRoot.style.display = s.screen == StateMessage.Replay ? DisplayStyle.None : StyleKeyword.Null;
+            hudRoot.EnableInClassList(Hidden, s.screen == StateMessage.Replay); // a class: an inline display reset to Null could leave it hidden
             info.EnableInClassList(Hidden, !playing);
             hint.EnableInClassList(Hidden, s.screen != StateMessage.Game);
             if (!inRound) Banner.HideBadge();

@@ -38,20 +38,20 @@ public static class BugFixCheck
     /// <summary>U-1: R clears the trace, mid-flight and at rest.</summary>
     public static string TracerReset()
     {
-        var line = (LineRenderer)typeof(BallTracer).GetField("line", Private).GetValue(Ball.GetComponent<BallTracer>());
+        var line = (TracerLine)typeof(BallTracer).GetField("line", Private).GetValue(Ball.GetComponent<BallTracer>());
         Reset();
         Hit("Driver");
         Run(1.5f);
-        int flying = line.positionCount;
+        int flying = line.Count;
         Reset();
         Tick();
-        int afterMid = line.positionCount;
+        int afterMid = line.Count;
         Hit("Driver");
         Run(30f);
-        int rest = line.positionCount;
+        int rest = line.Count;
         Reset();
         Tick();
-        int afterRest = line.positionCount;
+        int afterRest = line.Count;
         bool pass = flying > 1 && rest > 1 && afterMid == 0 && afterRest == 0;
         return $"U-1 {(pass ? "PASS" : "FAIL")}: trace points mid-flight {flying} -> after R {afterMid}; at rest {rest} -> after R {afterRest}";
     }

@@ -7,6 +7,7 @@
 //                     (always Restore before stopping Play: GolfServer.asset must not change)
 //   Status / Expect   the scene, phase and "state"; Expect arg "key=value;..." (screen, phase, scene, canShoot)
 //   Hit / HitHold     the current player hits (HitHold leaves the next turn pending, as between shots)
+//   FinishHole        holes everyone out: each ball 2 m from the pin, putts read with the putting preview (real scores)
 //   E1Banner          arg "turn|Name" or "win|Name": announces it (then capture the Game view)
 //   E1Fit             checks the banner on screen now (after the layout pass): its title box holds the text
 //   E2UpSelect        on a hole scorecard: Up then Select in one call keeps the scorecard, then a full replay
@@ -106,7 +107,8 @@ public static class E2EFixCheck
     public static string Hit() => HitShot(runPending: true);
     public static string HitHold() => HitShot(runPending: false);
 
-    static string HitShot(bool runPending)
+    /// <summary>The current player hits the club's stock shot, or a putt at putterSpeed (m/s; 0: the flat-green strength to the pin).</summary>
+    static string HitShot(bool runPending, float putterSpeed = 0f)
     {
         D.Connection.Pump();
         var ball = D.Ball;
@@ -115,7 +117,8 @@ public static class E2EFixCheck
         var club = Clubs.Find(D.Club);
         var shot = club.shot;
         if (club.IsPutter)
-            shot = PuttModel.PuttAt(PuttModel.SpeedFor(Round.FlatDistance(ball.transform.position, hole.PinWorld) + PuttModel.Overshoot, PuttModel.GreenStimp(ball.Settings)));
+            shot = PuttModel.PuttAt(putterSpeed > 0f ? putterSpeed
+                : PuttModel.SpeedFor(Round.FlatDistance(ball.transform.position, hole.PinWorld) + PuttModel.Overshoot, PuttModel.GreenStimp(ball.Settings)));
         var msg = new RemoteShotMessage
         {
             type = "shot", id = Random.Range(1, int.MaxValue), club = club.name, speed = shot.ballSpeed * (club.IsPutter ? 1f : 0.9f),
@@ -129,21 +132,53 @@ public static class E2EFixCheck
         return $"{club.name}: {ball.Status} {ball.Result.restingSurface}\n{Status()}";
     }
 
-    /// <summary>Holes everyone out (2 m putts) so the hole's scorecard shows.</summary>
+    /// <summary>
+    /// Holes everyone out so the hole's scorecard shows: each player's ball goes on the green 2 m from the pin, then
+    /// they putt it in, each putt read like a player would (ReadPutt). The scores (strokes so far + putts) are real.
+    /// </summary>
     public static string FinishHole()
     {
         var r = D.Round;
         var hole = Object.FindAnyObjectByType<HoleInfo>();
+        var back = Vector3.ProjectOnPlane(hole.TeeWorld - hole.PinWorld, Vector3.up).normalized;
+        var putts = new StringBuilder();
+        string placed = null;
         for (int guard = 0; guard < 40 && Phase is "Playing" or "BetweenShots"; guard++)
         {
             if (Phase == "BetweenShots") { D.RunPending(); continue; }
-            var back = Vector3.ProjectOnPlane(hole.TeeWorld - hole.PinWorld, Vector3.up).normalized;
-            D.Ball.PlaceOnGround(hole.PinWorld + back * 2f);
-            r.CurrentBall.lie = "green";
+            var player = r.CurrentBall;
+            if (placed != player.player) Place(hole.PinWorld + back * 2f, "green");
+            placed = player.player;
             D.SetClub("Putter");
-            HitShot(runPending: false);
+            float from = Round.FlatDistance(D.Ball.transform.position, hole.PinWorld);
+            float speed = ReadPutt(D.Ball, hole, out float aim);
+            HitShot(runPending: false, speed);
+            putts.Append($"{player.player} {from:0.0} m aim {aim:+0.0;-0.0}° -> {(player.holed ? "holed" : $"{Round.FlatDistance(D.Ball.transform.position, hole.PinWorld):0.00} m")}; ");
         }
-        return Status();
+        return $"putts: {putts}\n{Status()}";
+    }
+
+    /// <summary>
+    /// The read: the aim (degrees off the line to the pin, set on the ball) that the putting preview says holes the
+    /// putt at its solved strength, else the one that finishes closest; returns that strength (m/s).
+    /// </summary>
+    static float ReadPutt(GolfBall ball, HoleInfo hole, out float aim)
+    {
+        var preview = ball.GetComponent<PuttPreview>();
+        float bestGap = float.MaxValue, speed = 0f;
+        aim = 0f;
+        for (int k = 0; k <= 48 && bestGap > 0f; k++)
+        {
+            ball.aimOffset = (k + 1) / 2 * 0.5f * (k % 2 == 1 ? -1f : 1f); // 0, -0.5, +0.5, -1 ... ±12°
+            preview.Refresh();
+            float gap = preview.Prediction.holed ? 0f : Round.FlatDistance(preview.Prediction.end, hole.PinWorld);
+            if (gap >= bestGap) continue;
+            bestGap = gap;
+            aim = ball.aimOffset;
+            speed = preview.SolvedSpeed;
+        }
+        ball.aimOffset = aim;
+        return speed;
     }
 
     static void TickReplay(float seconds)
@@ -152,7 +187,14 @@ public static class E2EFixCheck
         D.Connection.Pump();
     }
 
-    static bool HudShown => HudRoot.Q("hud-root").resolvedStyle.display != DisplayStyle.None && HudRoot.Q("hud-root").style.display != DisplayStyle.None;
+    /// <summary>Ticks through a replay's lead-in (a shot into trouble queues one by itself) until it plays, then 0.4 s in.</summary>
+    static void TickIntoReplay()
+    {
+        for (int i = 0; i < 300 && R.Busy && !R.IsPlaying; i++) TickReplay(Frame);
+        TickReplay(0.4f);
+    }
+
+    static bool HudShown => !HudRoot.Q("hud-root").ClassListContains("hud--hidden"); // RoundHud.Render hides it during a replay
 
     // ---- E-1 banners ----
 
@@ -171,6 +213,7 @@ public static class E2EFixCheck
     {
         var title = HudRoot.Q<Label>("turn-banner-title");
         var card = HudRoot.Q("turn-banner-card");
+        if (!HudRoot.Q("turn-banner").ClassListContains("turn-banner--center")) return "WAIT no banner up (a turn banner shows for 1.5 s: run E1Fit right after E1Banner)";
         float glyphs = title.MeasureTextSize(title.text, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined).x;
         float need = glyphs + title.resolvedStyle.letterSpacing * title.text.Length;
         bool wraps = title.resolvedStyle.whiteSpace == WhiteSpace.Normal;
@@ -194,7 +237,7 @@ public static class E2EFixCheck
         bool kept = phase == "HoleSummary" && !ScreenFade.Loading && stage == "Idle" && Hud.ScorecardOpen;
         // A real replay from the scorecard: the HUD hides while it plays and comes back after it.
         NavInput.Push(NavKey.Up);
-        TickReplay(0.4f);
+        TickIntoReplay();
         bool hidden = R.IsPlaying && D.BuildState().screen == StateMessage.Replay && !HudShown;
         TickReplay(30f);
         bool back = Stage == "Idle" && D.BuildState().screen == StateMessage.HoleComplete && HudShown && Hud.ScorecardOpen;
@@ -216,14 +259,15 @@ public static class E2EFixCheck
     public static string E2Lost()
     {
         if (Phase == "Playing") HitShot(runPending: false);
-        var last = Get<ShotRecorder>(R, "recorder").Last;
-        if (last == null || !Get<ShotRecorder>(R, "recorder").LastIsCurrent) return "WAIT need a current shot (HitHold)\n" + Status();
-        R.Queue(last);
-        TickReplay(0.4f);
+        var recorder = Get<ShotRecorder>(R, "recorder");
+        if (recorder.Last == null || !recorder.LastIsCurrent) return "WAIT need a current shot (HitHold)\n" + Status();
+        if (!R.Busy) R.Queue(recorder.Last); // a shot into trouble has queued its own replay, after a lead-in
+        TickIntoReplay();
         bool playing = R.IsPlaying && !HudShown;
         R.Forget(); // what a scene load does to a replay on screen
         bool back = Stage == "Idle" && HudShown && D.BuildState().screen != StateMessage.Replay && !R.CanReplay;
-        return Line(playing && back, "E-2", $"replay dropped mid-play: was playing with the HUD hidden {playing}, HUD back {back}") + "\n" + Status();
+        return Line(playing && back, "E-2", $"replay dropped mid-play: was playing with the HUD hidden {playing}; HUD back {back} " +
+                    $"(replay {Stage}, HUD shown {HudShown}, screen {D.BuildState().screen}, replay offered {R.CanReplay})") + "\n" + Status();
     }
 
     public static string E3Badge()
@@ -235,7 +279,7 @@ public static class E2EFixCheck
         if (!Get<bool>(banner, "badgeLanded")) return "WAIT the announcement hasn't landed in the badge yet\n" + Status();
         bool before = badge.ClassListContains("turn-badge--shown");
         NavInput.Push(NavKey.Up);
-        TickReplay(0.4f);
+        TickIntoReplay();
         bool during = R.IsPlaying && !badge.ClassListContains("turn-badge--shown");
         TickReplay(30f);
         bool after = Stage == "Idle" && badge.ClassListContains("turn-badge--shown") && HudShown;

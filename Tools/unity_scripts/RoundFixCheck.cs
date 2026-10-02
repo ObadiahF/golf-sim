@@ -305,17 +305,32 @@ public static class RoundFixCheck
     /// <summary>S-1 (main menu): the Sound card opens the panel; Right raises the master volume; Back closes.</summary>
     public static string S1Menu()
     {
-        var menu = Object.FindAnyObjectByType<MainMenu>();
-        if (!menu) return "WAIT not on the main menu";
-        int sound = System.Array.FindIndex(menu.modes, m => m.kind == GameMode.ModeKind.Settings);
-        if (sound < 0) return "FAIL S-1 no Sound card";
-        for (int i = 0; i < menu.modes.Length; i++) NavInput.Push(NavKey.Left); // wrap to a known card
+        var menu = MainMenuReady();
+        if (!menu) return "WAIT not on the main menu, or it is loading";
+        if (!menu.modes.Any(m => m.kind == GameMode.ModeKind.Settings)) return "FAIL S-1 no Sound card";
         return SoundPanel(menu.GetComponent<UIDocument>().rootVisualElement, () =>
         {
-            for (int i = 0; i < menu.modes.Length && menu.GetComponent<UIDocument>().rootVisualElement.Q<Label>("title").text != menu.modes[sound].title; i++)
-                NavInput.Push(NavKey.Right);
+            SelectCard(menu, GameMode.ModeKind.Settings);
             NavInput.Push(NavKey.Select);
         }, "S-1 main menu");
+    }
+
+    /// <summary>The main menu with nothing over it: an open overlay (Scores, Sound) takes every key, so it is closed with Back first, as from the remote.</summary>
+    static MainMenu MainMenuReady()
+    {
+        var menu = Object.FindAnyObjectByType<MainMenu>();
+        if (!menu || ScreenFade.Loading || D && D.IsFetching) return null;
+        var scores = (ScoresScreen)typeof(MainMenu).GetField("scores", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(menu);
+        for (int i = 0; i < 3 && (scores.IsOpen || AudioSettingsPanel.AnyOpen); i++) NavInput.Push(NavKey.Back);
+        return menu;
+    }
+
+    /// <summary>Right until the card of this kind is selected (the title shows the selected card's).</summary>
+    static void SelectCard(MainMenu menu, GameMode.ModeKind kind)
+    {
+        var title = menu.GetComponent<UIDocument>().rootVisualElement.Q<Label>("title");
+        for (int i = 0; i < menu.modes.Length && menu.modes.FirstOrDefault(m => m.title == title.text)?.kind != kind; i++)
+            NavInput.Push(NavKey.Right);
     }
 
     /// <summary>S-1 (pause menu): Sound in the pause menu opens the same panel.</summary>
@@ -364,12 +379,10 @@ public static class RoundFixCheck
     /// <summary>M-3: the Play a Round card's description follows the 9 / 18 choice.</summary>
     public static string M3Description()
     {
-        var menu = Object.FindAnyObjectByType<MainMenu>();
-        if (!menu) return "WAIT not on the main menu";
-        var root = menu.GetComponent<UIDocument>().rootVisualElement;
-        for (int i = 0; i < menu.modes.Length && menu.modes.FirstOrDefault(m => m.title == root.Q<Label>("title").text)?.kind != GameMode.ModeKind.Round; i++)
-            NavInput.Push(NavKey.Right);
-        var description = root.Q<Label>("description");
+        var menu = MainMenuReady();
+        if (!menu) return "WAIT not on the main menu, or it is loading";
+        SelectCard(menu, GameMode.ModeKind.Round);
+        var description = menu.GetComponent<UIDocument>().rootVisualElement.Q<Label>("description");
         menu.SendMessage("Update");
         string first = description.text;
         NavInput.Push(NavKey.Down);
