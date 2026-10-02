@@ -260,6 +260,7 @@ How it was tested:
 - **Evidence:** in `app/`.
 
 #### A-1 Aim buttons keep sending `aim` forever if the screen changes while one is held
+- **Fixed** (2026-10-02): `Views/HoldRepeatButton.swift`: the repeat is a `.task` keyed on a `@GestureState` press, the enabled state and the scene phase, so it stops on release, a cancelled gesture, the view disappearing, the app leaving the foreground or the controls being disabled. Aim is also disabled as soon as the sim leaves the hole. Re-run on the SE: 0 `aim` frames after `holeComplete` (none in the 10 s after release), and a tap still sends one.
 - **Severity:** major
 - **Component:** `Golf-app/Views/RingSegment.swift`, `HoldRepeatButton`.
   - The repeat `Task` lives in `@State` and is cancelled only in `DragGesture.onEnded`.
@@ -278,6 +279,7 @@ How it was tested:
 - **Evidence:** `app/sim.log` (from 02:15:13), `aim_runaway_paused.png`, `aim_runaway2.png`.
 
 #### A-2 Gameplay and Practice overflow on iPhone SE: Menu / Mulligan / Pick up and the header can't be reached
+- **Fixed** (2026-10-02): new `Views/ScreenScaffold.swift`: Gameplay, Putting, Practice and Remote keep the header pinned and scroll the rest only when it doesn't fit, and short screens get a smaller wheel, Address button, meter and D-pad. Between holes the card is full height, with a **Next hole** button under it. On the SE, the header is at y = 28, and Menu / Mulligan / Pick up sit above the tab bar.
 - **Severity:** major
 - **Component:** `Views/Game/GameplayView.swift` and Practice's `ContentView`.
   - Both are fixed `VStack`s with no `ScrollView`.
@@ -296,6 +298,7 @@ How it was tested:
 - **Evidence:** `se_gameplay.png`, `se_practice.png`, `se_holecomplete.png`. For comparison on the 17 Pro: `gameplay_17pro.png`, `holecomplete.png`.
 
 #### A-3 When the server drops mid-hole, the phone stays in gameplay mode and every button silently does nothing
+- **Fixed** (2026-10-02): `DisconnectedBanner` ("Disconnected — reconnecting…" and the reason) shows on Gameplay and Putting while the link is down, and Aim, Menu, Mulligan and Pick up are greyed out and disabled. They come back on their own after the reconnect `hello`. Checked with `docker stop` and `docker start`.
 - **Severity:** minor
 - **Component:** `Network/GameLink.swift`.
   - After a receive failure, `run()` only resets `simConnected`. `state` is cleared only on `simStatus false`, and `stop()` doesn't clear it either.
@@ -313,6 +316,7 @@ How it was tested:
 - **Evidence:** `server_down_game.png`, `server_down_game2.png`.
 
 #### A-4 Leaderboard table: one long name pushes every stat column off-screen
+- **Fixed** (2026-10-02): `PlayerTable`: the stat columns are fixed width, and the name fills the rest and truncates. The leaders lists truncate names too. With a 40-character name on the SE, every column is visible.
 - **Severity:** minor
 - **Component:** `Views/Game/LeaderboardView.swift`, `PlayerTable`. The name `Text` has no width cap and sits in a horizontal `ScrollView` with hidden indicators.
 - **Repro:** finish a round with a 22× "😀" or 40-character name (both accepted), then open Scores › Leaderboard.
@@ -324,6 +328,7 @@ How it was tested:
 - **Evidence:** `scores_leader2.png`.
 
 #### A-5 Scorecard hides hole 9, OUT/IN, TOT and ± off-screen
+- **Fixed** (2026-10-02): `ScorecardTable`: names are pinned on the left and TOT / ± on the right, and the holes plus OUT/IN scroll between them, scrolled to the current hole. 18 holes get a Front 9 / Back 9 picker. An 8-player card fits on the 17 Pro.
 - **Severity:** minor
 - **Component:** `Views/Game/ScorecardTable.swift`.
   - Each nine needs about 456 pt and is its own hidden-indicator `ScrollView`.
@@ -336,6 +341,7 @@ How it was tested:
 - **Evidence:** `scores_card.png`, `scores_18.png`, `holecomplete.png`.
 
 #### A-6 Leaderboard doesn't refresh when a game finishes
+- **Fixed** (2026-10-02): `GameLink.scoresRevision` goes up on `gameStarted`, `scorecard` and `gameFinished`, and `ScoresView` reloads on it. The leaderboard filled in on its own when a game finished.
 - **Severity:** minor
 - **Component:** `Views/Game/ScoresView.swift`. It loads only on `.task(id: page)` and pull-to-refresh, and ignores the WebSocket `gameFinished`.
 - **Repro:** with Scores › Leaderboard open, finish a game.
@@ -346,6 +352,7 @@ How it was tested:
 - **Evidence:** `lb_before.txt`, `lb_after.txt`, `scores_leader_empty.png`.
 
 #### A-7 Port shown as "8,080" in Settings
+- **Fixed** (2026-10-02): the port is shown as plain text (`String(port)`, `Text(verbatim:)`): "192.168.1.20:8080" and "TCP 8080".
 - **Severity:** polish
 - **Component:** `Views/SettingsView.swift`. The `Int` port is locale-formatted inside a `LocalizedStringKey`.
 - **Repro:** open Settings › Game server.
@@ -356,6 +363,7 @@ How it was tested:
 - **Evidence:** `settings_8080.png`.
 
 #### A-8 An invalid Game server address is silently ignored
+- **Fixed** (2026-10-02): `AppConfig.serverAddressProblem`: Reconnect or Return with `ftp://bad host` shows an inline error and keeps the old server, and the error clears when you edit the field.
 - **Severity:** polish
 - **Component:** `SettingsView.applyServer` returns early when `AppConfig.serverURL` is nil.
 - **Repro:** type `ftp://bad host` and tap Reconnect.
@@ -366,6 +374,7 @@ How it was tested:
 - **Evidence:** `settings_invalid.png`.
 
 #### A-9 "Up to 8 players" error stays after deleting a player
+- **Fixed** (2026-10-02): `PlayersView` clears the error whenever the player list changes (delete, move or add).
 - **Severity:** polish
 - **Component:** `Views/Game/PlayersView.swift`. `.onDelete` doesn't clear `problem`.
 - **Repro:** with 8 players, try to add a 9th, then delete one.
