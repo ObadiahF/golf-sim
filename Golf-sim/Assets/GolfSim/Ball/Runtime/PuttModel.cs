@@ -9,7 +9,7 @@ namespace GolfSim.Ball
     ///
     /// A Stimpmeter releases the ball at 1.83 m/s and the green's Stimp reading is how many feet it rolls.
     /// A rolling ball slows at a constant rate (rolling resistance x g, BallPhysics.Roll), so distance grows
-    /// with speed squared: distance = stimp (m) x (speed / 1.83)². The sim's green (rolling 0.05) is Stimp 11.2.
+    /// with speed squared: distance = stimp (m) x (speed / 1.83)². The sim's green (rolling 0.06) is Stimp 9.3.
     /// </summary>
     public static class PuttModel
     {

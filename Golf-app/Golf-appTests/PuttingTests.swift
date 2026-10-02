@@ -12,8 +12,8 @@ struct PuttModelTests {
     }
 
     @Test func defaultStimpIsTheSimsGreen() {
-        // The sim's green slows the ball at rolling 0.05 x g: Stimp = 1.83² / (2 x 0.05 x 9.81) feet.
-        let simGreen = 1.83 * 1.83 / (2 * 0.05 * 9.81) / 0.3048
+        // The sim's green slows the ball at rolling 0.06 x g: Stimp = 1.83² / (2 x 0.06 x 9.81) feet.
+        let simGreen = 1.83 * 1.83 / (2 * 0.06 * 9.81) / 0.3048
         #expect(abs(simGreen - PuttModel.defaultStimp) < 0.05)
     }
 
@@ -37,11 +37,11 @@ struct PuttModelTests {
     }
 
     @Test func gentleAndFirmStrokesAreControllable() {
-        // A gentle stroke (~1.1 rad/s at the phone) is a few metres; a firm one (~2.2 rad/s) about 10 m.
+        // A gentle stroke (~1.1 rad/s at the phone) is a couple of metres; a firm one (~2.2 rad/s) 8-9 m.
         let gentle = PuttModel.rollDistance(rate: 1.1, scale: 1, stimp: PuttModel.defaultStimp)
         let firm = PuttModel.rollDistance(rate: 2.2, scale: 1, stimp: PuttModel.defaultStimp)
         #expect((2...3).contains(gentle))
-        #expect((9...11).contains(firm))
+        #expect((8...10).contains(firm))
     }
 
     @Test func meterAgreesWithTheShotSent() {

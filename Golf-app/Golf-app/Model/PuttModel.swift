@@ -6,14 +6,14 @@ import Foundation
 ///
 /// A Stimpmeter releases the ball at 1.83 m/s and the green's Stimp reading is how many feet it rolls. A
 /// rolling ball slows at a constant rate, so distance grows with speed squared:
-/// distance = stimp (m) × (ball speed / 1.83)². The sim's green is Stimp 11.2 and it sends its own in `state`.
+/// distance = stimp (m) × (ball speed / 1.83)². The sim's green is Stimp 9.3 and it sends its own in `state`.
 nonisolated enum PuttModel {
     /// Ball speed leaving a Stimpmeter ramp, m/s (6 ft/s).
     static let stimpReleaseSpeed = 1.83
     static let metersPerFoot = 0.3048
     static let metersPerYard = 0.9144
-    /// The sim's green (rolling resistance 0.05 g), used until the sim reports its Stimp.
-    static let defaultStimp = 11.2
+    /// The sim's green (rolling resistance 0.06 g), used until the sim reports its Stimp.
+    static let defaultStimp = 9.3
     /// The sim aims its read (and the meter's target) to finish this far past the hole, metres.
     static let overshoot = 0.4
 

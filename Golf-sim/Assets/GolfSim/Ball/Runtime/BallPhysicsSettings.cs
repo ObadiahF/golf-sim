@@ -35,7 +35,7 @@ namespace GolfSim.Ball
         [Header("Ground")]
         public List<SurfaceResponse> surfaces = DefaultSurfaces();
         [Tooltip("Used for surfaces not in the list.")]
-        public SurfaceResponse fallback = new SurfaceResponse { surface = "rough", restitution = 0.6f, friction = 0.6f, rolling = 0.35f, compliance = 1.4f };
+        public SurfaceResponse fallback = new SurfaceResponse { surface = "rough", restitution = 0.45f, friction = 0.70f, rolling = 0.700f, compliance = 1.4f };
 
         [Header("Lie (how the surface the ball is hit from changes the launch)")]
         [Tooltip("Surfaces not listed (tee, fairway, green) are clean lies.")]
@@ -54,7 +54,7 @@ namespace GolfSim.Ball
             public string surface;
             [Tooltip("Bounce energy kept relative to a firm green (1).")] public float restitution = 1f;
             [Tooltip("Sliding friction during a bounce.")] public float friction = 0.4f;
-            [Tooltip("Rolling resistance as a fraction of g. Green 0.05 is about Stimp 11.")] public float rolling = 0.06f;
+            [Tooltip("Rolling resistance as a fraction of g. Green 0.06 is about Stimp 9.3.")] public float rolling = 0.06f;
             [Tooltip("How much the turf gives under impact (crater tilt), 1 = green.")] public float compliance = 1f;
             [Tooltip("Ball stops here immediately (water).")] public bool hazard;
         }
@@ -90,13 +90,13 @@ namespace GolfSim.Ball
 
         public static List<SurfaceResponse> DefaultSurfaces() => new List<SurfaceResponse>
         {
-            new SurfaceResponse { surface = "green",   restitution = 1.00f, friction = 0.40f, rolling = 0.050f, compliance = 1.0f },
+            new SurfaceResponse { surface = "green",   restitution = 1.00f, friction = 0.40f, rolling = 0.060f, compliance = 1.0f },
             new SurfaceResponse { surface = "fairway", restitution = 0.90f, friction = 0.45f, rolling = 0.110f, compliance = 1.1f },
             new SurfaceResponse { surface = "tee",     restitution = 0.90f, friction = 0.45f, rolling = 0.110f, compliance = 1.1f },
-            new SurfaceResponse { surface = "rough",   restitution = 0.60f, friction = 0.60f, rolling = 0.350f, compliance = 1.4f },
-            new SurfaceResponse { surface = "native",  restitution = 0.65f, friction = 0.60f, rolling = 0.450f, compliance = 1.3f },
-            new SurfaceResponse { surface = "scrub",   restitution = 0.45f, friction = 0.70f, rolling = 0.700f, compliance = 1.5f },
-            new SurfaceResponse { surface = "woods",   restitution = 0.45f, friction = 0.70f, rolling = 0.700f, compliance = 1.5f },
+            new SurfaceResponse { surface = "rough",   restitution = 0.45f, friction = 0.70f, rolling = 0.700f, compliance = 1.4f },
+            new SurfaceResponse { surface = "native",  restitution = 0.50f, friction = 0.70f, rolling = 0.800f, compliance = 1.3f },
+            new SurfaceResponse { surface = "scrub",   restitution = 0.40f, friction = 0.75f, rolling = 1.000f, compliance = 1.5f },
+            new SurfaceResponse { surface = "woods",   restitution = 0.40f, friction = 0.75f, rolling = 1.000f, compliance = 1.5f },
             new SurfaceResponse { surface = "bunker",  restitution = 0.20f, friction = 0.80f, rolling = 1.500f, compliance = 2.5f },
             new SurfaceResponse { surface = "water",   hazard = true },
         };

@@ -11,7 +11,7 @@ namespace GolfSim.Game
     public partial class RoundDirector
     {
         const float FringeReach = 3f;      // m: the putter from this close to the green is putting mode...
-        const float FringeRolling = 0.12f; // ...from short grass only (fairway 0.11); rough (0.35) is a chip, not a putt
+        const float FringeRolling = 0.12f; // ...from short grass only (fairway 0.11); rough (0.7) is a chip, not a putt
         const float PuttCameraBack = 2.6f; // m behind the ball
         const float PuttCameraUp = 1.5f;   // m above the ball and the ground behind it (the fly camera's minimum ground clearance)
         const float PuttBallLow = 0.3f;    // the ball sits at most this share of the view below its centre
@@ -60,7 +60,7 @@ namespace GolfSim.Game
 
         /// <summary>
         /// The putter on the green, or on the fringe: short grass within FringeReach of the green. From the rough the
-        /// grass grabs the ball (7x the green's rolling resistance, and the lie's speed loss), so how far it goes
+        /// grass grabs the ball (over 10x the green's rolling resistance, and the lie's speed loss), so how far it goes
         /// hardly follows the meter's flat-green scale: the putter there is an ordinary shot, without the meter.
         /// </summary>
         bool IsPutting(string lie) =>

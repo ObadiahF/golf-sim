@@ -103,14 +103,14 @@ card (feet and metres, the rise or fall in cm, how long it plays, the Stimp and 
 carries `putting: true`, `puttDistance` (m), `elevation` (m, + uphill), `stimp` (ft), `puttPlaysAs` (m) and
 `puttingAssist`. The app then shows its putting view with a power meter. Shots stay ordinary `shot` messages.
 From the rough the putter is an ordinary shot (no putting mode, `puttPlaysAs` 0): the rough's rolling resistance
-(7x the green's) and the lie's speed loss make the roll too far from the meter's flat-green scale to read.
+(over 10x the green's) and the lie's speed loss make the roll too far from the meter's flat-green scale to read.
 
 - **Break preview** (`Ball/Runtime/PuttPreview.cs`, `PuttPredictor.cs`, `GreenReading.cs`): rolls a copy of the
   putt over the terrain with the ball's own physics at the speed that finishes 40 cm past the hole along the aim,
   and draws it as dots with slope arrows. **P** (or the panel's Assist button) cycles Full / Partial (the line
   fades out after `revealFraction`, 60 %) / Off. It re-solves when the ball or aim moves.
 - **Distance** (`Ball/Runtime/PuttModel.cs`, and `Model/PuttModel.swift` in the app with the same constants):
-  roll = Stimp (m) × (ball speed / 1.83 m/s)². The green is Stimp 11.2. `puttPlaysAs` is the flat-green roll of
+  roll = Stimp (m) × (ball speed / 1.83 m/s)². The green is Stimp 9.3. `puttPlaysAs` is the flat-green roll of
   the putt the preview solved, so the meter's target already includes the slope.
 - **Keyboard:** with the Putter preset the shot panel shows a distance slider in metres (Use the read loads
   `puttPlaysAs`). After each putt the HUD shows a strength bar against the read.
