@@ -1,0 +1,314 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 80de17f57980e4bdea9a3f6e838cee0b, type: 3}
+  m_Name: AssetCatalog
+  m_EditorClassIdentifier: CourseBuilder.Editor::GolfSim.CourseEditor.AssetCatalog
+  entries:
+  - name: Golf_Native
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 17a90c21f0658492594a27c1c0d0c7f9, type: 2}
+    tags:
+    - native
+    - scrub
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_Rough
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: dfa64948ee6da4072a1c269651b862a4, type: 2}
+    tags:
+    - rough
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_Woods
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 7df1222ec114943d98d65ceccb635575, type: 2}
+    tags:
+    - woods
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_Fairway
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 3489d497a70f945f4a443a7a9775c52b, type: 2}
+    tags:
+    - fairway
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_Tee
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 4e07cd4221b5c40029ac54c35f859d27, type: 2}
+    tags:
+    - tee
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_Green
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 2783c71fa1a4149a781d3bec57aa0de8, type: 2}
+    tags:
+    - green
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_Bunker
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 9b389e7f3cc2c415596d6c316275361c, type: 2}
+    tags:
+    - bunker
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_FairwayStripe
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 3094979ac48d348d98328c5877f0bbbe, type: 2}
+    tags:
+    - fairway
+    - stripe
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_GreenStripe
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: b69bd7c2a3afd49f1bf43eabad8fb447, type: 2}
+    tags:
+    - green
+    - stripe
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: WaterDepthBased
+    category: 5
+    asset: {fileID: 2100000, guid: 606a2cf006c309d47bb99f421ada20ca, type: 2}
+    tags:
+    - water
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Pine_A
+    category: 0
+    asset: {fileID: 919132149155446097, guid: 664f5d5d981c0f24ca0f9d731d77a36c, type: 3}
+    tags:
+    - conifer
+    scale: {x: 0.5, y: 0.8}
+    weight: 1
+  - name: Pine_B
+    category: 0
+    asset: {fileID: 919132149155446097, guid: b8aa0ccd1fb79294da6b8f03791e27f2, type: 3}
+    tags:
+    - conifer
+    scale: {x: 0.5, y: 0.8}
+    weight: 1
+  - name: Pine_C
+    category: 0
+    asset: {fileID: 919132149155446097, guid: b3da1778a10a6eb48b449d9c0bc21c2e, type: 3}
+    tags:
+    - conifer
+    scale: {x: 0.5, y: 0.8}
+    weight: 1
+  - name: Pine_D
+    category: 0
+    asset: {fileID: 919132149155446097, guid: e17a253999e7e294981e5ed8ce32646f, type: 3}
+    tags:
+    - conifer
+    scale: {x: 0.5, y: 0.8}
+    weight: 1
+  - name: Conifer
+    category: 0
+    asset: {fileID: 919132149155446097, guid: c7068782d88ce434ba35d8cf4f84f657, type: 3}
+    tags:
+    - conifer
+    scale: {x: 0.45, y: 0.65}
+    weight: 1
+  - name: Cypress_Forest_Desktop
+    category: 0
+    asset: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+    tags:
+    - conifer
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Cypress_Forest_Desktop
+    category: 1
+    asset: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
+    tags:
+    - conifer
+    - shrub
+    scale: {x: 0.25, y: 0.45}
+    weight: 1
+  - name: Rock_A_01
+    category: 2
+    asset: {fileID: 100000, guid: 3bb55b9dc42e34c47b35dea94575a162, type: 3}
+    tags:
+    - rock
+    - large
+    scale: {x: 1.5, y: 4}
+    weight: 1
+  - name: Rock_B_01
+    category: 2
+    asset: {fileID: 100000, guid: 8d8873bd1f85c3942bf7f961cec01074, type: 3}
+    tags:
+    - rock
+    - large
+    scale: {x: 1.5, y: 4}
+    weight: 1
+  - name: Rock_C_01
+    category: 2
+    asset: {fileID: 100000, guid: 9ec4ab395efae3f44b859f77742dd451, type: 3}
+    tags:
+    - rock
+    - large
+    scale: {x: 1.5, y: 4}
+    weight: 1
+  - name: Rock_D
+    category: 2
+    asset: {fileID: 1862941254676340, guid: 6a8a77a07da1ab74bb3d34fe70501b7d, type: 3}
+    tags:
+    - rock
+    - large
+    scale: {x: 0.4, y: 0.8}
+    weight: 1
+  - name: Rock_A_02
+    category: 2
+    asset: {fileID: 100000, guid: 0347a2ca593e212468d38a00c0f15925, type: 3}
+    tags:
+    - rock
+    - small
+    scale: {x: 0.6, y: 1.5}
+    weight: 1
+  - name: Rock_B_02
+    category: 2
+    asset: {fileID: 100000, guid: d08e58249c8b5444cb22e208478dc55f, type: 3}
+    tags:
+    - rock
+    - small
+    scale: {x: 0.6, y: 1.5}
+    weight: 1
+  - name: Rock_C_02
+    category: 2
+    asset: {fileID: 100000, guid: 42a5fc4117eb11e4db95a975d19a76ca, type: 3}
+    tags:
+    - rock
+    - small
+    scale: {x: 0.6, y: 1.5}
+    weight: 1
+  - name: Grass_B
+    category: 3
+    asset: {fileID: 1245006558584958560, guid: 7b3e6db10d22f504dbc606110b2cb5e7, type: 3}
+    tags:
+    - grass
+    scale: {x: 0.35, y: 0.6}
+    weight: 1
+  - name: Grass_C
+    category: 3
+    asset: {fileID: 6846659341408791651, guid: 4c72217d56dcb6749a897a75cad1f34e, type: 3}
+    tags:
+    - grass
+    scale: {x: 0.35, y: 0.6}
+    weight: 1
+  - name: Grass_D
+    category: 3
+    asset: {fileID: 5443344685879028270, guid: 4dfd50a1f648e984f8188be70774f281, type: 3}
+    tags:
+    - grass
+    scale: {x: 0.35, y: 0.6}
+    weight: 1
+  - name: GrassDry_A
+    category: 3
+    asset: {fileID: 7369509780391000685, guid: 912739ab7781de749876d674ef8dd365, type: 3}
+    tags:
+    - dry
+    - grass
+    scale: {x: 0.7, y: 1.2}
+    weight: 1
+  - name: GrassDry_B
+    category: 3
+    asset: {fileID: 8486787402013068894, guid: 9e8508e3025d9c844810b83c5607c09e, type: 3}
+    tags:
+    - dry
+    - grass
+    scale: {x: 0.7, y: 1.2}
+    weight: 1
+  - name: GrassDry_C
+    category: 3
+    asset: {fileID: 1718442328122675833, guid: 3d4dd2affe15db043a6502ae256cd0d4, type: 3}
+    tags:
+    - dry
+    - grass
+    scale: {x: 0.7, y: 1.2}
+    weight: 1
+  - name: GrassDry_D
+    category: 3
+    asset: {fileID: 5138664864039170994, guid: 8aa8def6286fc784ba128570ec475974, type: 3}
+    tags:
+    - dry
+    - grass
+    scale: {x: 0.7, y: 1.2}
+    weight: 1
+  - name: BushDry_A
+    category: 3
+    asset: {fileID: 5784118704813857101, guid: 176a42107ce66c44aa74a67424591597, type: 3}
+    tags:
+    - dry
+    - bush
+    scale: {x: 0.8, y: 1.3}
+    weight: 1
+  - name: BushDry_B
+    category: 3
+    asset: {fileID: 889445777815560387, guid: 054bf5cf244ff2e4083cbf8eca205cf0, type: 3}
+    tags:
+    - dry
+    - bush
+    scale: {x: 0.8, y: 1.3}
+    weight: 1
+  - name: Shrub
+    category: 3
+    asset: {fileID: 1565408744048187519, guid: e6fd4411c0e008642b42a086f0d297ca, type: 3}
+    tags:
+    - shrub
+    scale: {x: 0.8, y: 1.3}
+    weight: 1
+  - name: Fern_A
+    category: 3
+    asset: {fileID: 2085449277718671952, guid: 6629880e46886724fa0107d3035304e6, type: 3}
+    tags:
+    - fern
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Fern_B
+    category: 3
+    asset: {fileID: 4798742950742889349, guid: 5e7ace55a7bfd0d4f9ba3c05024e9d79, type: 3}
+    tags:
+    - fern
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Fern_C
+    category: 3
+    asset: {fileID: 1647502441230210415, guid: 4786e2698ac97a949a9209febfcbd49b, type: 3}
+    tags:
+    - fern
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Bush_A
+    category: 3
+    asset: {fileID: 6011036630121576164, guid: 0ec1c69bd47ad864f96cc2b516f6cd4b, type: 3}
+    tags:
+    - bush
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Bush_B
+    category: 3
+    asset: {fileID: 2803505663424749585, guid: b273de0d6e5818a4cb3195ce4f376ccb, type: 3}
+    tags:
+    - bush
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  themes:
+  - {fileID: 11400000, guid: b10de85801d3f433fa2d67073ffa0292, type: 2}
+  - {fileID: 11400000, guid: e037abcf28dd044a082e5ca1a8eb6ba9, type: 2}
+  - {fileID: 11400000, guid: 3a61cd69516e74ada9064aa42ffea315, type: 2}
+  - {fileID: 11400000, guid: 958c9c5f07b104535a24eea8b940fec6, type: 2}
+  - {fileID: 11400000, guid: efeff0af482fd4ba0a27cfc10117db59, type: 2}
+  - {fileID: 11400000, guid: 15d67148366a34bc999d5dcfe96483b7, type: 2}
+  - {fileID: 11400000, guid: 3c607a50b07d94cafbcd4098dadd803b, type: 2}
+  defaultTheme: {fileID: 11400000, guid: b10de85801d3f433fa2d67073ffa0292, type: 2}

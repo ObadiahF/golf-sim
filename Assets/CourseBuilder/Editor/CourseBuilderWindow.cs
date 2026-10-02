@@ -23,6 +23,9 @@ namespace GolfSim.CourseEditor
         SurfaceLayerSet layers;
         ScatterSet scatter;
         bool scatterEnabled = true;
+        bool useThemes = true;
+        CourseTheme themeOverride;
+        AssetCatalog catalog;
         int seed = 1;
         int blurRadius = 1;
         Vector2 scroll;
@@ -34,10 +37,15 @@ namespace GolfSim.CourseEditor
         {
             if (!layers) layers = SurfaceLayerSet.LoadOrCreateDefault();
             if (!scatter) scatter = ScatterSet.LoadOrCreateDefault();
+            catalog = AssetCatalog.Load();
             RefreshPackages();
         }
 
-        void OnProjectChange() => RefreshPackages();
+        void OnProjectChange()
+        {
+            catalog = AssetCatalog.Load();
+            RefreshPackages();
+        }
 
         void RefreshPackages()
         {
@@ -88,12 +96,15 @@ namespace GolfSim.CourseEditor
 
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Settings", EditorStyles.boldLabel);
-            layers = (SurfaceLayerSet)EditorGUILayout.ObjectField("Surface layers", layers, typeof(SurfaceLayerSet), false);
+            DrawThemeSettings();
+            using (new EditorGUI.DisabledScope(ActiveTheme != null))
+                layers = (SurfaceLayerSet)EditorGUILayout.ObjectField("Surface layers", layers, typeof(SurfaceLayerSet), false);
             blurRadius = EditorGUILayout.IntSlider(new GUIContent("Edge blend (px)", "Softens edges between surfaces"), blurRadius, 0, 4);
             scatterEnabled = EditorGUILayout.Toggle("Trees, rocks, grass", scatterEnabled);
             using (new EditorGUI.DisabledScope(!scatterEnabled))
             {
-                scatter = (ScatterSet)EditorGUILayout.ObjectField("Scatter rules", scatter, typeof(ScatterSet), false);
+                using (new EditorGUI.DisabledScope(ActiveTheme != null))
+                    scatter = (ScatterSet)EditorGUILayout.ObjectField("Scatter rules", scatter, typeof(ScatterSet), false);
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     seed = EditorGUILayout.IntField(new GUIContent("Seed", "Same seed = same layout"), seed);
@@ -108,6 +119,26 @@ namespace GolfSim.CourseEditor
 
             DrawViewButtons();
             EditorGUILayout.EndScrollView();
+        }
+
+        /// <summary>Theme that will dress the selected package, or null to use the layer / scatter sets.</summary>
+        CourseTheme ActiveTheme =>
+            !useThemes || !catalog ? null : themeOverride ? themeOverride : preview != null ? ThemeResolver.ThemeFor(preview, catalog) : null;
+
+        void DrawThemeSettings()
+        {
+            if (!catalog)
+            {
+                EditorGUILayout.HelpBox("No asset catalog yet: using the sets below. Run Golf > Catalog > Build Catalog From Current Assets to switch to themes.", MessageType.None);
+                return;
+            }
+            useThemes = EditorGUILayout.Toggle(new GUIContent("Use catalog themes", "Dress the hole with a CourseTheme instead of the sets below"), useThemes);
+            using (new EditorGUI.DisabledScope(!useThemes))
+            {
+                themeOverride = (CourseTheme)EditorGUILayout.ObjectField(
+                    new GUIContent("Theme override", "Empty = the package's own theme, else the catalog default"), themeOverride, typeof(CourseTheme), false);
+                if (useThemes) EditorGUILayout.LabelField(" ", $"Using: {(ActiveTheme ? ActiveTheme.name : "(none)")}");
+            }
         }
 
         static void DrawViewButtons()
@@ -148,7 +179,8 @@ namespace GolfSim.CourseEditor
                     seed = seed,
                     blurRadius = blurRadius,
                 };
-                var root = HoleTerrainBuilder.Build(HolePackage.Load(packagePaths[selected]), options);
+                var pkg = HolePackage.Load(packagePaths[selected]);
+                var root = ThemeResolver.Build(pkg, ActiveTheme, catalog, options);
                 Debug.Log($"[CourseBuilder] Generated '{root.name}'");
             }
             catch (Exception e)

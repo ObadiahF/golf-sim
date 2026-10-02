@@ -3,3 +3,5 @@ rasterio
 pyproj
 shapely
 pillow
+scipy
+pytest

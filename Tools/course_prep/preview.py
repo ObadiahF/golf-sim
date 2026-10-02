@@ -9,8 +9,10 @@ from PIL import Image, ImageDraw
 
 OUTLINE_COLORS = {
     "rough": (90, 140, 60), "fairway": (120, 220, 90), "green": (40, 255, 120), "tee": (255, 255, 255),
-    "bunker": (250, 220, 140), "water": (60, 140, 255), "woods": (20, 90, 30),
+    "bunker": (250, 220, 140), "water": (60, 140, 255), "woods": (20, 90, 30), "scrub": (190, 150, 90),
 }
+# Translucent fills so coverage (woods density, water) reads at a glance; outlines stay for everything.
+FILL_SURFACES = {"woods": 110, "water": 150, "scrub": 90, "bunker": 160, "green": 120, "fairway": 70}
 
 
 def hillshade(h: np.ndarray, spacing: float, azimuth=315.0, altitude=45.0) -> np.ndarray:
@@ -37,6 +39,18 @@ def render_preview(package_dir: Path, out_path: Path | None = None) -> Path:
 
     def px(x, z):
         return x * scale, (n - 1) - z * scale
+
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    fill = ImageDraw.Draw(overlay)
+    for area in pkg["areas"]:
+        alpha = FILL_SURFACES.get(area["surface"])
+        if alpha:
+            rings = [[px(r["points"][i], r["points"][i + 1]) for i in range(0, len(r["points"]), 2)] for r in area["rings"]]
+            fill.polygon(rings[0], fill=(*OUTLINE_COLORS[area["surface"]], alpha))
+            for hole in rings[1:]:
+                fill.polygon(hole, fill=(0, 0, 0, 0))
+    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+    draw = ImageDraw.Draw(img)
 
     for area in pkg["areas"]:
         color = OUTLINE_COLORS.get(area["surface"], (255, 0, 255))

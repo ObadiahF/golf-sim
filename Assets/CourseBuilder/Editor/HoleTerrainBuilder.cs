@@ -11,6 +11,7 @@ namespace GolfSim.CourseEditor
     {
         public SurfaceLayerSet layers;
         public ScatterSet scatter; // null = no trees/rocks
+        public WaterProvider water; // null = flat meshes using layers.waterMaterial
         public int seed = 1;
         public int blurRadius = 1;
         public float pixelError = 2f;
@@ -88,7 +89,8 @@ namespace GolfSim.CourseEditor
                 int detailLayers = DetailScatterer.Apply(terrain, pkg, layers, options.scatter, alpha, options.seed);
                 Debug.Log($"[CourseBuilder] Painted {detailLayers} grass/ground-cover layers");
             }
-            WaterBuilder.Create(root.transform, pkg, options.layers.waterMaterial);
+            if (options.water) options.water.Build(root.transform, pkg);
+            else WaterBuilder.Create(root.transform, pkg, options.layers.waterMaterial);
 
             var tee = pkg.ToLocal(pkg.tee, terrain);
             var pin = pkg.ToLocal(pkg.pin, terrain);

@@ -49,9 +49,9 @@ namespace GolfSim.CourseEditor
             new Entry { surface = "rough",   placeholderColor = new Color(0.24f, 0.42f, 0.16f) },
             new Entry { surface = "scrub",   placeholderColor = new Color(0.45f, 0.44f, 0.28f) },
             new Entry { surface = "woods",   placeholderColor = new Color(0.13f, 0.25f, 0.10f) },
-            new Entry { surface = "fairway", placeholderColor = new Color(0.36f, 0.62f, 0.22f) },
+            new Entry { surface = "fairway", placeholderColor = new Color(0.36f, 0.62f, 0.22f), stripeWidth = 4f, stripeAngle = 90f },
             new Entry { surface = "tee",     placeholderColor = new Color(0.40f, 0.66f, 0.26f) },
-            new Entry { surface = "green",   placeholderColor = new Color(0.30f, 0.72f, 0.28f) },
+            new Entry { surface = "green",   placeholderColor = new Color(0.30f, 0.72f, 0.28f), stripeWidth = 1f },
             new Entry { surface = "bunker",  placeholderColor = new Color(0.90f, 0.82f, 0.60f) },
             new Entry { surface = "water",   placeholderColor = new Color(0.16f, 0.32f, 0.48f) },
         };

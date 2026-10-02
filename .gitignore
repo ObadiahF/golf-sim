@@ -66,3 +66,9 @@ __pycache__/
 # Claude Code agent worktrees
 /.claude/
 /Packages/com.vdc.nature-renderer.free.uas.json
+
+# Course generator: generated holes are disposable (ratings keep their parameters); model is derived
+/Assets/CourseData/generated/
+/Assets/CourseData/generated.meta
+/Tools/course_gen/data/preference_model.npz
+.pytest_cache/
