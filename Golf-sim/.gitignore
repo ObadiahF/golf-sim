@@ -82,3 +82,9 @@ __pycache__/
 # Game server token for the sim (secret)
 /Assets/GolfSim/Net/Resources/ServerToken.txt
 /Assets/GolfSim/Net/Resources/ServerToken.txt.meta
+
+# Self-update: the build's embedded version (written and deleted by GolfSim/Editor/BuildPlayers.cs) and the
+# admin token of the publish tool (secret)
+/Assets/GolfSim/Net/Resources/BuildInfo.json
+/Assets/GolfSim/Net/Resources/BuildInfo.json.meta
+/Tools/publish/update_token.txt

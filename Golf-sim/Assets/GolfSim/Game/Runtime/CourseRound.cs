@@ -23,7 +23,7 @@ namespace GolfSim.Game
     {
         public const string ResourceName = "CourseRound";
 
-        [Tooltip("Themes for building the trainer's top holes at runtime (Golf > Catalog > Bake Runtime Themes). " +
+        [Tooltip("Themes for building the trainer's holes at runtime (Golf > Catalog > Bake Runtime Themes). " +
                  "The hole scenes then only host them. Empty = play the hole scenes as built.")]
         public RuntimeThemeLibrary themes;
         [Tooltip("Hole scenes in order (names as in the build settings). Repeated to fill the round.")]

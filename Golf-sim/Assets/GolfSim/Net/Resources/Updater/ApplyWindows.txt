@@ -1,0 +1,138 @@
+# Golf Sim updater for Windows (Windows PowerShell 5.1). The game writes this script and plan.txt next to it
+# (GolfSim/Net/Runtime/Update/UpdateInstaller.cs), starts it and quits. It waits for the game to exit, copies the
+# staged files of the new release over the game folder, deletes the files the release no longer has, and starts the
+# game again. Every file it replaces or deletes is backed up first and put back if anything fails, so the old version
+# stays playable. Logs to ..\update.log; leaves "ok<TAB>version" or "failed<TAB>reason" in ..\result.txt for the game.
+$ErrorActionPreference = 'Stop'
+$here = $PSScriptRoot
+$updates = Split-Path -Parent $here
+$log = Join-Path $updates 'update.log'
+
+function Log([string]$message) {
+    $line = '{0:yyyy-MM-dd HH:mm:ss} {1}' -f (Get-Date), $message
+    try { [System.IO.File]::AppendAllText($log, $line + "`r`n") } catch { }
+}
+
+# Retries a file operation for ~10 s: an antivirus scan or the crash handler can hold a file for a moment.
+function Retry([scriptblock]$action) {
+    for ($i = 1; ; $i++) {
+        try { & $action; return } catch { if ($i -ge 20) { throw }; Start-Sleep -Milliseconds 500 }
+    }
+}
+
+# Windows command-line quoting for one argument (CommandLineToArgvW rules).
+function Quote([string]$arg) {
+    if ($arg -eq '') { return '""' }
+    if ($arg -notmatch '[\s"]') { return $arg }
+    $escaped = $arg -replace '(\\*)"', '$1$1\"'
+    $escaped = $escaped -replace '(\\+)$', '$1$1'
+    return '"' + $escaped + '"'
+}
+
+# ---- the plan: one tab-separated record per line ----
+$root = $null; $launch = $null; $gamePid = 0; $version = ''; $blobs = $null
+$gameArgs = New-Object System.Collections.Generic.List[string]
+$writes = New-Object System.Collections.Generic.List[object]
+$deletes = New-Object System.Collections.Generic.List[string]
+foreach ($line in [System.IO.File]::ReadAllLines((Join-Path $here 'plan.txt'), [System.Text.Encoding]::UTF8)) {
+    $f = $line.Split("`t")
+    switch ($f[0]) {
+        'root'    { $root = $f[1].TrimEnd('\') }
+        'launch'  { $launch = $f[1] }
+        'pid'     { $gamePid = [int]$f[1] }
+        'version' { $version = $f[1] }
+        'blobs'   { $blobs = $f[1] }
+        'arg'     { $gameArgs.Add($f[1]) }
+        'write'   { $writes.Add(@{ Sha = $f[1]; Path = $f[3] }) }
+        'delete'  { $deletes.Add($f[1]) }
+    }
+}
+
+# A manifest path as a full path inside the game folder (refuses anything else; the game and the server check too).
+function Target([string]$relative) {
+    if ($relative -match '(^|/)\.\.?(/|$)' -or $relative -match '[\\:]' -or $relative.StartsWith('/')) { throw "Unsafe path $relative" }
+    $full = [System.IO.Path]::GetFullPath((Join-Path $root ($relative -replace '/', '\')))
+    if (-not $full.StartsWith($root + '\', [System.StringComparison]::OrdinalIgnoreCase)) { throw "Path outside the game folder: $relative" }
+    return $full
+}
+
+$backup = Join-Path $updates ('backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+$changed = New-Object System.Collections.Generic.List[object]   # @{ Target; Backup } in order; Backup $null = the file was new
+
+function Backup-File([string]$target, [string]$relative) {
+    if ([System.IO.File]::Exists($target)) {
+        $copy = Join-Path $backup ($relative -replace '/', '\')
+        [System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($copy)) | Out-Null
+        Retry { [System.IO.File]::Copy($target, $copy, $true) }
+        $changed.Add(@{ Target = $target; Backup = $copy })
+    } else {
+        $changed.Add(@{ Target = $target; Backup = $null })
+    }
+}
+
+function Restore {
+    for ($i = $changed.Count - 1; $i -ge 0; $i--) {
+        $c = $changed[$i]
+        try {
+            if ($c.Backup) { Retry { [System.IO.File]::Copy($c.Backup, $c.Target, $true) } }
+            elseif ([System.IO.File]::Exists($c.Target)) { Retry { [System.IO.File]::Delete($c.Target) } }
+        } catch { Log "Could not restore $($c.Target): $($_.Exception.Message)" }
+    }
+}
+
+function Result([string]$text) {
+    try { [System.IO.File]::WriteAllText((Join-Path $updates 'result.txt'), $text) } catch { Log "Could not write result.txt" }
+}
+
+try {
+    if (-not $root -or -not $launch -or -not $blobs) { throw 'plan.txt is incomplete' }
+    Log "Updating $root to $version`: $($writes.Count) files to write, $($deletes.Count) to delete"
+
+    # Wait for the game, then for its crash handler, to let go of their files.
+    try { $game = [System.Diagnostics.Process]::GetProcessById($gamePid) } catch { $game = $null }
+    if ($game -and -not $game.WaitForExit(60000)) { throw "The game (process $gamePid) did not quit" }
+    try {
+        Get-Process -Name 'UnityCrashHandler64', 'UnityCrashHandler32' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and $_.Path.StartsWith($root + '\', [System.StringComparison]::OrdinalIgnoreCase) } |
+            ForEach-Object { $_.WaitForExit(15000) | Out-Null }
+    } catch { Log "Could not wait for the crash handler: $($_.Exception.Message)" }
+
+    foreach ($w in $writes) {
+        $target = Target $w.Path
+        $source = Join-Path $blobs $w.Sha
+        if (-not [System.IO.File]::Exists($source)) { throw "The staged file for $($w.Path) is missing" }
+        Backup-File $target $w.Path
+        [System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($target)) | Out-Null
+        Retry { [System.IO.File]::Copy($source, $target, $true) }
+    }
+    foreach ($relative in $deletes) {
+        $target = Target $relative
+        if ([System.IO.File]::Exists($target)) {
+            Backup-File $target $relative
+            Retry { [System.IO.File]::Delete($target) }
+        }
+    }
+    Result "ok`t$version"
+    Log "Updated to $version"
+    foreach ($folder in @($backup, $blobs)) {
+        try { if ([System.IO.Directory]::Exists($folder)) { [System.IO.Directory]::Delete($folder, $true) } } catch { Log "Could not delete $folder" }
+    }
+} catch {
+    $reason = $_.Exception.Message
+    Log "FAILED: $reason. Restoring the previous version."
+    Restore
+    Result "failed`t$reason"
+}
+
+# Start the game again, updated or not.
+try {
+    $start = New-Object System.Diagnostics.ProcessStartInfo
+    $start.FileName = $launch
+    $start.WorkingDirectory = $root
+    $start.Arguments = (@($gameArgs | ForEach-Object { Quote $_ }) -join ' ')
+    $start.UseShellExecute = $true
+    [System.Diagnostics.Process]::Start($start) | Out-Null
+    Log "Started $launch"
+} catch {
+    Log "Could not start the game: $($_.Exception.Message)"
+}

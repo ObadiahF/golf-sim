@@ -1,0 +1,96 @@
+#!/bin/bash
+# Golf Sim updater for macOS: the same steps as ApplyWindows (the game writes this script and plan.txt next to it,
+# starts it and quits). Waits for the game to exit, replaces the changed files inside the .app (each through a new
+# file and a rename: rewriting a signed binary in place gets it killed at launch), deletes the files the release no
+# longer has, and opens the app again. Every file it replaces or deletes is backed up first and put back if anything
+# fails. Logs to ../update.log; leaves "ok<TAB>version" or "failed<TAB>reason" in ../result.txt for the game.
+here="$(cd "$(dirname "$0")" && pwd)"
+updates="$(dirname "$here")"
+exec >>"$updates/update.log" 2>&1
+log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*"; }
+
+# ---- the plan: one tab-separated record per line ----
+root="" launch="" pid="" version="" blobs=""
+args=() writes=() deletes=()
+while IFS=$'\t' read -r kind a b c; do
+    case "$kind" in
+        root) root="${a%/}" ;;
+        launch) launch="$a" ;;
+        pid) pid="$a" ;;
+        version) version="$a" ;;
+        blobs) blobs="$a" ;;
+        arg) args+=("$a") ;;
+        write) writes+=("$a"$'\t'"$b"$'\t'"$c") ;;
+        delete) deletes+=("$a") ;;
+    esac
+done < "$here/plan.txt"
+
+backup="$updates/backup-$(date +%Y%m%d-%H%M%S)"
+targets=() backups=()   # in order; an empty backup means the file was new
+
+# A manifest path as a full path inside the app (refuses anything else; the game and the server check too).
+target() {
+    case "/$1/" in */../*|*/./*|*//*) return 1 ;; esac
+    case "$1" in /*) return 1 ;; esac
+    echo "$root/$1"
+}
+
+replace() { # source target: write through a new file (keeping the source's mode), then rename over the old one
+    cp -p "$1" "$2.updating" && mv -f "$2.updating" "$2" || { rm -f "$2.updating"; return 1; }
+}
+
+backup_file() { # target relative
+    if [ -f "$1" ]; then
+        mkdir -p "$(dirname "$backup/$2")" && cp -p "$1" "$backup/$2" || return 1
+        backups+=("$backup/$2")
+    else
+        backups+=("")
+    fi
+    targets+=("$1")
+}
+
+relaunch() {
+    if open -n "$launch" --args "${args[@]}"; then log "Opened $launch"; else log "Could not open $launch"; fi
+}
+
+fail() {
+    log "FAILED: $1. Restoring the previous version."
+    local i
+    for ((i = ${#targets[@]} - 1; i >= 0; i--)); do
+        if [ -n "${backups[$i]}" ]; then
+            replace "${backups[$i]}" "${targets[$i]}" || log "Could not restore ${targets[$i]}"
+        else
+            rm -f "${targets[$i]}"
+        fi
+    done
+    printf 'failed\t%s\n' "$1" > "$updates/result.txt"
+    relaunch
+    exit 1
+}
+
+[ -n "$root" ] && [ -n "$launch" ] && [ -n "$blobs" ] || fail "plan.txt is incomplete"
+log "Updating $root to $version: ${#writes[@]} files to write, ${#deletes[@]} to delete"
+
+for _ in $(seq 600); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+kill -0 "$pid" 2>/dev/null && fail "The game (process $pid) did not quit"
+
+for w in "${writes[@]}"; do
+    IFS=$'\t' read -r sha executable relative <<< "$w"
+    dest="$(target "$relative")" || fail "Unsafe path $relative"
+    [ -f "$blobs/$sha" ] || fail "The staged file for $relative is missing"
+    backup_file "$dest" "$relative" || fail "Could not back up $relative"
+    mkdir -p "$(dirname "$dest")" && replace "$blobs/$sha" "$dest" || fail "Could not write $relative"
+    if [ "$executable" = 1 ]; then chmod +x "$dest" || fail "Could not make $relative executable"; fi
+done
+for relative in "${deletes[@]}"; do
+    dest="$(target "$relative")" || fail "Unsafe path $relative"
+    if [ -f "$dest" ]; then
+        backup_file "$dest" "$relative" || fail "Could not back up $relative"
+        rm -f "$dest" || fail "Could not delete $relative"
+    fi
+done
+
+printf 'ok\t%s\n' "$version" > "$updates/result.txt"
+log "Updated to $version"
+rm -rf "$backup" "$blobs"
+relaunch

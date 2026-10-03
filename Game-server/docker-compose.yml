@@ -3,7 +3,7 @@
 #   docker compose run --rm test          mvn test against the golf_test database
 #   docker compose run --rm wsclient --role remote   fake remote/sim WebSocket client
 #   docker compose exec postgres psql -U golf golf
-#   docker compose down                   stop (data kept in the pgdata volume)
+#   docker compose down                   stop (data kept in the pgdata and updates volumes)
 #
 # No container or image names are hard-coded, so a second stack can run side by side:
 #   PORT=8081 docker compose -p gsfix up --build -d   (containers gsfix-*, volumes gsfix_*)
@@ -37,6 +37,11 @@ services:
       <<: *db-env
       DB_URL: jdbc:postgresql://postgres:5432/golf
       GOLF_API_TOKEN: ${GOLF_API_TOKEN:-golf-sim-dev-token}
+      # Admin token for publishing sim updates (docs/UPDATES.md); unset disables publishing.
+      GOLF_UPDATE_TOKEN: ${GOLF_UPDATE_TOKEN:-}
+      UPDATES_DIR: /data/updates
+    volumes:
+      - updates:/data/updates
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,4 +75,5 @@ services:
 
 volumes:
   pgdata:
+  updates:
   m2:

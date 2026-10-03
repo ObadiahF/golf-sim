@@ -6,4 +6,5 @@
 | `Golf-app/` | iPhone app: swing remote, TV-remote, players, putting meter |
 | `Game-server/` | Spring Boot + Postgres multiplayer backend (docker compose) |
 
-See `Golf-sim/Docs/multiplayer.md` for how they fit together.
+See `Golf-sim/Docs/multiplayer.md` for how they fit together. The sim updates itself from the game server
+(`Game-server/docs/UPDATES.md`; publish with `Golf-sim/Tools/publish/publish.sh windows`).

@@ -31,9 +31,16 @@ namespace GolfSim.Net
         [Tooltip("Longest wait between reconnect attempts, in seconds.")]
         public float maxReconnectDelay = 5f;
 
-        [Header("Course Trainer (top-rated holes)")]
-        [Tooltip("Rounds play the trainer's most-liked holes, downloaded when the round starts.")]
-        public bool useTopHoles = true;
+        /// <summary>Which trainer holes a round plays (see TrainerHoles).</summary>
+        public enum HoleSelection { Random, TopRated }
+
+        [Header("Course Trainer holes")]
+        [Tooltip("Rounds play holes from the Course Trainer, downloaded when the round starts.")]
+        [UnityEngine.Serialization.FormerlySerializedAs("useTopHoles")]
+        public bool useTrainerHoles = true;
+        [Tooltip("Random: a weighted random pick of every playable hole (liked ones more often), skipping the last " +
+                 "~30 played. TopRated: the trainer's most-liked holes.")]
+        public HoleSelection holeSelection = HoleSelection.Random;
         [Tooltip("Base URL of the Course Trainer.")]
         public string trainerUrl = "https://golf-trainer.obadiahfusco.xyz";
 
@@ -79,8 +86,25 @@ namespace GolfSim.Net
             }
         }
 
-        /// <summary>The base URL in use: the local override or the hosted server.</summary>
-        public string ActiveUrl => (useLocalServer && !string.IsNullOrWhiteSpace(localServerUrl) ? localServerUrl : serverUrl).Trim().TrimEnd('/');
+        /// <summary>The base URL in use: the command line's -server-url, else the local override, else the hosted server.</summary>
+        public string ActiveUrl => (CommandLineUrl != "" ? CommandLineUrl : (useLocalServer && !string.IsNullOrWhiteSpace(localServerUrl) ? localServerUrl : serverUrl)).Trim().TrimEnd('/');
+
+        /// <summary>
+        /// "-server-url http://localhost:8080" (or ws://, https://, wss://) on the player's command line: another server
+        /// without rebuilding, e.g. a local one for testing; "" without one. http(s) becomes ws(s): ActiveUrl is the WebSocket base.
+        /// </summary>
+        public static string CommandLineUrl => commandLineUrl ??= ParseCommandLineUrl() ?? "";
+
+        static string commandLineUrl;
+
+        static string ParseCommandLineUrl()
+        {
+            var args = System.Environment.GetCommandLineArgs();
+            int i = System.Array.IndexOf(args, "-server-url");
+            if (i < 0 || i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1])) return null;
+            string url = args[i + 1].Trim();
+            return url.StartsWith("https://") ? "wss://" + url.Substring(8) : url.StartsWith("http://") ? "ws://" + url.Substring(7) : url;
+        }
 
         /// <summary>The same server for REST: https://host (or http://host:port for a ws:// URL).</summary>
         public string HttpUrl => ActiveUrl.StartsWith("wss://") ? "https://" + ActiveUrl.Substring(6)

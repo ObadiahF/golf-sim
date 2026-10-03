@@ -26,6 +26,7 @@ Label { color: var(--text); }
 .topbar__right { flex-direction: row; align-items: center; }
 .clock { font-size: 30px; -unity-font-style: bold; margin: 0 0 0 28px; }
 .date { font-size: 24px; color: var(--muted); margin: 0 0 0 14px; }
+.version { font-size: 18px; color: var(--muted); margin: 0 14px 0 0; opacity: 0.8; }
 
 .hero { flex-grow: 1; justify-content: flex-end; padding: 0 72px 36px 72px; }
 .hero__eyebrow { font-size: 22px; color: var(--accent); -unity-font-style: bold; letter-spacing: 4px; margin: 0; }
@@ -43,6 +44,8 @@ Label { color: var(--text); }
 }
 .card:hover { scale: 1.04; border-color: rgba(255, 255, 255, 0.35); opacity: 1; background-color: #1c2430; }
 .card--selected, .card--selected:hover { scale: 1.08; border-color: var(--accent); opacity: 1; }
+.card--update { background-color: #0f3d2e; border-color: rgba(52, 211, 153, 0.45); }
+.card--update:hover { background-color: #145039; }
 .card__title {
     background-color: rgba(8, 12, 16, 0.72); font-size: 24px; -unity-font-style: bold;
     padding: 10px 16px; margin: 0; -unity-text-align: middle-left;

@@ -56,10 +56,10 @@ public static class E2EFixCheck
         if (!EditorPrefs.HasKey(RestoreKey)) EditorPrefs.SetString(RestoreKey, JsonUtility.ToJson(c)); // the original values only
         c.useLocalServer = true;
         c.localServerUrl = a.Length > 0 ? a[0] : "ws://localhost:18091";
-        if (a.Length > 1 && a[1] == "builtin") c.useTopHoles = false;
+        if (a.Length > 1 && a[1] == "builtin") c.useTrainerHoles = false;
         D.Connection.Disconnect();
         D.Connection.Connect();
-        return $"server {c.ActiveUrl} top holes {c.useTopHoles}";
+        return $"server {c.ActiveUrl} trainer holes {c.useTrainerHoles}";
     }
 
     public static string Restore()
@@ -69,7 +69,7 @@ public static class E2EFixCheck
         if (saved.Length == 0) return "nothing to restore";
         JsonUtility.FromJsonOverwrite(saved, c);
         EditorPrefs.DeleteKey(RestoreKey);
-        return $"restored local {c.useLocalServer} {c.localServerUrl} top holes {c.useTopHoles}";
+        return $"restored local {c.useLocalServer} {c.localServerUrl} trainer holes {c.useTrainerHoles}";
     }
 
     public static string Status()

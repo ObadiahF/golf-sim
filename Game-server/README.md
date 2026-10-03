@@ -4,7 +4,8 @@ Spring Boot 3 (Java 21) backend for the party-style golf game: friends play on t
 one iPhone app as the controller. The server stores players, games and hole scores in Postgres and relays
 real-time messages between the app ("remote") and the sim over a WebSocket.
 
-The REST + WebSocket contract is in **[docs/PROTOCOL.md](docs/PROTOCOL.md)**.
+The REST + WebSocket contract is in **[docs/PROTOCOL.md](docs/PROTOCOL.md)**. The server also hosts the sim's
+self-updates (releases built and published from the Mac, downloaded by the laptop): **[docs/UPDATES.md](docs/UPDATES.md)**.
 
 ## Everything runs in Docker Compose
 
@@ -15,14 +16,14 @@ docker compose up --build -d                    # postgres + game-server on http
 docker compose logs -f game-server
 docker compose run --rm test                    # mvn test against real Postgres (golf_test database)
 docker compose exec postgres psql -U golf golf  # SQL shell
-docker compose down                             # stop; data stays in the pgdata volume
+docker compose down                             # stop; data stays in the pgdata and updates volumes
 docker compose down -v                          # stop and delete all data
 ```
 
 | Service | Purpose |
 |---------|---------|
 | `postgres` | `postgres:16`, volume `pgdata`, healthcheck. Databases `golf` (app) and `golf_test` (tests, created on first start of the volume) |
-| `game-server` | the app, port 8080, starts once postgres is healthy; Flyway migrates the schema on start |
+| `game-server` | the app, port 8080, starts once postgres is healthy; Flyway migrates the schema on start. Volume `updates` (`/data/updates`): the self-update files |
 | `test` | profile `test`: `mvn test` in `maven:3.9-eclipse-temurin-21`, project mounted, Maven repo cached in volume `m2` |
 | `wsclient` | profile `tools`: fake sim/remote WebSocket client (Python + websockets) |
 
@@ -43,10 +44,12 @@ Set in the shell or a `.env` file next to `docker-compose.yml`.
 | Env var | Default | Meaning |
 |---------|---------|---------|
 | `GOLF_API_TOKEN` | `golf-sim-dev-token` | shared token for the app and the sim (REST `Authorization: Bearer`, WS `?token=`). The default is public: on a public server set a random one in `.env` (gitignored) and put the same value in the sim's and app's `ServerToken.txt` |
+| `GOLF_UPDATE_TOKEN` | *(unset)* | admin token for publishing sim updates (`Authorization: Bearer`, only on `/api/updates/publish/...`); unset disables publishing. Generate with `openssl rand -hex 32`, never reuse `GOLF_API_TOKEN` (see [docs/UPDATES.md](docs/UPDATES.md)) |
 | `PORT` | `8080` | host port published by compose |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` | `golf` / `golf` | database credentials (used by postgres, the app and the tests) |
 
-The app itself reads `DB_URL`, `DB_USER`, `DB_PASSWORD`, `GOLF_API_TOKEN` (compose sets them). Change the token
+The app itself reads `DB_URL`, `DB_USER`, `DB_PASSWORD`, `GOLF_API_TOKEN`, `GOLF_UPDATE_TOKEN` and `UPDATES_DIR`
+(compose sets them). Change the token
 for anything beyond your own LAN, and set the same value in the app and the sim.
 
 ## Pointing the app and the sim at the server
@@ -83,6 +86,7 @@ The fake client connects to `ws://game-server:8080/ws` inside the compose networ
 ## Endpoints (summary)
 
 Every request except `/actuator/health` and the `/ws` upgrade needs `Authorization: Bearer <token>`; details and payloads in [docs/PROTOCOL.md](docs/PROTOCOL.md).
+`/api/updates/publish/...` takes `GOLF_UPDATE_TOKEN` instead ([docs/UPDATES.md](docs/UPDATES.md)).
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -94,6 +98,9 @@ Every request except `/actuator/health` and the `/ws` upgrade needs `Authorizati
 | POST | `/api/games/{id}/scores` | upsert a hole score |
 | GET | `/api/players`, `/api/players/{name}` | player stats and history |
 | GET | `/api/leaderboard` | best rounds, most wins, best average |
+| GET | `/api/updates/latest?platform=`, `/api/updates/releases?platform=` | the sim's latest release (manifest), the kept releases |
+| GET | `/api/updates/blobs/{sha256}` | a release file (Range for resuming) |
+| POST/PUT | `/api/updates/publish/...` | admin token: missing blobs, chunked upload, create a release |
 | GET | `/api/ping` | service info |
 | GET | `/actuator/health` | health (no token) |
 | WS | `/ws?token=&role=sim\|remote&name=` | real-time relay |
@@ -103,13 +110,15 @@ Every request except `/actuator/health` and the `/ws` upgrade needs `Authorizati
 ```
 src/main/java/com/golfsim/server/
   api/      REST controllers, error handling
-  auth/     shared-token filter (REST) and handshake interceptor (WS)
+  auth/     shared-token filter (REST; the admin token on /api/updates/publish) and handshake interceptor (WS)
   config/   properties, clock, WebSocket registration
   game/     entities, repositories, GameService, GameView (scorecard)
   stats/    player stats and leaderboard
+  update/   self-update releases: UpdateService (Postgres), BlobStore (files by sha256), ManifestRules
   ws/       WsMessage (the wire schema), WsHub (connections), GameSocketHandler, GameEventRelay
 src/main/resources/db/migration/   Flyway SQL
 docker/postgres/                   init script (creates golf_test)
 tools/wsclient/                    fake WebSocket client
 docs/PROTOCOL.md                   the contract for the app and the sim
+docs/UPDATES.md                    self-updates: API, laptop flow, publishing, security
 ```

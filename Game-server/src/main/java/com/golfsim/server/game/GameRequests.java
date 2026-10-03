@@ -19,7 +19,7 @@ public final class GameRequests {
      * Free text with no control characters or lone surrogates: Postgres refuses NUL (which surfaced as a misleading
      * "please retry" 409) and stores a lone surrogate as {@code ?}, so the response would not match what was saved.
      */
-    static final String PLAIN_TEXT = "[^\\p{Cc}\\p{Cs}]*";
+    public static final String PLAIN_TEXT = "[^\\p{Cc}\\p{Cs}]*";
 
     private GameRequests() {
     }

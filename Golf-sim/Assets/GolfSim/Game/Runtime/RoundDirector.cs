@@ -36,7 +36,7 @@ namespace GolfSim.Game
         public GameView ServerGame => serverGame;
         public string ScreenName => phase switch
         {
-            Phase.Menu => AudioSettingsPanel.AnyOpen ? StateMessage.Settings : StateMessage.Menu,
+            Phase.Menu => GameUpdater.Busy ? StateMessage.Loading : AudioSettingsPanel.AnyOpen ? StateMessage.Settings : StateMessage.Menu,
             Phase.Loading => StateMessage.Loading,
             _ when HoleGoing => StateMessage.Loading,
             _ when replaying => StateMessage.Replay,
@@ -191,6 +191,11 @@ namespace GolfSim.Game
             go.SetActive(true);
             return new RoundHud(doc);
         }
+
+        /// <summary>The download overlay over everything (the menu's self-update uses it too): progress 0..1.</summary>
+        internal void ShowProgress(string heading, string detail, float progress) => hud?.ShowLoading(heading, detail, progress);
+        internal void HideProgress() => hud?.HideLoading();
+        internal void Toast(string text, float seconds = 2.5f) => hud?.Toast(text, seconds);
 
         // ---- rounds and scenes ----
 

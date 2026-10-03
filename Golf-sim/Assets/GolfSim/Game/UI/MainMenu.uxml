@@ -7,6 +7,7 @@
         <ui:VisualElement class="topbar">
             <ui:Label text="GOLF SIM" class="logo" />
             <ui:VisualElement class="topbar__right">
+                <ui:Label name="version" class="version" />
                 <ui:Label name="date" class="date" />
                 <ui:Label name="clock" class="clock" />
                 <ui:Button name="quit" text="Quit" class="btn btn--ghost btn--small" />

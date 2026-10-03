@@ -272,7 +272,7 @@ public static class RoundFixCheck
         for (int i = 0; i < 2; i++)
         {
             int n = i;
-            D.StartCoroutine(TrainerHoles.FetchTop(ServerConfig.Load(), 9, null, null, () => false, r =>
+            D.StartCoroutine(TrainerHoles.Fetch(ServerConfig.Load(), 9, null, null, () => false, r =>
                 File.WriteAllText($"Temp/roundfix_th3_{n}.txt", r.holes != null ? $"{r.holes.Count} holes{(r.fromCache ? " (cache)" : "")}" : r.error)));
         }
         return "started 2 fetches; then run TH3Result";

@@ -20,11 +20,12 @@ The wire contract is `Game-server/docs/PROTOCOL.md` (source of truth: `WsMessage
 
 | | |
 |---|---|
-| `GolfSim/Net/Runtime/ServerConfig.cs` | server URL + token. Asset: `GolfSim/Net/Resources/GolfServer.asset` |
+| `GolfSim/Net/Runtime/ServerConfig.cs` | server URL + token. Asset: `GolfSim/Net/Resources/GolfServer.asset`. A player started with `-server-url http://host:8080` uses that server instead |
 | `GolfSim/Net/Runtime/SimConnection.cs` | `ClientWebSocket` as `role=sim`: background receive, main-thread events, ping, reconnect with backoff, reliable `holeScore` queue |
 | `GolfSim/Net/Runtime/SimMessages.cs` | every WebSocket message class (phone shots reuse `Ball/RemoteShotMessage`) |
 | `GolfSim/Net/Runtime/GameApi.cs` | REST GETs (stats for the Scores screen) |
-| `GolfSim/Net/Runtime/TrainerHoles.cs` | downloads the Course Trainer's top holes into a cache, one fetch at a time; saves each round's hole list |
+| `GolfSim/Net/Runtime/Update/`, `GolfSim/Game/Runtime/UpdateFlow.cs` | self-update from the game server: the menu's Update card, download, updater script (`Game-server/docs/UPDATES.md`; builds: `GolfSim/Editor/BuildPlayers.cs`, publish: `Tools/publish/publish.sh`) |
+| `GolfSim/Net/Runtime/TrainerHoles.cs` (+ `.Recent.cs`) | downloads a round of Course Trainer holes (random or top-rated) into a cache, one fetch at a time; saves each round's hole list and the last ~30 played |
 | `GolfSim/Ball/Runtime/Shots.cs` | the one shot path for UDP, WebSocket and the on-screen panel: game gate, retry de-duplication, hit |
 | `GolfSim/Ball/Runtime/BallPhysicsProfile.cs` | the server's live physics profile on top of `BallPhysics.asset` (runtime copies, from the next shot) |
 | `GolfSim/Ball/Runtime/Clubs.cs` | the club table (same names as the app), carries, club suggestion |
@@ -61,10 +62,15 @@ with the connection and the HUD. Any scene with a `HoleInfo` and a `GolfBall` wo
 - Par comes from the hole scene's `HoleInfo.par` (3 to 6), else `CourseRound.defaultPar`.
 - **Holes:** `CourseRound.holeScenes` repeats to fill 9 or 18 holes. Add more hole scenes (in the build
   settings) to the list and rounds use them in order.
-- **Top holes** (`ServerConfig.useTopHoles`): rounds play the Course Trainer's top-rated holes, downloaded into
-  `<persistentDataPath>/holes/<id>/` and built at runtime. The hole list of each server game is saved in
-  `holes/rounds/`, so a resumed game replays the same holes without the trainer; with the trainer down, a new round
-  plays the last saved list, else the built-in holes. A LAN trainer may use `http://` (Player Settings › Allow
+- **Trainer holes** (`ServerConfig.useTrainerHoles`): rounds play Course Trainer holes, downloaded into
+  `<persistentDataPath>/holes/<id>/` and built at runtime. `ServerConfig.holeSelection` picks which:
+  **Random** (default, `GET /api/game/random-holes`): different holes drawn from every playable hole friends haven't
+  net-disliked, liked ones more often (weight 1 + likes - dislikes); the last ~30 played (`holes/recent.json`) go as
+  `exclude`, so they come back only when the pool is too small. **TopRated** (`/api/game/top-holes`): the most-liked
+  holes. The log says `[RoundDirector] Playing 9 random holes: ...` (or `the trainer's top 9 holes`). The hole list
+  of each server game is saved in `holes/rounds/`, so a resumed game replays the same holes without the trainer.
+  With the trainer down, a new random round is drawn from the cached packages (recently played last), a top-rated
+  one plays the last saved top list; with nothing cached, the built-in holes. A LAN trainer may use `http://` (Player Settings › Allow
   downloads over HTTP is "Always allowed").
 
 ## Flows
@@ -77,8 +83,11 @@ with the connection and the HUD. Any scene with a `HoleInfo` and a `GolfBall` wo
    those that ranks somebody (the handicap needs 3 rounds). Back closes it. **Sound**
    opens the volume settings (also in the pause menu; screen `settings`): Up/Down picks master, effects, crowd,
    ambience or interface, Left/Right moves it to the next 10 % mark, Back closes. The volumes are saved.
-   While a round's top holes download, an overlay shows "Downloading hole 3 of 9…" and takes every key;
+   While a round's holes download, an overlay shows "Downloading hole 3 of 9…" and takes every key;
    Back cancels and the round never starts.
+   When the game server has a newer build (`Game-server/docs/UPDATES.md`), an **Update available** card joins the
+   row; Select downloads it (overlay with MB and %, screen `loading` on the phones, Back cancels) and the sim restarts
+   as the new version.
 2. **Start:** the app's Start Game calls `POST /api/games`, the server sends `gameStarted`, and the sim
    loads hole 1 for the first player.
 3. **Turn:** "OBI'S TURN" shows big in the centre, then shrinks into the player badge in the top right.

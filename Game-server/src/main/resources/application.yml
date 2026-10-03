@@ -36,6 +36,17 @@ golf:
   # Shared secret known to the server, the iPhone app and the sim. REST: "Authorization: Bearer <token>", WS: "?token=<token>".
   api-token: ${GOLF_API_TOKEN:golf-sim-dev-token}
 
+# Self-update releases of the sim (docs/UPDATES.md).
+updates:
+  # Admin token for publishing releases; empty disables publishing. Never the same as GOLF_API_TOKEN.
+  token: ${GOLF_UPDATE_TOKEN:}
+  dir: ${UPDATES_DIR:/data/updates}
+  keep-releases: 5
+  max-part-bytes: 52428800      # 50 MiB per upload request (Cloudflare refuses bodies over 100 MB)
+  max-blob-bytes: 4294967296    # 4 GiB per file
+  gc-grace: 1h
+  upload-expiry: 24h
+
 management:
   endpoints:
     web:

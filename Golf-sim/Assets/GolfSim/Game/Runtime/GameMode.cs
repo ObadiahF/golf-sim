@@ -19,6 +19,8 @@ namespace GolfSim.Game
             Scores,
             /// <summary>Opens the Sound settings (volumes).</summary>
             Settings,
+            /// <summary>Installs a newer version from the game server (UpdateFlow; the menu adds this card itself).</summary>
+            Update,
         }
 
         public ModeKind kind = ModeKind.Scene;

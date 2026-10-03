@@ -30,12 +30,18 @@ namespace GolfSim.Net
         static IEnumerator Request(string path, Action<string> done, Action<string> failed)
         {
             var config = ServerConfig.Load();
-            using var request = UnityWebRequest.Get(config.HttpUrl + path);
-            request.SetRequestHeader("Authorization", "Bearer " + config.Token);
+            using var request = Authorized(UnityWebRequest.Get(config.HttpUrl + path));
             request.timeout = 8;
             yield return request.SendWebRequest();
             if (request.result == UnityWebRequest.Result.Success) done(request.downloadHandler.text);
             else failed($"{config.HttpUrl}: {(request.responseCode > 0 ? $"HTTP {request.responseCode}" : request.error)}");
+        }
+
+        /// <summary>Adds the server's bearer token to a request (for its URL use ServerConfig.Load().HttpUrl).</summary>
+        public static UnityWebRequest Authorized(UnityWebRequest request)
+        {
+            request.SetRequestHeader("Authorization", "Bearer " + ServerConfig.Load().Token);
+            return request;
         }
 
         /// <summary>Replaces "field": null with the Missing sentinel so nullable numbers survive JsonUtility.</summary>
