@@ -28,6 +28,10 @@ namespace GolfSim.Game
         /// <summary>Degrees right (+) or left (-) of the pin.</summary>
         public float aim;
         public readonly List<Marker> others = new List<Marker>();
+        /// <summary>False while the ball is flying: no aim line or target.</summary>
+        public bool aiming = true;
+        /// <summary>Where the last shot went, ball positions in order (the mini map; null = none).</summary>
+        public List<Vector3> trail;
 
         public Vector3 AimPoint => ball.position + aimDirection * carry;
         public float ToPin => Round.FlatDistance(ball.position, hole.PinWorld);
@@ -37,7 +41,8 @@ namespace GolfSim.Game
     /// <summary>
     /// The course map's live layer, drawn over the hole picture with the vector API: distance arcs from the ball,
     /// the aim line to the club's carry, the target there, the pin and tee, and every ball, with small labels.
-    /// Redrawn whenever the scene changes (aim, club, the next player).
+    /// Redrawn whenever the scene changes (aim, club, the next player). Compact (the mini map): smaller marks, the
+    /// aim line, the pin, the balls and the shot's trail, no arcs and no labels.
     /// </summary>
     public class MapOverlay : VisualElement
     {
@@ -47,14 +52,19 @@ namespace GolfSim.Game
         static readonly Color Ink = new Color(0.03f, 0.05f, 0.06f, 0.75f);
         static readonly Color Flag = new Color32(250, 204, 21, 255);
         static readonly Color Line = new Color(1f, 1f, 1f, 0.95f);
+        static readonly Color Trail = new Color(1f, 0.92f, 0.45f, 0.95f);
 
+        readonly bool compact;
+        readonly float k; // size of the marks
         MapScene scene;
         MapFrame frame;
         readonly List<Label> labels = new List<Label>();
         int used;
 
-        public MapOverlay()
+        public MapOverlay(bool compact = false)
         {
+            this.compact = compact;
+            k = compact ? 0.55f : 1f;
             pickingMode = PickingMode.Ignore;
             style.position = Position.Absolute;
             style.left = style.top = style.right = style.bottom = 0;
@@ -92,7 +102,7 @@ namespace GolfSim.Game
 
             // Distance arcs every 50 yd around the aim, out past the carry.
             float reach = Mathf.Max(scene.carry, 10f) * ShotData.YardsPerMeter + ArcStep * 0.8f;
-            for (float yards = ArcStep; yards <= reach; yards += ArcStep)
+            for (float yards = ArcStep; !compact && scene.aiming && yards <= reach; yards += ArcStep)
             {
                 p.strokeColor = new Color(1f, 1f, 1f, 0.22f);
                 p.lineWidth = 2f;
@@ -103,39 +113,56 @@ namespace GolfSim.Game
 
             // Tee markers.
             var tee = Point(scene.hole.TeeWorld);
-            var across = Perpendicular(frame.Direction(scene.hole.PinWorld - scene.hole.TeeWorld)) * 9f;
-            Dot(p, tee - across, 4f, Color.white, Ink, 1.5f);
-            Dot(p, tee + across, 4f, Color.white, Ink, 1.5f);
+            var across = Perpendicular(frame.Direction(scene.hole.PinWorld - scene.hole.TeeWorld)) * (9f * k);
+            Dot(p, tee - across, 4f * k, Color.white, Ink, 1.5f * k);
+            Dot(p, tee + across, 4f * k, Color.white, Ink, 1.5f * k);
 
-            // The aim line, outlined so it reads on every surface.
-            Segment(p, ball, aim, Ink, 9f);
-            Segment(p, ball, aim, Line, 4.5f);
-
-            // The target at the carry.
-            Dot(p, aim, 17f, new Color(1f, 1f, 1f, 0.2f), Line, 3f);
-            Dot(p, aim, 4f, Line, Ink, 0f);
+            if (scene.aiming)
+            {
+                // The aim line, outlined so it reads on every surface, and the target at the carry.
+                Segment(p, ball, aim, Ink, 9f * k);
+                Segment(p, ball, aim, Line, 4.5f * k);
+                Dot(p, aim, 17f * k, new Color(1f, 1f, 1f, 0.2f), Line, 3f * k);
+                Dot(p, aim, 4f * k, Line, Ink, 0f);
+            }
 
             DrawPin(p, pin);
+            DrawTrail(p);
 
-            foreach (var other in scene.others) Dot(p, Point(other.position), 8f, other.color, Color.white, 2.5f);
+            foreach (var other in scene.others) Dot(p, Point(other.position), 8f * k, other.color, Color.white, 2.5f * k);
             // The player up: a halo, their colour and a white ring.
-            Dot(p, ball, 20f, new Color(scene.ball.color.r, scene.ball.color.g, scene.ball.color.b, 0.28f), Color.clear, 0f);
-            Dot(p, ball, 11f, scene.ball.color, Color.white, 3.5f);
+            Dot(p, ball, 20f * k, new Color(scene.ball.color.r, scene.ball.color.g, scene.ball.color.b, 0.28f), Color.clear, 0f);
+            Dot(p, ball, 11f * k, scene.ball.color, Color.white, 3.5f * k);
+        }
+
+        /// <summary>The shot's path over the ground so far, outlined like the aim line.</summary>
+        void DrawTrail(Painter2D p)
+        {
+            if (scene.trail == null || scene.trail.Count < 2) return;
+            foreach (var (color, width) in new[] { (Ink, 7f * k), (Trail, 3.5f * k) })
+            {
+                p.strokeColor = color;
+                p.lineWidth = width;
+                p.BeginPath();
+                p.MoveTo(Point(scene.trail[0]));
+                for (int i = 1; i < scene.trail.Count; i++) p.LineTo(Point(scene.trail[i]));
+                p.Stroke();
+            }
         }
 
         void DrawPin(Painter2D p, Vector2 cup)
         {
-            Dot(p, cup, 5f, Color.white, Ink, 2f);
-            var top = cup + new Vector2(0f, -38f);
-            Segment(p, cup, top, Ink, 5f);
-            Segment(p, cup, top, Color.white, 2.5f);
+            Dot(p, cup, 5f * k, Color.white, Ink, 2f * k);
+            var top = cup + new Vector2(0f, -38f * k);
+            Segment(p, cup, top, Ink, 5f * k);
+            Segment(p, cup, top, Color.white, 2.5f * k);
             p.fillColor = Flag;
             p.strokeColor = Ink;
-            p.lineWidth = 1.5f;
+            p.lineWidth = 1.5f * k;
             p.BeginPath();
             p.MoveTo(top);
-            p.LineTo(top + new Vector2(22f, 7f));
-            p.LineTo(top + new Vector2(0f, 14f));
+            p.LineTo(top + new Vector2(22f, 7f) * k);
+            p.LineTo(top + new Vector2(0f, 14f) * k);
             p.ClosePath();
             p.Fill();
             p.Stroke();
@@ -145,7 +172,7 @@ namespace GolfSim.Game
         void Layout()
         {
             used = 0;
-            if (Drawable)
+            if (Drawable && !compact)
             {
                 Vector2 ball = Point(scene.ball.position), aim = Point(scene.AimPoint), pin = Point(scene.hole.PinWorld);
                 var dir = frame.Direction(scene.aimDirection);

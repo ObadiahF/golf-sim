@@ -10,20 +10,26 @@ namespace GolfSim.Game
     // whenever a hole is being played and its ball is at rest (a round, practice, any mode with a hole and a ball).
     // Aim and club changes redraw it live. It closes when the ball is hit, on Back, and whenever the game screen goes
     // (pause, replay, scorecard, loading), and "state" tells the phones whether it is up (mapOpen).
+    // The mini map (MiniMap) is always in the corner while a round or practice hole is played (not the practice
+    // facilities), out of the way while the course map is up, and follows the ball in flight.
     public partial class RoundDirector
     {
         CourseMap map;
+        MiniMap miniMap;
         bool mapWanted;
 
         /// <summary>The course map is up on the TV (state.mapOpen).</summary>
         public bool MapOpen => mapWanted;
         /// <summary>The map on the HUD (null without one); for tools.</summary>
         public CourseMap Map => map;
+        public MiniMap MiniMap => miniMap;
 
         void CreateMap()
         {
             if (hud == null) return;
-            map = new CourseMap(GetComponentInChildren<UIDocument>().rootVisualElement);
+            var root = GetComponentInChildren<UIDocument>().rootVisualElement;
+            miniMap = new MiniMap(root);
+            map = new CourseMap(root);
             NavInput.Register(OnMapNav, NavInput.OverlayPriority + 5); // over the pause menu: Back closes the map first
         }
 
@@ -32,6 +38,12 @@ namespace GolfSim.Game
         {
             mapWanted = show;
             PublishState(); // FillMap drops a map that can't show now; the phones hear either way
+        }
+
+        /// <summary>Every frame: the mini map follows the ball while it flies or rolls.</summary>
+        void TrackMiniMap()
+        {
+            if (miniMap != null && ball && ball.InMotion) miniMap.Track(ball.transform.position);
         }
 
         void PollMapKeys()
@@ -50,6 +62,10 @@ namespace GolfSim.Game
         /// <summary>A hole is being played on the game screen and its ball is at rest.</summary>
         bool MapAllowed(StateMessage s) => map != null && ball && hole && !ball.InMotion && s.screen == StateMessage.Game;
 
+        /// <summary>A round's or practice's hole is being played on the game screen (not a practice facility's).</summary>
+        bool MiniMapAllowed(StateMessage s) =>
+            miniMap != null && ball && hole && facility == null && phase is (Phase.Playing or Phase.BetweenShots) && s.screen == StateMessage.Game;
+
         /// <summary>state.mapOpen (called by BuildState): a map that can't show any more (the shot, a pause...) is closed.</summary>
         void FillMap(StateMessage s)
         {
@@ -61,9 +77,17 @@ namespace GolfSim.Game
         void RenderMap(StateMessage s)
         {
             if (map == null) return;
-            if (hole) map.Prepare(hole);
-            if (s.mapOpen) map.Show(MapSceneFor(s));
+            if (hole)
+            {
+                map.Prepare(hole);
+                miniMap.Prepare(hole);
+            }
+            bool mini = !s.mapOpen && MiniMapAllowed(s);
+            var scene = s.mapOpen || mini ? MapSceneFor(s) : null;
+            if (s.mapOpen) map.Show(scene);
             else map.Hide();
+            if (mini) miniMap.Show(scene);
+            else miniMap.Hide();
         }
 
         MapScene MapSceneFor(StateMessage s)
@@ -73,6 +97,7 @@ namespace GolfSim.Game
             var scene = new MapScene
             {
                 hole = hole, title = RoundHud.Eyebrow(s), club = club, aim = ball.aimOffset, aimDirection = ball.AimDirection,
+                aiming = phase == Phase.Playing && !ball.InMotion,
                 carry = c.IsPutter ? toPin : c.carryYards / ShotData.YardsPerMeter,
                 ball = new MapScene.Marker { name = s.currentPlayer, position = ball.transform.position, color = TurnBanner.AccentFor(Mathf.Max(0, round?.Current ?? 0)) },
             };

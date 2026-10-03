@@ -84,6 +84,7 @@ namespace GolfSim.Game
             pending = null;
             hud?.HideScorecard();
             round.StartHole(index, course.ParFor(hole.par), hole.TeeWorld);
+            if (index > 0 && round.players.Length > 1) hud?.Toast($"{round.players[round.HoleOrder[0]]} has the honor");
             turnPlayer = -1;
             BeginNextTurn();
         }

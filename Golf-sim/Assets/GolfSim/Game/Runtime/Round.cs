@@ -48,6 +48,8 @@ namespace GolfSim.Game
         public int HoleIndex { get; private set; } = -1;
         public PlayerBall[] Balls { get; private set; } = new PlayerBall[0];
         public int Current { get; private set; } = -1;
+        /// <summary>Player indexes in the order they tee off on the current hole (the honor first).</summary>
+        public int[] HoleOrder { get; private set; } = new int[0];
 
         PlayerBall beforeLastShot;
         int lastShooter = -1;
@@ -94,12 +96,29 @@ namespace GolfSim.Game
             return holeCount;
         }
 
+        /// <summary>
+        /// Who tees off first on a hole, then second...: the honor. Hole 1 goes in player order; after that the lowest
+        /// score on the hole before goes first, ties keeping the order they teed off in (golf's rule).
+        /// </summary>
+        public int[] TeeOrder(int hole)
+        {
+            var order = Enumerable.Range(0, players.Length).ToArray();
+            for (int h = 0; h < hole && h < holeCount; h++)
+            {
+                int played = h;
+                if (scores.Any(s => s[played] == 0)) continue; // not finished by everyone: no new honor
+                order = order.OrderBy(p => scores[p][played]).ToArray(); // stable: ties keep their order
+            }
+            return order;
+        }
+
         /// <summary>Starts (or restarts) a hole: everyone on the tee, the hole's old scores cleared.</summary>
         public void StartHole(int index, int par, Vector3 tee)
         {
             HoleIndex = Mathf.Clamp(index, 0, holeCount - 1);
             pars[HoleIndex] = par;
             foreach (var s in scores) s[HoleIndex] = 0;
+            HoleOrder = TeeOrder(HoleIndex);
             Balls = players.Select(p => new PlayerBall(p, tee)).ToArray();
             Current = -1;
             beforeLastShot = null;
@@ -113,12 +132,16 @@ namespace GolfSim.Game
                 Current = -1;
                 return false;
             }
-            if (order == TurnOrder.WholeHole)
+            switch (order)
             {
-                if (Current < 0 || Balls[Current].Done) Current = Array.FindIndex(Balls, b => !b.Done);
-                return true;
+                case TurnOrder.WholeHole:
+                    if (Current < 0 || Balls[Current].Done) Current = NextInOrder(-1, b => !b.Done);
+                    return true;
+                case TurnOrder.Alternate:
+                    Current = NextInOrder(Current, b => !b.Done);
+                    return true;
             }
-            int teeing = Array.FindIndex(Balls, b => !b.Done && b.strokes == 0);
+            int teeing = NextInOrder(-1, b => !b.Done && b.strokes == 0);
             if (teeing >= 0)
             {
                 Current = teeing;
@@ -136,6 +159,18 @@ namespace GolfSim.Game
                 }
             }
             return true;
+        }
+
+        /// <summary>The first player after `player` in tee order (wrapping round; -1 = from the honor) whose ball matches; -1 if none.</summary>
+        int NextInOrder(int player, Func<PlayerBall, bool> match)
+        {
+            int n = HoleOrder.Length, at = player < 0 ? -1 : Array.IndexOf(HoleOrder, player);
+            for (int step = 1; step <= n; step++)
+            {
+                int next = HoleOrder[((at + step) % n + n) % n];
+                if (match(Balls[next])) return next;
+            }
+            return -1;
         }
 
         /// <summary>Scores the current player's shot. Returns the player's ball afterwards.</summary>

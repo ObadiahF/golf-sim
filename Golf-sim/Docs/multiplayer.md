@@ -45,9 +45,12 @@ with the connection and the HUD. Any scene with a `HoleInfo` and a `GolfBall` wo
 
 ## Rules
 
-- **Turn order: whole hole per player** (Wii Sports style, the default). Player 1 plays the hole until it is
-  holed or picked up, then player 2, and so on, with one ball on the course. `CourseRound.turnOrder` can be
-  set to `FarthestFirst` (everyone tees off, then farthest from the pin plays).
+- **Turn order: one shot each** (`Alternate`, the default). Players take turns shot by shot in tee order,
+  skipping anyone who has holed out or picked up, with one ball on the course. `CourseRound.turnOrder` can be
+  set to `WholeHole` (Wii Sports style: each player plays the whole hole in turn) or `FarthestFirst`
+  (everyone tees off, then farthest from the pin plays).
+- **The honor**: hole 1 tees off in the app's player order; after that whoever scored lowest on the hole
+  before tees off first (ties keep the order they teed off in). The TV toasts "<name> has the honor".
 - Strokes count when the ball stops. **Water or out of bounds**: one penalty stroke, and the shot is
   replayed from where it was hit (stroke and distance).
 - **Pick-up**: at par + 5 (`maxOverPar`) without holing out, the player scores par + 5. The phone's

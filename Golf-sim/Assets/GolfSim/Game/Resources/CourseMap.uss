@@ -1,4 +1,4 @@
-/* The course map (CourseMap.cs) on the round HUD: a panel on the right, under the turn badge and above the key hints.
+/* The course map (CourseMap.cs) and the mini map (MiniMap.cs) on the round HUD. The course map is a panel on the right, under the turn badge and above the key hints.
    Colours and the stat labels (hud__eyebrow, hud__caption, hud__value) come from Menu.uss and RoundHud.uss. */
 .map {
     position: absolute; right: 28px; top: 158px; bottom: 64px; width: 660px; padding: 18px 20px 16px 20px;
@@ -28,3 +28,13 @@
 .map__tag--aim { font-size: 20px; border-width: 1px; border-color: rgba(255, 255, 255, 0.5); }
 .map__tag--arc { font-size: 14px; padding: 1px 6px; color: var(--muted); background-color: rgba(8, 12, 16, 0.55); }
 .map__tag--name { font-size: 15px; padding: 2px 7px; }
+
+/* The mini map: a small hole picture in the bottom right corner, below the turn badge and right of the key hints. */
+.minimap {
+    position: absolute; right: 28px; bottom: 28px; width: 270px; height: 420px; padding: 8px 8px 6px 8px;
+    border-radius: 18px; background-color: var(--surface); border-width: 1px; border-color: var(--border);
+    opacity: 0; visibility: hidden; transition: opacity 0.25s ease-out, visibility 0.25s;
+}
+.minimap--shown { opacity: 1; visibility: visible; }
+.minimap .map__view { border-radius: 12px; }
+.minimap__caption { font-size: 16px; -unity-font-style: bold; letter-spacing: 2px; color: var(--muted); -unity-text-align: middle-center; margin: 6px 0 0 0; }

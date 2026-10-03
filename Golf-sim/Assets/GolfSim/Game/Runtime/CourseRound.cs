@@ -4,13 +4,18 @@ using UnityEngine.UIElements;
 
 namespace GolfSim.Game
 {
-    /// <summary>Who plays next. Both are hot-seat with one ball on the course at a time.</summary>
+    /// <summary>
+    /// Who plays next. All are hot-seat with one ball on the course at a time, and every hole starts with the honor:
+    /// whoever scored best on the hole before tees off first (Round.TeeOrder).
+    /// </summary>
     public enum TurnOrder
     {
-        /// <summary>Wii Sports style (the default): each player plays the whole hole, tee to holed or picked up, then the next player.</summary>
+        /// <summary>Wii Sports style: each player plays the whole hole, tee to holed or picked up, then the next player.</summary>
         WholeHole,
-        /// <summary>Everyone tees off in player order, then whoever is farthest from the pin plays next (real golf).</summary>
+        /// <summary>Everyone tees off in order, then whoever is farthest from the pin plays next (real golf).</summary>
         FarthestFirst,
+        /// <summary>The default: one shot each, round and round in tee order, skipping players who have finished the hole.</summary>
+        Alternate,
     }
 
     /// <summary>
@@ -30,7 +35,7 @@ namespace GolfSim.Game
         public string[] holeScenes = { "HoleSimulator" };
         [Tooltip("Holes in a round when the server doesn't say (it sends holesCount with the game).")]
         [Range(1, 18)] public int holes = 9;
-        public TurnOrder turnOrder = TurnOrder.WholeHole;
+        public TurnOrder turnOrder = TurnOrder.Alternate;
         [Tooltip("A player who hasn't holed out by par + this many strokes picks up and scores that.")]
         [Range(1, 10)] public int maxOverPar = 5;
         [Tooltip("Par used when a hole scene doesn't set one.")]

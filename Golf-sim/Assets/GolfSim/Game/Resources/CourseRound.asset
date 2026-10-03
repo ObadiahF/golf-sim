@@ -16,7 +16,7 @@ MonoBehaviour:
   holeScenes:
   - HoleSimulator
   holes: 9
-  turnOrder: 0
+  turnOrder: 2
   maxOverPar: 5
   defaultPar: 4
   turnDelay: 2.5

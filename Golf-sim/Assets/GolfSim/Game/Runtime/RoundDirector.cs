@@ -157,6 +157,7 @@ namespace GolfSim.Game
         {
             NavInput.Poll();
             PollMapKeys();
+            TrackMiniMap();
             if (pending != null && !HomeMenu.IsOpen && Hold?.Invoke() != true && Time.realtimeSinceStartup >= pendingAt) RunPending();
         }
 
