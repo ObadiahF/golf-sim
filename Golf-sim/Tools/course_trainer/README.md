@@ -5,7 +5,7 @@ each hole in 3D (Minecraft creative-mode controls), rate it 👍 / 👎, add qui
 the next hole from the **shared pool** appears: you never see a hole twice, and friends rate the same holes
 in different orders. Every vote lands in Postgres with the voter's name and a snapshot of the hole's style, so
 the model learns from everyone's votes, the **Top holes** leaderboard ranks them, and the Unity game downloads
-the most-liked ones through a read-only **Game API**.
+a random round of playable holes (liked ones more often) or the most-liked ones through a read-only **Game API**.
 
 Live at **https://golf-trainer.obadiahfusco.xyz** (homelab, Docker Compose, Cloudflare Tunnel).
 
@@ -198,7 +198,7 @@ that judged it, `hole_checks.CHECK_VERSION`).
   `check_version`; ~60 ms each; requests never wait for it): `hole checks: backfilled 408 hole(s), 22 unplayable:
   ...` in the log. The leaderboard and `/api/next` check
   an unchecked hole on the spot, so nothing slips through while the backfill runs.
-- Unplayable holes leave the Top holes ranking (`/api/top`, the Game API, `top`) and are never served by
+- Unplayable holes leave the Top holes ranking (`/api/top`, the Game API's top and random holes, `top`) and are never served by
   `/api/next` (nor counted toward a batch's refill). Their **votes stay** and still train the model.
 - `docker compose run --rm -T trainer check-holes` checks the unchecked holes and lists every unplayable one;
   `--all` re-checks them all (needed after changing the `TRAINER_LAUNCH_*`, `TRAINER_GREEN_PIN_MAX_SLOPE`,
@@ -223,14 +223,15 @@ already in your recent holes (a shared link, or reloading on a peeked hole).
 
 ### Game API
 
-Read-only, for the Unity game to download and build the top holes at runtime. Every request needs
+Read-only, for the Unity game to download and build a round's holes at runtime. Every request needs
 `Authorization: Bearer <TRAINER_GAME_KEY>` (compared in constant time); without the right key: 401; with
-`TRAINER_GAME_KEY` unset: 404. The key opens only these two routes; everything else still needs a login
+`TRAINER_GAME_KEY` unset: 404. The key opens only these routes; everything else still needs a login
 session. URLs in responses are paths: prefix them with the base URL.
 
 ```sh
 KEY=...   # TRAINER_GAME_KEY from .env
 curl -H "Authorization: Bearer $KEY" https://golf-trainer.obadiahfusco.xyz/api/game/top-holes?limit=9
+curl -H "Authorization: Bearer $KEY" "https://golf-trainer.obadiahfusco.xyz/api/game/random-holes?count=9&exclude=<id>,<id>"
 curl -H "Authorization: Bearer $KEY" -O https://golf-trainer.obadiahfusco.xyz/api/game/holes/<id>/hole.json
 ```
 
@@ -238,6 +239,16 @@ curl -H "Authorization: Bearer $KEY" -O https://golf-trainer.obadiahfusco.xyz/ap
 `TRAINER_TOP_MIN_LIKES` 👍, default 1) that are playable (see Playability). When fewer holes qualify than `limit`, the
 list is shorter (it can be empty early on): the game cycles the holes it gets, so a round never includes a hole
 friends disliked.
+
+`GET /api/game/random-holes?count=9&exclude=<id>,<id>,...` (count 1-100, default 9; what the game plays by
+default, `random_holes.py`): `count` **different** holes drawn at random from every pool hole and every voted hole
+still on disk that is playable and **not net-disliked** (no more 👎 than 👍; unrated holes are in, ad hoc Generate
+holes nobody rated are not). Weight = `1 + likes - dislikes` (at least 1): an unrated or evenly split hole weighs 1,
+3 net 👍 weigh 4, so liked holes come up more often but every playable hole gets played. The draw is weighted
+without replacement (each hole keyed `u^(1/weight)`, highest first). `exclude` (comma-separated, up to 200: the
+game sends its last ~30 played holes): those holes are drawn only after every other hole, so they fill a round only when the
+pool is too small. Same response as `top-holes` plus `"weighting": "1+likes-dislikes"`; `rank` is the draw order,
+`score` the hole's Wilson score. Shorter than `count` only when the whole pool is.
 
 ```json
 {
@@ -388,8 +399,9 @@ course_trainer/
   pool.py           shared pool in Postgres: batches, serving unseen holes, refill trigger (advisory lock)
   pool_worker.py    background batch filler: retrain, then generate in worker processes
   ranking.py        leaderboard: Wilson lower bound over latest_votes, liked + playable holes only
+  random_holes.py   the game's random round: weighted draw from the playable, not net-disliked pool
   hole_checks.py    tee-shot playability per hole (course_gen's scan_launch), startup backfill
-  game.py           read-only Game API behind TRAINER_GAME_KEY
+  game.py           read-only Game API behind TRAINER_GAME_KEY (top holes, random holes, package files)
   auth.py           signed session cookie, login / logout / me, login throttle, client IP behind a proxy
   users.py          scrypt password hashes, accounts, server-side sessions, seed (users + legacy ratings.jsonl)
   inputs.py         input hygiene: text without NUL / lone surrogates, ASCII-safe JSON errors (4xx, never 500)

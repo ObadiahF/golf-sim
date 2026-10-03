@@ -15,7 +15,8 @@ or a landing zone leans more than `landing_max_side_slope` across the line (conf
   (`check_version` < CHECK_VERSION), ~60 ms a hole.
 - The leaderboard checks any unchecked candidate on the spot, so a bad hole never slips into the Top holes
   while the backfill is still running.
-- Unplayable holes leave ranking.top_holes (/api/top, /api/game/top-holes, `top`) and /api/next (pool.py).
+- Unplayable holes leave ranking.top_holes (/api/top, /api/game/top-holes, `top`), random_holes (/api/game/random-holes)
+  and /api/next (pool.py).
   Their votes stay: training still learns from them.
 """
 from __future__ import annotations

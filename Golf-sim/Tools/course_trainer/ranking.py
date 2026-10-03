@@ -50,13 +50,18 @@ def top_holes(dsn: str, holes: HoleStore, checks: HoleChecks, limit: int, file_u
     """Up to `limit` of the best liked (see `liked`), playable holes still on disk: the hole summary (holes.describe;
     `rating` from `votes`) plus rank, ups, downs, score, previewUrl and `files` ({name: url}); `file_url(id, name)`
     builds the URLs. An unchecked candidate is checked on the spot (checks.playable)."""
+    return collect((t for t in tallies(dsn) if liked(t, min_likes)), dsn, holes, checks, limit, file_url, votes)
+
+
+def collect(candidates, dsn: str, holes: HoleStore, checks: HoleChecks, limit: int, file_url,
+            votes: dict[str, dict] | None = None) -> list[dict]:
+    """The first `limit` tallies of `candidates` (in order) that are playable and still on disk, as top_holes entries
+    (rank = position in the list)."""
     out = []
     known = verdicts(dsn)
-    for tally in tallies(dsn):
+    for tally in candidates:
         if len(out) >= limit:
             break
-        if not liked(tally, min_likes):
-            continue
         try:
             summary = holes.describe(tally["id"], votes)
         except (HoleNotFound, FileNotFoundError):  # e.g. legacy votes on holes never on this server
