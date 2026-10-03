@@ -9,6 +9,8 @@ import urllib.error
 import urllib.request
 
 PUBLISH = "/api/updates/publish"
+# Cloudflare's bot protection refuses Python's default "Python-urllib" agent (error 1010), so name ourselves.
+USER_AGENT = "GolfSimPublisher/1.0 (+https://github.com/ObadiahF/golf-sim)"
 
 
 class ApiError(Exception):
@@ -26,6 +28,7 @@ class UpdateApi:
         data = json.dumps(body).encode() if content_type == "application/json" and body is not None else body
         request = urllib.request.Request(self.server + path, data=data, method=method)
         request.add_header("Authorization", "Bearer " + self.token)
+        request.add_header("User-Agent", USER_AGENT)
         if data is not None:
             request.add_header("Content-Type", content_type)
         try:
