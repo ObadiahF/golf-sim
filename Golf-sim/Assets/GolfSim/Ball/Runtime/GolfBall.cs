@@ -37,8 +37,7 @@ namespace GolfSim.Ball
         public const float Step = 0.002f;           // same step the model was calibrated with
         const int MaxStepsPerFrame = 2000;   // never fall more than 4 s behind after a hitch
         public const float RollSpeed = 0.35f;       // m/s off the ground below which bouncing turns into rolling
-        public const float CupRadius = 0.054f;
-        public const float CupCaptureSpeed = 1.6f;  // m/s; faster balls lip out
+        public const float CupRadius = 0.054f;      // 4.25 in hole (BallPhysics.Cup drops the ball into it)
         const float RestAgainstSpeed = 0.15f; // m/s; a rolling ball this slow after hitting a trunk or rock stops against it
         const float MaxShotTime = 60f;       // s; a safety net, no real shot gets near it
         const float TeeRadius = 1f;          // m; a ball this close to the tee marker is teed up (clean lie)
@@ -97,7 +96,7 @@ namespace GolfSim.Ball
         }
 
         /// <summary>How the current lie would change this shot (e.g. "Rough −12%").</summary>
-        public LieEffect LieEffectFor(ShotData shot) => Settings.LieFor(Lie, shot.ballSpeed);
+        public LieEffect LieEffectFor(ShotData shot) => Settings.LieFor(Lie, shot);
 
         /// <summary>The hole's trees and rocks as the ball sees them (null before the hole is bound).</summary>
         public ObstacleField Obstacles => Bind() ? obstacles : null;
@@ -113,7 +112,17 @@ namespace GolfSim.Ball
         float simTime, accumulator;
         bool landed, onTee;
 
-        void Start() => ResetToTee();
+        /// <summary>Render queue for the ball: after the cup's inside (GolfSim/CupInterior, Geometry+2), so a ball in the hole shows.</summary>
+        public const int RenderQueue = 2003;
+
+        void Start()
+        {
+            // The cup is drawn through the green over everything behind it; drawn after it, the ball is seen in the hole.
+            foreach (var r in GetComponentsInChildren<MeshRenderer>())
+                foreach (var m in r.materials)
+                    if (m.renderQueue < RenderQueue) m.renderQueue = RenderQueue;
+            ResetToTee();
+        }
 
         public void ResetToTee()
         {
@@ -135,7 +144,7 @@ namespace GolfSim.Ball
             origin = transform.position;
             aim = AimDirection;
             shotSettings = Settings;
-            var lie = shotSettings.LieFor(Lie, shot.ballSpeed);
+            var lie = shotSettings.LieFor(Lie, shot);
             state = BallPhysics.Launch(origin, aim, lie.Apply(shot));
             LastShot = shot;
             Seed = seed ?? ShotRandom.SeedFor(shot, origin);
@@ -169,6 +178,7 @@ namespace GolfSim.Ball
         {
             simTime += dt;
             if (simTime > MaxShotTime) { GiveUp(); return; }
+            if (InCup(dt)) return;
             var from = state.position;
             if (Status == BallStatus.Flying)
             {
@@ -177,7 +187,7 @@ namespace GolfSim.Ball
                 Result.apex = Mathf.Max(Result.apex, state.position.y - origin.y);
                 if (!map.Contains(state.position)) { Finish(BallStatus.OutOfBounds); return; }
                 float ground = map.HeightAt(state.position) + BallPhysicsSettings.Radius;
-                if (state.position.y <= ground)
+                if (state.position.y <= ground && !BallPhysics.OverCup(state.position, hole.PinWorld)) // no ground over the hole
                 {
                     state.position.y = ground;
                     TouchDown();
@@ -185,7 +195,6 @@ namespace GolfSim.Ball
                 return;
             }
 
-            if (InCup()) return;
             var surface = shotSettings.For(map.SurfaceAt(state.position));
             if (surface.hazard) { Finish(BallStatus.InWater); return; }
             bool moving = BallPhysics.Roll(ref state, dt, map.NormalAt(state.position), surface, BallPhysics.LipPull(state.position, hole.PinWorld));
@@ -199,7 +208,7 @@ namespace GolfSim.Ball
             }
             if (!map.Contains(state.position)) { Finish(BallStatus.OutOfBounds); return; }
             state.position.y = map.HeightAt(state.position) + BallPhysicsSettings.Radius;
-            if (!moving && !InCup()) Finish(BallStatus.Stopped);
+            if (!moving) Finish(BallStatus.Stopped);
         }
 
         /// <summary>Tests this step against the trees and rocks; on a hit records it and raises HitObstacle.</summary>
@@ -224,19 +233,9 @@ namespace GolfSim.Ball
 
         void TouchDown()
         {
-            if (!landed)
-            {
-                landed = true;
-                var flat = Flat(state.velocity);
-                Result.carry = Flat(state.position - origin).magnitude;
-                Result.landAngle = Mathf.Atan2(-state.velocity.y, flat.magnitude) * Mathf.Rad2Deg;
-                Result.flightTime = simTime;
-                Landed?.Invoke(this);
-            }
-
+            RecordLanding();
             var surface = shotSettings.For(map.SurfaceAt(state.position));
             if (surface.hazard) { Finish(BallStatus.InWater); return; }
-            if (InCup()) return;
 
             var normal = map.NormalAt(state.position);
             BallPhysics.Bounce(ref state, normal, surface);
@@ -247,12 +246,29 @@ namespace GolfSim.Ball
             }
         }
 
-        bool InCup()
+        /// <summary>The first time the ball comes down: carry, landing angle and flight time, and Landed.</summary>
+        void RecordLanding()
         {
-            var offset = Flat(state.position - hole.PinWorld);
-            if (offset.magnitude > CupRadius || Flat(state.velocity).magnitude > CupCaptureSpeed) return false;
-            state.position = hole.PinWorld + Vector3.down * 0.1f; // drop to the bottom of the cup
-            Finish(BallStatus.Holed);
+            if (landed) return;
+            landed = true;
+            var flat = Flat(state.velocity);
+            Result.carry = Flat(state.position - origin).magnitude;
+            Result.landAngle = Mathf.Atan2(-state.velocity.y, flat.magnitude) * Mathf.Rad2Deg;
+            Result.flightTime = simTime;
+            Landed?.Invoke(this);
+        }
+
+        /// <summary>
+        /// The hole (BallPhysics.Cup): true if the ball is down in it this step, dropping, rattling on the lip or holed
+        /// at the bottom. A ball that pops up off the lip is in the air again; one that climbs out rolls on.
+        /// </summary>
+        bool InCup(float dt)
+        {
+            var contact = BallPhysics.Cup(ref state, dt, hole.PinWorld, map);
+            if (contact == CupContact.Clear) return false;
+            RecordLanding(); // straight in from the air
+            if (contact == CupContact.Holed) { Finish(BallStatus.Holed); return true; }
+            if (Status == BallStatus.Rolling && state.velocity.y > RollSpeed) Status = BallStatus.Flying;
             return true;
         }
 

@@ -1,7 +1,19 @@
+using GolfSim.Course;
 using UnityEngine;
 
 namespace GolfSim.Ball
 {
+    /// <summary>What BallPhysics.Cup did this step.</summary>
+    public enum CupContact
+    {
+        /// <summary>The ball isn't down in the hole: carry on flying or rolling.</summary>
+        Clear,
+        /// <summary>The ball is in the hole's opening, falling, on the lip or against the liner (the step is done).</summary>
+        Inside,
+        /// <summary>It reached the bottom of the cup.</summary>
+        Holed,
+    }
+
     public struct BallState
     {
         public Vector3 position;
@@ -14,7 +26,9 @@ namespace GolfSim.Ball
     ///  * flight: gravity, drag and Magnus lift (coefficients fitted to TrackMan data), spin decay;
     ///  * bounce: Penner's turf model (restitution falls with impact speed, the turf crater tilts the
     ///    contact plane, friction trades speed for spin, so wedges check and can spin back);
-    ///  * roll: rolling resistance per surface plus slope (5/7 g for a rolling sphere), so putts break.
+    ///  * roll: rolling resistance per surface plus slope (5/7 g for a rolling sphere), so putts break;
+    ///  * the cup: a real hole. Over the opening there is no ground, so the ball drops; it rattles off the rim and
+    ///    the liner (with its spin, so a fast ball climbs the far lip and hops out), and is holed at the bottom.
     /// The flight step must match Tools/ball_physics/calibrate.py.
     /// </summary>
     public static class BallPhysics
@@ -136,6 +150,80 @@ namespace GolfSim.Ball
             return true;
         }
 
+        const float LipRestitution = 0.3f; // a ball off the rim or the liner keeps this much of its speed into it
+        const float LipFriction = 0.4f;
+
+        /// <summary>True if this point is over the hole's opening (where the green has no ground).</summary>
+        public static bool OverCup(Vector3 position, Vector3 pin) => Flat(position - pin).magnitude < GolfBall.CupRadius;
+
+        /// <summary>
+        /// One step of the ball in the hole, if it is down in it: its centre over the opening and no higher than a
+        /// ball resting on the green. There it falls freely and bounces off the cup: the rim (a circle at the green's
+        /// height all round) and below it the liner wall, contact taking the ball's spin into account (a rolling ball
+        /// hitting the far lip climbs it: the speed it needs to hop out is about 1.9 m/s dead centre, less off centre,
+        /// and a ball catching the edge spins round it). It is Holed on reaching the bottom of the cup. Returns Clear,
+        /// without touching the ball, anywhere else.
+        /// </summary>
+        public static CupContact Cup(ref BallState s, float dt, Vector3 pin, TerrainSurfaceMap map)
+        {
+            const float r = BallPhysicsSettings.Radius, R = GolfBall.CupRadius;
+            if (!OverCup(s.position, pin) || s.position.y > map.HeightAt(s.position) + r + 0.002f) return CupContact.Clear;
+
+            s.velocity += Vector3.down * (BallPhysicsSettings.Gravity * dt);
+            s.position += s.velocity * dt;
+
+            float floor = map.HeightAt(pin) - CupBuilder.Depth;
+            var flat = Flat(s.position - pin);
+            float d = flat.magnitude;
+            var outward = d > 1e-5f ? flat / d : Flat(s.velocity).sqrMagnitude > 1e-8f ? Flat(s.velocity).normalized : Vector3.forward;
+            if (s.position.y - r <= floor)
+            {
+                var rest = pin + outward * Mathf.Min(d, R - r);
+                s.position = new Vector3(rest.x, floor + r, rest.z);
+                s.velocity = Vector3.zero;
+                return CupContact.Holed;
+            }
+
+            // The nearest point of the cup: on the rim in the ball's direction, or below it on the liner.
+            var rim = pin + outward * R;
+            rim.y = map.HeightAt(rim);
+            Vector3 normal;
+            float depth;
+            if (s.position.y < rim.y)
+            {
+                if (d <= R - r) return CupContact.Inside; // dropping clear of the liner
+                normal = -outward;
+                depth = d - (R - r);
+            }
+            else
+            {
+                var fromRim = s.position - rim;
+                float gap = fromRim.magnitude;
+                if (gap >= r || gap < 1e-6f) return CupContact.Inside;
+                normal = fromRim / gap;
+                depth = r - gap;
+            }
+            s.position += normal * depth;
+
+            float into = Vector3.Dot(s.velocity, normal);
+            if (into < 0f)
+            {
+                float impulse = -(1f + LipRestitution) * into;
+                s.velocity += normal * impulse;
+                // Friction at the contact point (the ball's spin included) up to the point where it rolls on the lip.
+                var slip = s.velocity + Vector3.Cross(s.spin, -normal * r);
+                slip -= Vector3.Dot(slip, normal) * normal;
+                float slipSpeed = slip.magnitude;
+                if (slipSpeed > 1e-6f)
+                {
+                    var friction = -slip / slipSpeed * Mathf.Min(LipFriction * impulse, 2f / 7f * slipSpeed);
+                    s.velocity += friction;
+                    s.spin += Vector3.Cross(-normal, friction) * (5f / (2f * r));
+                }
+            }
+            return CupContact.Inside;
+        }
+
         /// <summary>
         /// The hole's pull on a ball hanging over its edge: with part of it over the cup the ball tips in, harder the
         /// further it overhangs (5/7 g with a whole ball radius over). Zero clear of the hole, or with no hole.
@@ -150,5 +238,7 @@ namespace GolfSim.Ball
             if (overhang <= 0f || offset < 1e-4f) return Vector3.zero;
             return toCup / offset * (5f / 7f * BallPhysicsSettings.Gravity * Mathf.Clamp01(overhang / r));
         }
+
+        static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
     }
 }

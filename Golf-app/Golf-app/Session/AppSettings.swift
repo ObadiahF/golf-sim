@@ -100,6 +100,15 @@ final class AppSettings {
         min(range.upperBound, max(range.lowerBound, (value / step).rounded() * step))
     }
 
+    /// Per-club settings saved under a club's old name move to its new one ("Wedge" is the "Pitching Wedge").
+    private static func renamingClubs(_ values: [String: Double]) -> [String: Double] {
+        var out = values
+        for (oldName, newName) in Club.renamed {
+            if let value = out.removeValue(forKey: oldName), out[newName] == nil { out[newName] = value }
+        }
+        return out
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         host = defaults.string(forKey: Key.host) ?? ""
@@ -112,9 +121,9 @@ final class AppSettings {
         shapeShots = defaults.bool(forKey: Key.shapeShots)
         server = defaults.string(forKey: Key.server) ?? ""
         players = defaults.stringArray(forKey: Key.players) ?? []
-        let storedPower = defaults.dictionary(forKey: Key.clubPower) as? [String: Double] ?? [:]
+        let storedPower = Self.renamingClubs(defaults.dictionary(forKey: Key.clubPower) as? [String: Double] ?? [:])
         clubPower = storedPower.filter { Self.clubPowerRange.contains($0.value) }
-        let storedSensitivity = defaults.dictionary(forKey: Key.clubSensitivity) as? [String: Double] ?? [:]
+        let storedSensitivity = Self.renamingClubs(defaults.dictionary(forKey: Key.clubSensitivity) as? [String: Double] ?? [:])
         clubSensitivity = storedSensitivity.filter { Self.sensitivityRange.contains($0.value) }
         let holes = defaults.integer(forKey: Key.holes)
         self.holes = AppConfig.roundLengths.contains(holes) ? holes : AppConfig.roundLengths[0]

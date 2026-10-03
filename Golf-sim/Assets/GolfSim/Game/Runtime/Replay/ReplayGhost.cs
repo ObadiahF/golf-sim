@@ -40,6 +40,8 @@ namespace GolfSim.Game
                 copy.AddComponent<MeshFilter>().sharedMesh = filter.sharedMesh;
                 var renderer = copy.AddComponent<MeshRenderer>();
                 renderer.sharedMaterials = source.sharedMaterials;
+                foreach (var m in renderer.materials) // own copies, drawn after the cup like the ball
+                    if (m.renderQueue < GolfBall.RenderQueue) m.renderQueue = GolfBall.RenderQueue;
                 renderer.shadowCastingMode = source.shadowCastingMode;
             }
             diameter = BallPhysicsSettings.Radius * 2f;
@@ -72,8 +74,7 @@ namespace GolfSim.Game
             bool sunk = rec.SplashTime >= 0f && time >= rec.SplashTime;
             float t = sunk ? rec.SplashTime : time; // the ball and tracer stop at the water's surface
             var at = sunk ? rec.SplashPoint : rec.PositionAt(t);
-            bool underground = rec.Holed && t >= rec.Duration; // in the cup: the lip hides it
-            root.SetActive(!underground && !sunk);
+            root.SetActive(!sunk); // a holed ball shows at the bottom of the cup (it draws after the cup: GolfBall.RenderQueue)
             splash.Draw(rec.SplashPoint, rec.SplashTime >= 0f ? time - rec.SplashTime : -1f, cam);
             root.transform.position = at;
             var v = rec.VelocityAt(t);

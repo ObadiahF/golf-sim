@@ -47,7 +47,15 @@ namespace GolfSim.Ball
 
         public void Hit() => Hit(SliderShot);
 
-        ShotData SliderShot => ShotData.FromMph(mph, launch, direction, backspin, sidespin);
+        ShotData SliderShot
+        {
+            get
+            {
+                var shot = ShotData.FromMph(mph, launch, direction, backspin, sidespin);
+                shot.club = SelectedClub;
+                return shot;
+            }
+        }
 
         /// <summary>Hits with these launch conditions (e.g. from a remote launch monitor) using the panel's wind and follow camera.</summary>
         public void Hit(ShotData shot)
@@ -119,14 +127,26 @@ namespace GolfSim.Ball
         static Vector3 Offset(Vector3 aim, float back, float side, float up) =>
             -aim * back + Vector3.Cross(Vector3.up, aim) * side + Vector3.up * up;
 
+        /// <summary>
+        /// Behind the ball looking down the aim. From down in a bunker (or any hollow) it rises until it sees the ball over
+        /// the lip, and tilts down if needed to keep the ball in the lower part of the view.
+        /// </summary>
         Pose BehindBall()
         {
             if (lineUpPose?.Invoke() is Pose custom) return custom;
             var aim = Aim();
-            var pos = ball.transform.position + Offset(aim, back: 6f, side: 2f, up: 2f);
-            var lookAt = ball.transform.position + aim * 40f + Vector3.up * 6f;
-            return new Pose(pos, Quaternion.LookRotation(lookAt - pos));
+            var at = ball.transform.position;
+            var pos = HoleFlyCamera.SeeOverTerrain(at + Offset(aim, back: 6f, side: 2f, up: 2f), at);
+            var look = Quaternion.LookRotation(at + aim * 40f + Vector3.up * 6f - pos);
+            float fov = Camera.main ? Camera.main.fieldOfView : 60f;
+            float pitch = Signed(look.eulerAngles.x), toBall = Signed(Quaternion.LookRotation(at - pos).eulerAngles.x);
+            pitch = Mathf.Max(pitch, toBall - fov * BallLow);
+            return new Pose(pos, Quaternion.Euler(pitch, look.eulerAngles.y, 0f));
         }
+
+        const float BallLow = 0.4f; // the ball sits at most this share of the view below its centre (a level lie is ~0.38)
+
+        static float Signed(float degrees) => degrees > 180f ? degrees - 360f : degrees;
 
         void OnGUI()
         {
@@ -144,8 +164,8 @@ namespace GolfSim.Ball
             GUILayout.BeginHorizontal();
             foreach (var club in Clubs.Bag)
             {
-                if (GUILayout.Button(club.name)) { SelectClub(club.name); ClubPicked?.Invoke(club.name); }
-                if (++column % 4 == 0) { GUILayout.EndHorizontal(); GUILayout.BeginHorizontal(); }
+                if (GUILayout.Button(new GUIContent(club.shortName, club.name))) { SelectClub(club.name); ClubPicked?.Invoke(club.name); }
+                if (++column % 7 == 0) { GUILayout.EndHorizontal(); GUILayout.BeginHorizontal(); }
             }
             GUILayout.EndHorizontal();
 

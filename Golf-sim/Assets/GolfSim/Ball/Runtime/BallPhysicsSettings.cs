@@ -68,6 +68,12 @@ namespace GolfSim.Ball
             [Tooltip("Ball speed kept on a short shot (wedge, chip, putt).")] public float shortSpeed = 1f;
             [Tooltip("Spin kept: grass between the face and the ball gives a flyer.")] public float spin = 1f;
             [Tooltip("Degrees added to the launch angle.")] public float launch;
+            [Tooltip("Clubs with less loft than this (degrees) can't get under the ball here (0 = any club is fine).")]
+            public float minLoft;
+            [Tooltip("Extra ball speed kept by a club 20° under minLoft (a fairway wood in a bunker); it falls from 1 at minLoft.")]
+            public float lowLoftSpeed = 1f;
+            [Tooltip("Degrees added to the launch angle by a club 20° under minLoft (it catches the ball thin); 0 at minLoft.")]
+            public float lowLoftLaunch;
         }
 
         public static List<LieResponse> DefaultLies() => new List<LieResponse>
@@ -76,16 +82,30 @@ namespace GolfSim.Ball
             new LieResponse { surface = "native", speed = 0.86f, shortSpeed = 0.91f, spin = 0.65f, launch = 2.0f },
             new LieResponse { surface = "scrub",  speed = 0.85f, shortSpeed = 0.90f, spin = 0.60f, launch = 2.0f },
             new LieResponse { surface = "woods",  speed = 0.85f, shortSpeed = 0.90f, spin = 0.60f, launch = 2.0f },
-            new LieResponse { surface = "bunker", speed = 0.75f, shortSpeed = 0.90f, spin = 0.75f, launch = 2.0f },
+            // Sand: the wedges splash it out and the irons pick it clean for less, but under 30° of loft it gets ugly:
+            // a 5 wood keeps under half its speed and comes off low (~35 yd, often into the face), a driver ~10 yd.
+            new LieResponse { surface = "bunker", speed = 0.75f, shortSpeed = 0.90f, spin = 0.75f, launch = 2.0f,
+                              minLoft = 30f, lowLoftSpeed = 0.3f, lowLoftLaunch = -6f },
         };
 
-        /// <summary>How hitting from this surface changes a shot of this ball speed (m/s).</summary>
-        public LieEffect LieFor(string surface, float ballSpeed)
+        /// <summary>How hitting from this surface changes this shot (its ball speed, and its club's loft: Clubs.LoftOf).</summary>
+        public LieEffect LieFor(string surface, ShotData shot) => LieFor(surface, shot.ballSpeed, Clubs.LoftOf(shot));
+
+        /// <summary>How hitting from this surface changes a shot of this ball speed (m/s) with a club of this loft (degrees).</summary>
+        public LieEffect LieFor(string surface, float ballSpeed, float loft)
         {
             var lie = lies.Find(l => l.surface == surface);
             if (lie == null) return LieEffect.Clean(surface);
             float full = Mathf.InverseLerp(shortShotSpeed, fullShotSpeed, ballSpeed);
-            return new LieEffect(surface, Mathf.Lerp(lie.shortSpeed, lie.speed, full), lie.spin, lie.launch);
+            float speed = Mathf.Lerp(lie.shortSpeed, lie.speed, full), launch = lie.launch;
+            if (lie.minLoft > 0f && loft < lie.minLoft)
+            {
+                // 0 at minLoft, 1 at 20° under it; past that (the driver, the putter) it gets no worse.
+                float under = Mathf.Clamp01((lie.minLoft - loft) / 20f);
+                speed *= Mathf.Lerp(1f, lie.lowLoftSpeed, under);
+                launch += lie.lowLoftLaunch * under;
+            }
+            return new LieEffect(surface, speed, lie.spin, launch);
         }
 
         public static List<SurfaceResponse> DefaultSurfaces() => new List<SurfaceResponse>
