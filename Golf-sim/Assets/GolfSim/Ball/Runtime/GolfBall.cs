@@ -188,7 +188,7 @@ namespace GolfSim.Ball
             if (InCup()) return;
             var surface = shotSettings.For(map.SurfaceAt(state.position));
             if (surface.hazard) { Finish(BallStatus.InWater); return; }
-            bool moving = BallPhysics.Roll(ref state, dt, map.NormalAt(state.position), surface);
+            bool moving = BallPhysics.Roll(ref state, dt, map.NormalAt(state.position), surface, BallPhysics.LipPull(state.position, hole.PinWorld));
             if (moving && HitObstacles(from, rolling: true))
             {
                 // Rolled into a trunk or rock: off a rock's slope it can pop back up into the air.
@@ -199,7 +199,7 @@ namespace GolfSim.Ball
             }
             if (!map.Contains(state.position)) { Finish(BallStatus.OutOfBounds); return; }
             state.position.y = map.HeightAt(state.position) + BallPhysicsSettings.Radius;
-            if (!moving) Finish(BallStatus.Stopped);
+            if (!moving && !InCup()) Finish(BallStatus.Stopped);
         }
 
         /// <summary>Tests this step against the trees and rocks; on a hit records it and raises HitObstacle.</summary>

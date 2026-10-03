@@ -110,11 +110,14 @@ namespace GolfSim.Ball
         static float Restitution(float vNormal) =>
             vNormal < 20f ? Mathf.Clamp(0.510f - 0.0375f * vNormal + 0.000903f * vNormal * vNormal, 0.12f, 0.6f) : 0.12f;
 
-        /// <summary>One rolling step on the ground. Returns false once the ball has come to rest.</summary>
-        public static bool Roll(ref BallState s, float dt, Vector3 normal, BallPhysicsSettings.SurfaceResponse surface)
+        /// <summary>
+        /// One rolling step on the ground. Returns false once the ball has come to rest. pull: extra acceleration along
+        /// the ground, e.g. LipPull toward a hole the ball hangs over.
+        /// </summary>
+        public static bool Roll(ref BallState s, float dt, Vector3 normal, BallPhysicsSettings.SurfaceResponse surface, Vector3 pull = default)
         {
             const float g = BallPhysicsSettings.Gravity;
-            var downhill = Vector3.ProjectOnPlane(Vector3.down * g, normal) * (5f / 7f);
+            var downhill = Vector3.ProjectOnPlane(Vector3.down * g, normal) * (5f / 7f) + Vector3.ProjectOnPlane(pull, normal);
             var v = Vector3.ProjectOnPlane(s.velocity, normal);
             float resistance = surface.rolling * g * Vector3.Dot(normal, Vector3.up);
 
@@ -131,6 +134,21 @@ namespace GolfSim.Ball
             s.position += next * dt;
             s.spin = Vector3.Cross(normal, next) / BallPhysicsSettings.Radius; // rolling without slipping
             return true;
+        }
+
+        /// <summary>
+        /// The hole's pull on a ball hanging over its edge: with part of it over the cup the ball tips in, harder the
+        /// further it overhangs (5/7 g with a whole ball radius over). Zero clear of the hole, or with no hole.
+        /// Without it a ball creeping up to the cup could stop half over it and stay there.
+        /// </summary>
+        public static Vector3 LipPull(Vector3 position, Vector3? cup)
+        {
+            if (cup is not Vector3 pin) return Vector3.zero;
+            var toCup = Vector3.ProjectOnPlane(pin - position, Vector3.up);
+            float offset = toCup.magnitude, r = BallPhysicsSettings.Radius;
+            float overhang = GolfBall.CupRadius + r - offset;
+            if (overhang <= 0f || offset < 1e-4f) return Vector3.zero;
+            return toCup / offset * (5f / 7f * BallPhysicsSettings.Gravity * Mathf.Clamp01(overhang / r));
         }
     }
 }

@@ -88,10 +88,10 @@ namespace GolfSim.Ball
             if (InCup(s, cup, ref result)) return true;
             var surface = settings.For(map.SurfaceAt(s.position));
             if (surface.hazard) return Stop(ref result);
-            bool moving = BallPhysics.Roll(ref s, dt, map.NormalAt(s.position), surface);
+            bool moving = BallPhysics.Roll(ref s, dt, map.NormalAt(s.position), surface, BallPhysics.LipPull(s.position, cup));
             if (!map.Contains(s.position)) return Stop(ref result);
             s.position.y = map.HeightAt(s.position) + BallPhysicsSettings.Radius;
-            return !moving && Stop(ref result);
+            return !moving && (InCup(s, cup, ref result) || Stop(ref result));
         }
 
         static bool Stop(ref PuttPrediction result)
