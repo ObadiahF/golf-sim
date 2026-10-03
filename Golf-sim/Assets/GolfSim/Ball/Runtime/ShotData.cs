@@ -18,6 +18,8 @@ namespace GolfSim.Ball
         [Tooltip("Horizontal launch direction in degrees; + is right of the target line.")] public float launchDirection;
         [Tooltip("Backspin in rpm.")] public float backspin;
         [Tooltip("Sidespin in rpm; + curves right (fade/slice for a right-hander).")] public float sidespin;
+        [Tooltip("The club it was hit with (a Clubs.Bag name); empty if not known. The lie depends on it (no woods out of a bunker).")]
+        public string club;
 
         public float BallSpeedMph => ballSpeed / MetersPerSecondPerMph;
         public float TotalSpin => Mathf.Sqrt(backspin * backspin + sidespin * sidespin);

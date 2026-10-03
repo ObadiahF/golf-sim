@@ -12,6 +12,8 @@
 //   Replay      the same shot and seed lands on the same spot
 //   Stress1..4  200 random shots and spots, 50 per entry: no NaN, nothing stuck, under the ground or inside a trunk
 //   Lies        7 iron from 153 yd on fairway, rough, bunker, native and woods (trees off)
+//   BunkerClubs every club from a bunker vs. the same spot as fairway: woods and hybrids barely get it out (the 5 wood
+//               under a third of its fairway carry), the wedges keep most of theirs
 //   Crowns      every drawn tree has its measured crown (HoleInfo.obstacles), no wider than the drawn tree's bounds
 //   Drive       the default opening drive (Driver at the pin) and a fan of drives: every tree hit is on a drawn tree
 //   DriveIrons  the same fan with a 5 iron and a wedge
@@ -180,6 +182,29 @@ public static class ObstacleCheck
         ball.ResetToTee();
         sb.Append($"\n  tee lie at the tee marker: '{ball.Lie}' ({ball.LieEffectFor(Clubs.Find("Driver").shot).Label})");
         pass &= ball.Lie == "tee";
+        return (pass ? "PASS " : "FAIL ") + sb;
+    }
+
+    public static string BunkerClubs()
+    {
+        var hole = Hole;
+        var ball = Ball;
+        var spot = OnSurface("bunker", 120f / Y);
+        if (spot == Vector3.zero) return "SKIP no bunker on this hole";
+        var sb = new StringBuilder("Bunker carries by club (trees off), the lie label and the carry vs. a clean lie:");
+        bool pass = true;
+        foreach (var club in Clubs.Bag.Where(c => !c.IsPutter))
+        {
+            var clean = ball.Settings.LieFor("fairway", club.shot);
+            var sand = ball.Settings.LieFor("bunker", club.shot);
+            ball.PlaceOnGround(spot);
+            var r = Shoot(club.shot, collide: false, from: spot, aimAt: hole.PinWorld);
+            float kept = sand.speed / clean.speed;
+            if (club.name == "5 Wood") pass &= kept < 0.5f;
+            if (club.name == Clubs.SandWedge) pass &= kept > 0.85f;
+            sb.Append($"\n  {club.name,-15} '{sand.Label}' launch {club.shot.launchAngle + sand.launch:0.0}°: carry {r.carry * Y:0} yd ({club.carryYards:0} yd clean)");
+        }
+        ball.ResetToTee();
         return (pass ? "PASS " : "FAIL ") + sb;
     }
 

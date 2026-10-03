@@ -258,7 +258,7 @@ final class SwingSession {
     private func mirrorClub(of state: GameProtocol.SimState) {
         guard let name = state.club, name != mirroredClub else { return }
         mirroredClub = name
-        if let index = Club.bag.firstIndex(where: { $0.name == name }), index != settings.clubIndex { useClub(index) }
+        if let index = Club.index(named: name), index != settings.clubIndex { useClub(index) }
     }
 
     // MARK: Display
