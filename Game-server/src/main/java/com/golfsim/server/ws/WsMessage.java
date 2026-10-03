@@ -28,6 +28,7 @@ import java.util.List;
         @JsonSubTypes.Type(value = WsMessage.Shot.class, name = "shot"),
         @JsonSubTypes.Type(value = WsMessage.Mulligan.class, name = "mulligan"),
         @JsonSubTypes.Type(value = WsMessage.Skip.class, name = "skip"),
+        @JsonSubTypes.Type(value = WsMessage.ShowMap.class, name = "map"),
         // sim -> remotes
         @JsonSubTypes.Type(value = WsMessage.State.class, name = "state"),
         @JsonSubTypes.Type(value = WsMessage.ShotResult.class, name = "shotResult"),
@@ -107,6 +108,10 @@ public sealed interface WsMessage {
     }
 
     record Skip() implements RemoteCommand {
+    }
+
+    /** @param show open ({@code true}) or close the course map on the TV */
+    record ShowMap(@NotNull Boolean show) implements RemoteCommand {
     }
 
     // ---- sim -> remotes ----

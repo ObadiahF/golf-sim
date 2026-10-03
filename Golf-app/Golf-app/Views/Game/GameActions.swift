@@ -40,16 +40,19 @@ struct ReplayButton: View {
     }
 }
 
-/// The sim's aim, turned from the phone; shared by the gameplay and putting views. Greyed out while the server
-/// is down, and disabled the moment the sim leaves the hole, which stops a held aim button repeating while
-/// this screen fades out.
+/// The sim's aim, turned from the phone, and the Map button beside it (aim from the TV's course map); shared by the
+/// gameplay and putting views. Greyed out while the server is down, and disabled the moment the sim leaves the hole,
+/// which stops a held aim button repeating while this screen fades out.
 struct GameAim: View {
     let game: GameLink
     /// The screen is short of room (`ScreenFit.tight`): compact aim buttons.
     var compact = false
 
     var body: some View {
-        AimControl(aim: game.state?.aim ?? 0, onTurn: game.aim(by:), onReset: game.aimReset, compact: compact)
-            .usable(game.isConnected && game.state?.isGame == true)
+        HStack(spacing: 8) {
+            AimControl(aim: game.state?.aim ?? 0, onTurn: game.aim(by:), onReset: game.aimReset, compact: compact)
+            MapButton(game: game, height: compact ? 60 : 72)
+        }
+        .usable(game.isConnected && game.state?.isGame == true)
     }
 }

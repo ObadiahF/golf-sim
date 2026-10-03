@@ -108,6 +108,7 @@ namespace GolfSim.Game
             Instance = this;
             if (!course) course = CourseRound.Load();
             hud = CreateHud();
+            CreateMap();
             replay = gameObject.AddComponent<ReplayDirector>(); // presentation: sounds and replays follow the ball and round events
             replay.Playing += OnReplayPlaying;
             gameObject.AddComponent<GameAudio>();
@@ -126,6 +127,7 @@ namespace GolfSim.Game
             connection.AimResetReceived += () => Aim(-AimOffset);
             connection.MulliganReceived += Mulligan;
             connection.SkipReceived += PickUp;
+            connection.MapReceived += ShowMap;
             Shots.Gate = BlockedReason;
             Shots.Accepted += OnShotAccepted;
             HomeMenu.OpenChanged += OnPauseChanged;
@@ -147,12 +149,14 @@ namespace GolfSim.Game
             if (HomeMenu.CanRestart == CanRestartHole) HomeMenu.CanRestart = null;
             SceneManager.sceneLoaded -= OnSceneLoaded;
             NavInput.Unregister(OnNav);
+            NavInput.Unregister(OnMapNav);
             if (Instance == this) Instance = null;
         }
 
         void Update()
         {
             NavInput.Poll();
+            PollMapKeys();
             if (pending != null && !HomeMenu.IsOpen && Hold?.Invoke() != true && Time.realtimeSinceStartup >= pendingAt) RunPending();
         }
 
@@ -250,6 +254,7 @@ namespace GolfSim.Game
         {
             Unbind();
             if (round != null) BuildCourseHole(loadingHole >= 0 ? loadingHole : Mathf.Max(0, round.HoleIndex));
+            PrepareFacility(); // practice: the driving range or putting green picked on the menu (RoundDirector.Practice.cs)
             var holeInfo = FindAnyObjectByType<HoleInfo>();
             var golfBall = holeInfo ? FindAnyObjectByType<GolfBall>() : null;
             if (round != null && phase == Phase.Finished) EndRound(); // a finished round is never replayed (a reload is practice)
@@ -286,6 +291,7 @@ namespace GolfSim.Game
                 return key != NavKey.Back; // Back still opens the pause menu
             }
             if (!ball || phase is not (Phase.Playing or Phase.BetweenShots)) return false;
+            if (FacilityNav(key)) return true;
             switch (key)
             {
                 case NavKey.Left: Aim(-AimStep); return true;
@@ -319,7 +325,7 @@ namespace GolfSim.Game
                 Phase.Menu => "Start a game on the sim first",
                 Phase.Loading => "Loading the next hole",
                 _ when HoleGoing => "Loading the next hole",
-                Phase.BetweenShots => "Wait for the next turn",
+                Phase.BetweenShots => facility?.Waiting ?? "Wait for the next turn",
                 Phase.HoleSummary or Phase.Finished => "Press Select on the remote to continue",
                 _ => null,
             };
@@ -343,6 +349,8 @@ namespace GolfSim.Game
                 else s.puttingAssist = PuttPreview.AssistName(PuttPreview.Assist);
             }
             FillCanShoot(s);
+            facility?.Fill(s);
+            FillMap(s);
             if (round?.CurrentBall is { } current)
             {
                 s.currentPlayer = current.player;
@@ -356,6 +364,8 @@ namespace GolfSim.Game
         {
             var state = BuildState();
             ShowPutting(state);
+            ShowPractice(state);
+            RenderMap(state);
             hud?.Render(state, LieLabel(state.lie), round?.CurrentBall);
             string json = state.ToJson();
             if (!force && json == lastState) return;

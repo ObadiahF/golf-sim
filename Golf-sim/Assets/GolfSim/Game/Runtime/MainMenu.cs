@@ -138,7 +138,9 @@ namespace GolfSim.Game
                 case GameMode.ModeKind.Scores: scores.Show(); break;
                 case GameMode.ModeKind.Settings: sound.Show(); break;
                 default:
-                    if (!string.IsNullOrEmpty(mode.sceneName)) fade.LoadScene(mode.sceneName);
+                    if (string.IsNullOrEmpty(mode.sceneName)) break;
+                    RoundDirector.SelectPractice(mode.practice);
+                    fade.LoadScene(mode.sceneName);
                     break;
             }
         }

@@ -40,6 +40,12 @@ nonisolated enum GameProtocol {
         static let skip = Bare(type: "skip")
     }
 
+    /// Opens (`show: true`) or closes the course map on the TV.
+    struct ShowMap: Codable, Equatable {
+        var type = "map"
+        var show: Bool
+    }
+
     // A shot is `SimProtocol.ShotMessage`, the same JSON as the UDP datagram (the server ignores `v`).
 
     // MARK: Sim -> remotes
@@ -62,6 +68,8 @@ nonisolated enum GameProtocol {
         /// Yards.
         var distanceToPin: Double?
         var lie: String?
+        /// The course map is up on the TV (optional: older sims leave it out). The Map button sends `map` to change it.
+        var mapOpen: Bool?
 
         // Putting mode (all optional: older sims leave them out, Unity writes false / 0 outside putting mode).
         /// The current player is putting: the app shows its putting view and power meter.
@@ -85,6 +93,13 @@ nonisolated enum GameProtocol {
         /// The TV offers an instant replay of the last shot ("▲ Replay"; `nav up` starts it). Optional: today's sim
         /// leaves it out, and the phone then infers the offer from `waitReason` (see `offersReplay`).
         var canReplay: Bool?
+
+        // Practice facilities (optional: older sims leave them out; "" / 0 outside one). See `PracticeFacility`.
+        /// `range` or `puttingGreen` while a practice facility is on the TV.
+        var practice: String?
+        /// The facility's shots (putts on the putting green) this session, and how many were holed.
+        var attempts: Int?
+        var made: Int?
 
         var isGame: Bool { screen == "game" }
         /// The sim is playing a hole and would hit a swing now.

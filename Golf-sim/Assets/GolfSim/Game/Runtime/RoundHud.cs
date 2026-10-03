@@ -18,7 +18,9 @@ namespace GolfSim.Game
         public readonly ScreenFade Fade;
         public readonly TurnBanner Banner;
 
-        readonly VisualElement hudRoot, info, hint, scorecard, table, loading, loadingFill;
+        readonly Label hint;
+        readonly string defaultHint;
+        readonly VisualElement hudRoot, info, scorecard, table, loading, loadingFill;
         readonly Label eyebrow, player, strokesCaption, strokes, club, aim, distance, lie, toast, title, subtitle, footer, loadingTitle, loadingDetail;
         IVisualElementScheduledItem hideToast;
 
@@ -27,7 +29,8 @@ namespace GolfSim.Game
             var root = document.rootVisualElement;
             hudRoot = root.Q("hud-root");
             info = root.Q("hud-info");
-            hint = root.Q("hud-hint");
+            hint = root.Q<Label>("hud-hint");
+            defaultHint = hint.text;
             scorecard = root.Q("scorecard");
             table = root.Q("scorecard-table");
             eyebrow = root.Q<Label>("hud-eyebrow");
@@ -54,6 +57,9 @@ namespace GolfSim.Game
             hint.AddToClassList(Hidden);
         }
 
+        /// <summary>The key hints along the bottom: these (a practice facility's own keys), or the usual ones.</summary>
+        public void KeyHint(string text) => hint.text = text ?? defaultHint;
+
         /// <summary>
         /// Shows a state: the HUD in game (the stats also under the pause menu), nothing on other screens, and none of
         /// it during a replay. lieLabel: the lie with its effect ("Rough −12%"). current: the player up, whose
@@ -69,14 +75,15 @@ namespace GolfSim.Game
             if (!inRound) Banner.HideBadge();
             Banner.Cover(!playing);
             if (!playing) return;
-            eyebrow.text = inRound ? $"HOLE {s.hole}  ·  PAR {s.par}" : $"PRACTICE  ·  PAR {s.par}";
+            eyebrow.text = Eyebrow(s);
             // In a round the player's name is on the turn badge (top right).
             player.EnableInClassList(Hidden, inRound);
             player.text = "Practice";
             bool finished = current is { Done: true };
             if (inRound) Banner.UpdateBadge(finished ? FinishedInfo(s.hole, s.par, current) : TurnInfo(s.hole, s.par, s.strokes));
-            strokesCaption.text = finished ? "SCORE" : "STROKE";
-            strokes.text = (finished ? s.strokes : s.strokes + 1).ToString();
+            bool facility = !string.IsNullOrEmpty(s.practice); // the range or putting green: its shots so far
+            strokesCaption.text = finished ? "SCORE" : facility ? "SHOTS" : "STROKE";
+            strokes.text = (finished ? s.strokes : facility ? s.attempts : s.strokes + 1).ToString();
             club.text = s.club;
             aim.text = Aim(s.aim);
             distance.text = $"{s.distanceToPin:0} yd";
@@ -115,6 +122,10 @@ namespace GolfSim.Game
 
         public bool ScorecardOpen => scorecard.ClassListContains(Open);
 
+        /// <summary>"HOLE 3  ·  PAR 4" in a round, "DRIVING RANGE" on a facility, "PRACTICE  ·  PAR 4" on the practice hole (the stats card and the course map).</summary>
+        internal static string Eyebrow(StateMessage s) =>
+            !string.IsNullOrEmpty(s.currentPlayer) ? $"HOLE {s.hole}  ·  PAR {s.par}" : PracticeFacility.TitleFor(s.practice) ?? $"PRACTICE  ·  PAR {s.par}";
+
         /// <summary>"Hole 3 · Par 4 · Stroke 2" (strokes = taken so far, so this is the next one).</summary>
         public static string TurnInfo(int hole, int par, int strokes) => HoleLine(hole, par, $"Stroke {strokes + 1}");
 
@@ -126,7 +137,7 @@ namespace GolfSim.Game
 
         public static string ToPar(int toPar) => toPar == 0 ? "E" : toPar > 0 ? $"+{toPar}" : toPar.ToString();
 
-        static string Aim(float degrees) =>
+        internal static string Aim(float degrees) =>
             Mathf.Abs(degrees) < 0.05f ? "At pin" : $"{Mathf.Abs(degrees):0.#}° {(degrees > 0 ? "R" : "L")}";
 
         static string Capitalize(string s) => string.IsNullOrEmpty(s) ? "" : char.ToUpperInvariant(s[0]) + s.Substring(1);

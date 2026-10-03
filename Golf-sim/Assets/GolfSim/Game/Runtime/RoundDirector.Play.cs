@@ -65,6 +65,7 @@ namespace GolfSim.Game
             practiceLie = "tee";
             ball.aimOffset = 0f;
             SetClub(Clubs.Suggest(YardsToPin, practiceLie), publish: false);
+            StartFacility();
         }
 
         /// <summary>Practice: the ball was put down (Reset, a mulligan), so the lie is wherever it is now.</summary>
@@ -129,6 +130,11 @@ namespace GolfSim.Game
                 // Practice: the next hit starts from the tee after holing out or a penalty (GolfBall.Hit).
                 practiceLie = holed || penalty ? "tee" : r.restingSurface;
                 SendShotResult(PracticePlayer, carry, total, holed ? "holed" : penalty ? penaltyLie : r.restingSurface, holed, 0);
+                if (facility != null && phase == Phase.Playing)
+                {
+                    FacilityShotFinished(finished);
+                    return;
+                }
                 hud?.Toast(holed ? "In the hole!" : penalty ? penaltyText : $"{carry:0} yd carry");
                 PublishState();
                 return;
@@ -182,6 +188,7 @@ namespace GolfSim.Game
             if (!ball || ball.InMotion || HomeMenu.IsOpen) return;
             if (round == null)
             {
+                if (FacilityAgain()) return;
                 ball.PlaceOnGround(ball.LaunchPoint);
                 ball.aimOffset = 0f;
                 if (panel) panel.LineUp();
@@ -226,7 +233,7 @@ namespace GolfSim.Game
                 Debug.LogWarning($"[RoundDirector] Unknown club '{name}'");
                 return;
             }
-            club = normalized;
+            club = facility?.Club(normalized) ?? normalized;
             if (panel) panel.SelectClub(club);
             if (aimLine) aimLine.length = AimLength();
             if (publish) PublishState();

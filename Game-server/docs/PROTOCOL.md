@@ -279,6 +279,7 @@ Any number of sims and remotes may connect; relays go to all of them.
 | `shot` | remote | sims | swing detected: hit the ball |
 | `mulligan` | remote | sims | retake the last shot (optional for the sim) |
 | `skip` | remote | sims | skip / pick up on this hole (optional for the sim) |
+| `map` | remote | sims | show or hide the course map on the TV (optional for the sim) |
 | `state` | sim | remotes | what is on screen (drives the app's mode) |
 | `shotResult` | sim | remotes | where the shot ended up |
 | `turn` | sim | remotes | whose turn it is now |
@@ -383,6 +384,12 @@ If no sim is connected the remote gets `error {"message": "no sim connected"}` a
 ```
 
 ```json
+{ "type": "map", "show": true }
+```
+`show`: required boolean, open (`true`) or close the course map on the TV. The sim opens it only while a hole is being
+played with the ball at rest and closes it itself when the ball is hit; `state.mapOpen` says whether it is up.
+
+```json
 { "type": "shot", "speed": 65.2, "launch": 12.5, "azimuth": -1.5, "back": 2600, "side": -300, "club": "7I", "id": 7 }
 ```
 
@@ -420,12 +427,15 @@ Optional fields (relayed unchanged; older sims leave them out):
 | `canShoot` | bool: a swing would be hit now. Absent = `true`. Between shots (ball moving, next player up) the sim keeps `screen:"game"` with `canShoot:false`, so the phone stays in gameplay mode without flickering |
 | `waitReason` | why not, e.g. `"Wait for the next turn"`; `""` while `canShoot` |
 | `canReplay` | the sim offers an instant replay of the last shot now; `nav {key:"up"}` plays it |
+| `mapOpen` | bool: the course map is up on the TV (the app's Map button is lit; `map` changes it) |
 | `putting` | bool: the current player is putting (the app shows its putting view) |
 | `puttDistance` | metres to the pin |
 | `elevation` | metres the pin sits above (+) or below (-) the ball |
 | `stimp` | green speed, Stimpmeter feet |
 | `puttPlaysAs` | metres the putt plays as on a flat green (the app's power-meter target) |
 | `puttingAssist` | `full`, `partial` or `off`: how much of the break line the sim draws |
+| `practice` | `range` (driving range) or `puttingGreen` while a practice facility is on the TV, else `""`; `gameId` is 0 and no `holeScore` is sent |
+| `attempts`, `made` | the facility's shots (putts) this session, and how many were holed |
 
 ```json
 { "type": "shotResult", "player": "Obi", "carry": 231.4, "total": 248.0, "lie": "fairway", "holed": false, "strokes": 1 }

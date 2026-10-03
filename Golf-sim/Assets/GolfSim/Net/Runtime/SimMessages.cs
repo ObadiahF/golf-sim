@@ -16,6 +16,7 @@ namespace GolfSim.Net
         public const string Ping = "ping", Pong = "pong";
         // remote -> sim (relayed by the server)
         public const string Nav = "nav", Club = "club", Aim = "aim", AimReset = "aimReset", Shot = "shot", Mulligan = "mulligan", Skip = "skip";
+        public const string Map = "map";
         // sim -> remotes
         public const string State = "state", ShotResult = "shotResult", Turn = "turn", ShotRejected = "shotRejected";
         // sim -> server
@@ -46,6 +47,9 @@ namespace GolfSim.Net
 
     /// <summary>delta: degrees to turn the aim, + right.</summary>
     [Serializable] public class AimMessage : SimMessage { public float delta; }
+
+    /// <summary>show: open (true) or close the course map on the TV.</summary>
+    [Serializable] public class MapMessage : SimMessage { public bool show; }
 
     // ---- sim -> remotes ----
 
@@ -79,6 +83,8 @@ namespace GolfSim.Net
         /// <summary>Yards.</summary>
         public float distanceToPin;
         public string lie;
+        /// <summary>The course map is up on the TV (remote "map" opens and closes it; it closes itself when the ball is hit).</summary>
+        public bool mapOpen;
 
         // Putting mode (ball on the green, or the putter just off it): the phone shows its putting view and power
         // meter. Optional for readers: false / 0 / "" outside putting mode (JsonUtility always writes them).
@@ -94,6 +100,12 @@ namespace GolfSim.Net
         public double puttPlaysAs;
         /// <summary>full, partial or off: how much of the break line the sim draws.</summary>
         public string puttingAssist;
+
+        // A practice facility on the TV (the driving range or the putting green). Optional for readers: "" / 0 elsewhere.
+        /// <summary>range or puttingGreen, else "".</summary>
+        public string practice;
+        /// <summary>The facility's shots (putts on the putting green) this session, and how many were holed.</summary>
+        public int attempts, made;
 
         public StateMessage() : base(MessageType.State) { }
     }

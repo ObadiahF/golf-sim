@@ -27,6 +27,8 @@ namespace GolfSim.Game
         [TextArea(2, 4)] public string description;
         [Tooltip("Scene to load (must be in the build settings).")]
         public string sceneName;
+        [Tooltip("Scene modes: a practice facility built into the practice scene in place of its hole (Hole: play the scene's own).")]
+        public PracticeMode practice;
         [Tooltip("Channel art, shown on the tile and the preview screen.")]
         public Texture2D banner;
     }

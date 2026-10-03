@@ -35,6 +35,7 @@ namespace GolfSim.Net
         public event Action<HelloMessage> HelloReceived;
         public event Action<string> NavReceived, ClubReceived, ServerError;
         public event Action<float> AimReceived;
+        public event Action<bool> MapReceived;
         public event Action AimResetReceived, MulliganReceived, SkipReceived;
         public event Action<RemoteShotMessage> ShotReceived;
         public event Action<GameView> GameStarted, ScorecardReceived, GameFinished;
@@ -157,6 +158,7 @@ namespace GolfSim.Net
                 case MessageType.AimReset: AimResetReceived?.Invoke(); break;
                 case MessageType.Mulligan: MulliganReceived?.Invoke(); break;
                 case MessageType.Skip: SkipReceived?.Invoke(); break;
+                case MessageType.Map: MapReceived?.Invoke(JsonUtility.FromJson<MapMessage>(json).show); break;
                 case MessageType.Shot:
                     if (RemoteShotMessage.TryParse(json, out var shot, out var error)) ShotReceived?.Invoke(shot);
                     else Debug.LogWarning($"[SimConnection] Ignored shot: {error}");

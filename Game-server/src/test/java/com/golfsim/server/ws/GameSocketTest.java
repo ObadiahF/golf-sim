@@ -90,6 +90,27 @@ class GameSocketTest extends SocketTestBase {
         }
     }
 
+    /** The phone's Map button opens and closes the course map on the TV, and the sim's state says whether it is up. */
+    @Test
+    void mapCommandIsRelayedToTheSimAndMapOpenToRemotes() throws Exception {
+        try (WsTestClient sim = sim(); WsTestClient remote = remote()) {
+            remote.await("hello");
+            remote.send("{\"type\":\"map\",\"show\":true}");
+            assertThat(sim.await("map").get("show").asBoolean()).isTrue();
+            remote.send("{\"type\":\"map\",\"show\":false}");
+            assertThat(sim.await("map").get("show").asBoolean()).isFalse();
+            remote.send("{\"type\":\"map\"}");
+            assertThat(remote.await("error").get("message").asText()).isEqualTo("map: show must not be null");
+            remote.send("{\"type\":\"map\",\"show\":\"open\"}");
+            assertThat(remote.await("error").get("message").asText()).isEqualTo("Invalid value for 'show'");
+            sim.send("{\"type\":\"map\",\"show\":true}");
+            assertThat(sim.await("error").get("message").asText()).isEqualTo("'map' must be sent by a remote");
+
+            sim.send("{\"type\":\"state\",\"screen\":\"game\",\"mapOpen\":true}");
+            assertThat(remote.await("state").get("mapOpen").asBoolean()).isTrue();
+        }
+    }
+
     @Test
     void remoteCommandWithoutSimIsAnError() throws Exception {
         try (WsTestClient remote = remote()) {

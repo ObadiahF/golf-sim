@@ -80,6 +80,9 @@ namespace GolfSim.Course
         public ObjectsInfo objects;
 
         [NonSerialized] public string assetPath; // path of hole.json: an asset path in the editor, any file path in the game
+        // A package made in code (a practice facility) carries its content instead of files: used when set.
+        [NonSerialized] public float[,] heights;
+        [NonSerialized] public PlacedObject[] placed;
 
         public string Folder => Path.GetDirectoryName(assetPath)?.Replace('\\', '/');
         public float MinElevation => heightmap.minElevation;
@@ -101,6 +104,7 @@ namespace GolfSim.Course
         /// <summary>Normalised heights [z, x] in 0..1, ready for TerrainData.SetHeights.</summary>
         public float[,] LoadHeights()
         {
+            if (this.heights != null) return this.heights;
             int n = heightmap.resolution;
             byte[] bytes = File.ReadAllBytes(Path.Combine(Folder, heightmap.file));
             if (bytes.Length != n * n * 2)
@@ -115,7 +119,7 @@ namespace GolfSim.Course
 
         /// <summary>Every tree, shrub and rock, exactly as the package places them.</summary>
         public PlacedObject[] LoadObjects() =>
-            ObjectsFile.Read(Path.Combine(Folder, objects.file), sizeMeters, objects.count);
+            placed ?? ObjectsFile.Read(Path.Combine(Folder, objects.file), sizeMeters, objects.count);
 
         /// <summary>Local (x, z) meters -> position relative to the terrain origin, y in terrain-local meters.</summary>
         public Vector3 ToLocal(Vector2 xz, Terrain terrain) =>

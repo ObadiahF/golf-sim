@@ -280,6 +280,8 @@ MonoBehaviour:
   modes:
   - {fileID: 11400000, guid: 4aeb9587001dc4d3cb1dafe8780dbb24, type: 2}
   - {fileID: 11400000, guid: 6b6d475c5364a4eeb949f56b6abf01ec, type: 2}
+  - {fileID: 11400000, guid: 3c0d842ac73de4900b1e15ea759c27d8, type: 2}
+  - {fileID: 11400000, guid: 6ae60f8f00de94c79bf454bae4d10e27, type: 2}
   - {fileID: 11400000, guid: 20d7502e6fecb403c9828532366038d3, type: 2}
   - {fileID: 11400000, guid: 45005a62f14d248a3b1fdfab9de4aee1, type: 2}
 --- !u!114 &572666584

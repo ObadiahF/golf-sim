@@ -33,6 +33,8 @@ The wire contract is `Game-server/docs/PROTOCOL.md` (source of truth: `WsMessage
 | `GolfSim/Game/Runtime/RoundDirector*.cs` | the session across scenes: connection wiring, rounds, holes, turns, scoring, `state`; `.Server.cs` keeps the round in step with the server's game, `.Holes.cs` gets the round's holes |
 | `GolfSim/Game/Runtime/Round.cs` | the scorecard and turn rules (no scene code) |
 | `GolfSim/Game/Runtime/RoundHud.cs`, `TurnBanner.cs`, `ScoreTable.cs` | HUD, turn announcement and badge, scorecard |
+| `GolfSim/Game/Runtime/Map/` | the course map: `CourseMap` (the panel), `HoleMapPainter` (the hole's picture), `MapOverlay` (aim line, balls, distances); wired in `RoundDirector.Map.cs` |
+| `GolfSim/Game/Runtime/Practice/` | the practice facilities: `DrivingRange`, `PuttingGreen` (built by `FacilityGround`), `PracticeHud`; wired in `RoundDirector.Practice.cs` |
 | `GolfSim/Game/Runtime/ScoresScreen.cs` | the main menu's Scores leaderboard |
 | `GolfSim/Game/Runtime/Audio/AudioSettingsPanel.cs` | the Sound settings (main menu card and pause menu) |
 | `GolfSim/Game/Resources/CourseRound.asset` | hole scenes, holes, turn order, max over par, HUD assets |
@@ -68,7 +70,7 @@ with the connection and the HUD. Any scene with a `HoleInfo` and a `GolfBall` wo
 ## Flows
 
 1. **Menu:** the D-pad's Left/Right picks a card and Select plays it. The cards are **Play a Round**,
-   Hole Simulator and **Scores**. On Play a Round, Up/Down picks 9 or 18 holes for a solo round. If the
+   Hole Simulator, **Driving Range**, **Putting Green** (see Practice below) and **Scores**. On Play a Round, Up/Down picks 9 or 18 holes for a solo round. If the
    server has a game in progress, the card resumes it at the first unfinished hole instead.
    Scores shows a ranked table from `GET /api/players`, ranked by handicap, average to par per 18 holes,
    best 9-hole and 18-hole rounds, wins, birdies or aces (use Left/Right to change). It opens on the first of
@@ -95,7 +97,21 @@ with the connection and the HUD. Any scene with a `HoleInfo` and a `GolfBall` wo
    be resumed from Play a Round.
 
 Keyboard and gamepad do the same: arrows (Left/Right aim and Up/Down club in game), Enter (or A) for
-Select, Esc (or B) for Back. Space hits with the on-screen panel (Tab shows it).
+Select, Esc (or B) for Back. Space hits with the on-screen panel (Tab shows it). M (or Y) opens the course map.
+
+## Course map
+
+**M** (gamepad **Y**, or the app's **Map** button beside the aim control: `map {show}`) opens a top-down map of
+the hole on the right of the TV while a hole is being played and its ball is at rest (a round or practice, between
+shots too). `HoleMapPainter` paints it once per hole from the hole's own data, turned so the tee is at the bottom
+and the pin at the top: the terrain's surface paint as flat colours with mowing stripes and a light hill shade, the
+ponds, and every tree, shrub and rock as a canopy with its shadow. Over it `MapOverlay` draws the aim line from the
+ball to the selected club's carry with a target there, distance arcs every 50 yd, the pin (yards from the ball) and
+the tee, and every ball in play (the player up ringed, in their badge colour); under it: to the pin, the club's
+carry, what that leaves to the pin, and the aim. Left/Right aim and Up/Down club redraw it live, so you can aim from
+the map. It closes when the ball is hit, on Back, and on any other screen (pause, replay, scorecard, loading), and
+sits under the turn banner, the scorecard and the fade. `state.mapOpen` lights the app's Map button.
+`Tools/unity_scripts/CourseMapCheck.cs` opens it on the hole in Play mode, aims, hits and saves screenshots.
 
 ## Putting
 
@@ -117,6 +133,34 @@ From the rough the putter is an ordinary shot (no putting mode, `puttPlaysAs` 0)
 - **Keyboard:** with the Putter preset the shot panel shows a distance slider in metres (Use the read loads
   `puttPlaysAs`). After each putt the HUD shows a strength bar against the read.
 - `Tools/unity_scripts/PuttingCheck.cs` checks the preview against the real ball and saves screenshots.
+
+## Practice: driving range and putting green
+
+The **Driving Range** and **Putting Green** cards (`GameMode.practice`) load the practice scene (HoleSimulator) with a
+facility built at runtime in place of its hole (`RoundDirector.Practice.cs`): `FacilityGround` makes a hole package in
+code (heights from a function, surface polygons, trees) and the hole builder dresses it with a course theme like any
+downloaded hole, then adds the extra pins and the yardage boards. Practice rules apply: nothing is sent to the
+server's games (no `holeScore`, `gameId` 0); `shotResult` goes to the phones as player "Practice". After each shot the
+facility records it and, 2 to 3 s later, sets up the next ball (`canShoot: false`, `waitReason` "Teeing up the next
+ball" / "Next putt coming up" meanwhile). No instant replays. `state` carries `practice` (`range` or `puttingGreen`),
+`attempts` and `made`; the HUD's stats card counts the shots, and a card on the right keeps the session.
+
+- **Driving range:** a tee box at one end of a wide, nearly flat range; target greens with flags at 50, 100, 150, 200,
+  250 and 300 yd (each exactly that far from the tee, a board beside it), more boards along both edges every 50 yd.
+  The flag nearest the club's typical carry is the pin the aim points at (`distanceToPin`), so Left/Right aim from it.
+  Every club works; the toast and the card show carry, total and offline, the card each club's average carry and total.
+  The ball goes back to the tee after every shot (aim kept). The phone stays in its gameplay view (Shots, Flag).
+- **Putting green:** a big contoured green (tilt, ridge, back tier, swale) with six cups; a cycle of eight putts
+  (short, medium, long and breaking, uphill, downhill and sidehill, each spot worked out from the slope at its cup) is
+  played with the putter only, in putting mode with the break line and the phone's power meter; the Stimp is the
+  current physics, live profile included. Only the cup in play shows a flag. After each putt, holed or not, the ball
+  goes to the next one. **Mulligan** replays the last putt; **Up/Down** step to the previous / next putt. The card
+  shows made / attempts by kind; the phone's putt card shows "Made 3 of 7" where the Chip button would be.
+- Pause menu: Restart starts a fresh session, Main Menu goes back to the cards. Keyboard: as on the practice hole
+  (Space hits with the shot panel, Tab shows it).
+- `Tools/unity_scripts/PracticeModesCheck.cs` sets up the cards (`Modes`, banners from `Banner`), opens a facility from
+  the menu like the phone's D-pad, and checks each: flags at their distances, every club teed up again after its
+  shot, aim; putts across the cups, the ball moving on, mulligan, made / attempts.
 
 ## Live ball physics
 

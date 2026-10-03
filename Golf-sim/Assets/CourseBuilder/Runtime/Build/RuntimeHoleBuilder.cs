@@ -10,9 +10,12 @@ namespace GolfSim.Course
     {
         static readonly System.Collections.Generic.List<TerrainData> Built = new System.Collections.Generic.List<TerrainData>();
 
-        public static HoleInfo Build(string packageFolder, RuntimeThemeLibrary themes)
+        public static HoleInfo Build(string packageFolder, RuntimeThemeLibrary themes) =>
+            Build(HolePackage.Load(System.IO.Path.Combine(packageFolder, HolePackage.FileName)), themes);
+
+        /// <summary>Builds a loaded package, or one made in code (heights and objects in memory), dressed by its theme.</summary>
+        public static HoleInfo Build(HolePackage pkg, RuntimeThemeLibrary themes)
         {
-            var pkg = HolePackage.Load(System.IO.Path.Combine(packageFolder, HolePackage.FileName));
             Clear();
             var root = HoleBuilder.Build(pkg, themes.OptionsFor(pkg), new HoleAssets());
             Built.Add(root.GetComponentInChildren<Terrain>().terrainData);

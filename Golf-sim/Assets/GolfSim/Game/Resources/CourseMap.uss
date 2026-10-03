@@ -1,0 +1,30 @@
+/* The course map (CourseMap.cs) on the round HUD: a panel on the right, under the turn badge and above the key hints.
+   Colours and the stat labels (hud__eyebrow, hud__caption, hud__value) come from Menu.uss and RoundHud.uss. */
+.map {
+    position: absolute; right: 28px; top: 158px; bottom: 64px; width: 660px; padding: 18px 20px 16px 20px;
+    border-radius: 22px; background-color: var(--surface); border-width: 1px; border-color: var(--border);
+    opacity: 0; translate: 48px 0; visibility: hidden;
+    transition: opacity 0.25s ease-out, translate 0.3s ease-out, visibility 0.3s;
+}
+.map--open { opacity: 1; translate: 0 0; visibility: visible; }
+
+.map__header { flex-direction: row; justify-content: space-between; align-items: center; margin: 0 2px 12px 2px; }
+.map__keys { font-size: 16px; color: var(--muted); margin: 0; }
+
+.map__view {
+    flex-grow: 1; border-radius: 14px; overflow: hidden; background-color: #10161c;
+    border-width: 1px; border-color: var(--border);
+}
+.map__image { position: absolute; left: 0; top: 0; right: 0; bottom: 0; -unity-background-scale-mode: stretch-to-fill; }
+
+.map__stats { flex-direction: row; justify-content: space-between; margin: 14px 4px 0 4px; }
+.map__stats .hud__stat { margin: 0; }
+
+.map__tag {
+    position: absolute; padding: 3px 9px; border-radius: 8px; background-color: rgba(8, 12, 16, 0.78);
+    font-size: 18px; -unity-font-style: bold; color: var(--text); white-space: nowrap; margin: 0;
+}
+.map__tag--pin { color: #facc15; font-size: 20px; }
+.map__tag--aim { font-size: 20px; border-width: 1px; border-color: rgba(255, 255, 255, 0.5); }
+.map__tag--arc { font-size: 14px; padding: 1px 6px; color: var(--muted); background-color: rgba(8, 12, 16, 0.55); }
+.map__tag--name { font-size: 15px; padding: 2px 7px; }

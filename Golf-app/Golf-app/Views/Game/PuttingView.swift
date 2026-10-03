@@ -11,9 +11,10 @@ struct PuttingView: View {
     private var meter: PuttMeter { session.meter }
 
     var body: some View {
-        ScreenScaffold(title: state?.player ?? "Practice", session: session) { fit in
+        ScreenScaffold(title: state?.playTitle ?? "Practice", session: session) { fit in
             DisconnectedBanner(game: game)
-            PuttCard(state: state) { session.selectClub(Self.chipClub) }
+            // The putting green is putts only: its made count stands where the Chip button would be.
+            PuttCard(state: state, onChip: state?.facility == .puttingGreen ? nil : { session.selectClub(Self.chipClub) })
             InstructionText(session: session)
             HStack(alignment: .center, spacing: 18) {
                 PowerMeter(value: meter.shown, peak: meter.peak, target: state?.puttPlaysAs,
@@ -37,10 +38,10 @@ struct PuttingView: View {
 }
 
 /// Distance to the hole in metres and feet, the rise or fall, how long it plays and the green speed, and a
-/// button to chip instead.
+/// button to chip instead (on the putting green: putts made so far).
 struct PuttCard: View {
     let state: GameProtocol.SimState?
-    let onChip: () -> Void
+    let onChip: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -53,16 +54,15 @@ struct PuttCard: View {
                     .font(Theme.number(20))
                     .foregroundStyle(Theme.muted)
                 Spacer()
-                Button(action: onChip) {
-                    Label("Chip", systemImage: "arrow.up.forward")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(Theme.chalk)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.black.opacity(0.25), in: .capsule)
+                if let onChip {
+                    Button(action: onChip) {
+                        Label("Chip", systemImage: "arrow.up.forward").capsuleTag()
+                    }
+                    .buttonStyle(PressDimStyle())
+                    .accessibilityHint("Switches to the wedge and the club wheel")
+                } else if let made = state?.madeSummary {
+                    Label(made, systemImage: "flag.fill").capsuleTag()
                 }
-                .buttonStyle(PressDimStyle())
-                .accessibilityHint("Switches to the wedge and the club wheel")
             }
             HStack {
                 stat("Slope", Self.slope(state?.elevation))
@@ -120,5 +120,16 @@ struct PuttResultStrip: View {
     private var text: String {
         if let delivery, delivery != .received { return delivery.label }
         return result?.summary ?? "—"
+    }
+}
+
+private extension View {
+    /// The small dark capsule on the putt card (the Chip button, the putting green's made count).
+    func capsuleTag() -> some View {
+        font(.system(size: 13, weight: .bold, design: .rounded))
+            .foregroundStyle(Theme.chalk)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color.black.opacity(0.25), in: .capsule)
     }
 }

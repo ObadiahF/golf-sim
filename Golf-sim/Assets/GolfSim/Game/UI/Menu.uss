@@ -35,7 +35,8 @@ Label { color: var(--text); }
 
 .cards { flex-direction: row; padding: 0 60px 60px 60px; }
 .card {
-    width: 336px; height: 196px; margin: 0 12px; padding: 0; border-radius: 18px; overflow: hidden;
+    width: 336px; height: 196px; flex-shrink: 1; min-width: 200px; /* six or more cards share the row's width */
+    margin: 0 12px; padding: 0; border-radius: 18px; overflow: hidden;
     border-width: 3px; border-color: rgba(255, 255, 255, 0.0); background-color: #1c2430;
     -unity-background-scale-mode: scale-and-crop; justify-content: flex-end;
     transition: scale 0.18s ease-out, border-color 0.18s, opacity 0.18s; opacity: 0.75;

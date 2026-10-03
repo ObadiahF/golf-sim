@@ -19,7 +19,13 @@ namespace GolfSim.Course
             Primitive(PrimitiveType.Sphere, tee, "Marker L", new Vector3(-1.5f, 0.08f, 0), Vector3.one * 0.16f, teeColor);
             Primitive(PrimitiveType.Sphere, tee, "Marker R", new Vector3(1.5f, 0.08f, 0), Vector3.one * 0.16f, teeColor);
 
-            var pin = new GameObject("Pin").transform;
+            CreatePin(parent, "Pin", pinLocal, terrain, assets, FlagColor);
+        }
+
+        /// <summary>A flagstick, cloth flag and cup at pinLocal (more pins than the hole's own: a practice facility's targets).</summary>
+        public static Transform CreatePin(Transform parent, string name, Vector3 pinLocal, Terrain terrain, HoleAssets assets, Color flagColor)
+        {
+            var pin = new GameObject(name).transform;
             pin.SetParent(parent, false);
             pin.localPosition = pinLocal;
 
@@ -33,10 +39,12 @@ namespace GolfSim.Course
             flag.transform.localPosition = new Vector3(0f, FlagstickHeight - 0.03f, 0f);
             flag.AddComponent<MeshFilter>().sharedMesh =
                 assets.Shared("Meshes/Flag.asset", () => FlagWave.BuildMesh(0.8f, 0.6f));
-            flag.AddComponent<MeshRenderer>().sharedMaterial = assets.ColorMaterial("FlagCloth", FlagColor, doubleSided: true);
+            flag.AddComponent<MeshRenderer>().sharedMaterial =
+                assets.ColorMaterial(flagColor == FlagColor ? "FlagCloth" : $"FlagCloth_{ColorUtility.ToHtmlStringRGB(flagColor)}", flagColor, doubleSided: true);
             flag.AddComponent<FlagWave>().ApplyHeading();
 
             CupBuilder.Create(pin, terrain, assets);
+            return pin;
         }
 
         /// <summary>Faces the tee markers toward the pin so they sit across the line of play.</summary>

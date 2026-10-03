@@ -9,7 +9,7 @@ struct GameplayView: View {
     private var state: GameProtocol.SimState? { game.state }
 
     var body: some View {
-        ScreenScaffold(title: state?.player ?? "Practice", session: session) { fit in
+        ScreenScaffold(title: state?.playTitle ?? "Practice", session: session) { fit in
             DisconnectedBanner(game: game)
             TurnCard(state: state, club: session.club)
             InstructionText(session: session)
@@ -26,16 +26,20 @@ struct GameplayView: View {
     }
 }
 
-/// Hole, par, strokes, distance and lie for the player up.
+/// Hole, par, strokes, distance and lie for the player up (on the driving range: shots so far and the target flag).
 struct TurnCard: View {
     let state: GameProtocol.SimState?
     let club: Club
 
     var body: some View {
         HStack(alignment: .top) {
-            stat("Hole", state?.hole.map { "\($0)" } ?? "–", detail: state?.par.map { "Par \($0)" })
-            stat("Strokes", "\(state?.strokes ?? 0)", detail: club.name)
-            stat("To pin", state?.distanceToPin.map { "\(Int($0.rounded())) yd" } ?? "–", detail: state?.lie?.capitalized)
+            if state?.facility == .range {
+                stat("Shots", "\(state?.attempts ?? 0)", detail: club.name)
+            } else {
+                stat("Hole", state?.hole.map { "\($0)" } ?? "–", detail: state?.par.map { "Par \($0)" })
+                stat("Strokes", "\(state?.strokes ?? 0)", detail: club.name)
+            }
+            stat(state?.facility == .range ? "Flag" : "To pin", state?.distanceToPin.map { "\(Int($0.rounded())) yd" } ?? "–", detail: state?.lie?.capitalized)
         }
         .card(padding: 12)
     }
