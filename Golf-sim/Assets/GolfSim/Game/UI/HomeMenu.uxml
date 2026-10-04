@@ -6,6 +6,10 @@
             <ui:VisualElement class="home__panel">
                 <ui:Label text="Paused" class="home__title" />
                 <ui:Label text="Back: resume  ·  Up/Down, Select: choose" class="home__subtitle" />
+                <ui:VisualElement class="room room--panel">
+                    <ui:Label name="room-code" class="room__code" />
+                    <ui:Label name="room-status" class="room__status" />
+                </ui:VisualElement>
                 <ui:Button name="home-resume" text="Resume" class="btn btn--primary" />
                 <ui:Button name="home-restart" text="Restart Hole" class="btn btn--ghost" />
                 <ui:Button name="home-sound" text="Sound" class="btn btn--ghost" />

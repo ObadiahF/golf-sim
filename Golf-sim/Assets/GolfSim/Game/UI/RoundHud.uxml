@@ -12,6 +12,7 @@
                     <ui:VisualElement class="hud__stat" picking-mode="Ignore"><ui:Label text="AIM" class="hud__caption" /><ui:Label name="hud-aim" class="hud__value" /></ui:VisualElement>
                     <ui:VisualElement class="hud__stat" picking-mode="Ignore"><ui:Label text="TO PIN" class="hud__caption" /><ui:Label name="hud-distance" class="hud__value" /></ui:VisualElement>
                     <ui:VisualElement class="hud__stat" picking-mode="Ignore"><ui:Label text="LIE" class="hud__caption" /><ui:Label name="hud-lie" class="hud__value" /></ui:VisualElement>
+                    <ui:VisualElement name="hud-wind-stat" class="hud__stat" picking-mode="Ignore"><ui:Label text="WIND" class="hud__caption" /><ui:VisualElement class="hud__wind" picking-mode="Ignore"><ui:VisualElement name="hud-wind-arrow" class="hud__wind-arrow" picking-mode="Ignore" /><ui:Label name="hud-wind" class="hud__value" /></ui:VisualElement></ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:VisualElement class="hud-top__middle" picking-mode="Ignore">

@@ -5,7 +5,13 @@
         <ui:VisualElement name="backdrop-b" class="backdrop" picking-mode="Ignore" />
         <ui:VisualElement name="shade" class="shade" picking-mode="Ignore" />
         <ui:VisualElement class="topbar">
-            <ui:Label text="GOLF SIM" class="logo" />
+            <ui:VisualElement class="topbar__left">
+                <ui:Label text="GOLF SIM" class="logo" />
+                <ui:VisualElement class="room">
+                    <ui:Label name="room-code" class="room__code" />
+                    <ui:Label name="room-status" class="room__status" />
+                </ui:VisualElement>
+            </ui:VisualElement>
             <ui:VisualElement class="topbar__right">
                 <ui:Label name="version" class="version" />
                 <ui:Label name="date" class="date" />

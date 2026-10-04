@@ -33,7 +33,7 @@ public static class ObstacleCheck
     const float Frame = 0.02f;
     const float Y = ShotData.YardsPerMeter;
 
-    static GolfBall Ball => Object.FindAnyObjectByType<GolfBall>();
+    static GolfBall Ball { get { var b = Object.FindAnyObjectByType<GolfBall>(); if (b) b.windSpeed = 0f; return b; } } // calm air (the practice hole has wind)
     static HoleInfo Hole => Object.FindAnyObjectByType<HoleInfo>();
 
     const string Progress = "ObstacleCheck.All";

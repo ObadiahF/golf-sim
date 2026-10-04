@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 namespace GolfSim.Game
 {
     /// <summary>
-    /// The in-game overlay (RoundHud.uxml): hole, par, stroke, club, aim, distance and lie (rendered from the
+    /// The in-game overlay (RoundHud.uxml): hole, par, stroke, club, aim, distance, lie and wind (rendered from the
     /// same StateMessage the phone gets), the turn announcement and current-player badge (TurnBanner), short
     /// toasts, the between-holes / final scorecard and the fade curtain for loading holes.
     /// What shows is decided here from the state alone (Render), so every screen change puts the HUD back as it should
@@ -20,8 +20,9 @@ namespace GolfSim.Game
 
         readonly Label hint;
         readonly string defaultHint;
-        readonly VisualElement hudRoot, info, scorecard, table, loading, loadingFill;
-        readonly Label eyebrow, player, strokesCaption, strokes, club, aim, distance, lie, toast, title, subtitle, footer, loadingTitle, loadingDetail;
+        readonly VisualElement hudRoot, info, scorecard, table, loading, loadingFill, windStat;
+        readonly WindArrow windArrow;
+        readonly Label eyebrow, player, strokesCaption, strokes, club, aim, distance, lie, wind, toast, title, subtitle, footer, loadingTitle, loadingDetail;
         IVisualElementScheduledItem hideToast;
 
         public RoundHud(UIDocument document)
@@ -41,6 +42,9 @@ namespace GolfSim.Game
             aim = root.Q<Label>("hud-aim");
             distance = root.Q<Label>("hud-distance");
             lie = root.Q<Label>("hud-lie");
+            windStat = root.Q("hud-wind-stat");
+            wind = root.Q<Label>("hud-wind");
+            windArrow = new WindArrow(root.Q("hud-wind-arrow"));
             toast = root.Q<Label>("hud-toast");
             title = root.Q<Label>("scorecard-title");
             subtitle = root.Q<Label>("scorecard-subtitle");
@@ -88,6 +92,9 @@ namespace GolfSim.Game
             aim.text = Aim(s.aim);
             distance.text = $"{s.distanceToPin:0} yd";
             lie.text = lieLabel ?? Capitalize(s.lie);
+            windStat.EnableInClassList(Hidden, s.putting); // a putt never leaves the ground
+            wind.text = s.wind > 0 ? $"{s.wind} mph" : "Calm";
+            windArrow.Show(s.wind <= 0, s.windAngle);
         }
 
         public void Toast(string text, float seconds = 2.5f)

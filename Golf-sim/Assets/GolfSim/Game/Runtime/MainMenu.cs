@@ -10,6 +10,7 @@ namespace GolfSim.Game
     /// phone remote) to select it; click it again, press Play or Select to start. Starting fades out and
     /// loads the mode's scene; a round mode starts a round (Up/Down picks 9 or 18 holes); the Scores card
     /// opens the leaderboard. When the game server has a newer version, an Update card joins the row (UpdateFlow).
+    /// Under the logo: the room code the phones pair with, and the connection (RoomBadge).
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public class MainMenu : MonoBehaviour
@@ -73,6 +74,7 @@ namespace GolfSim.Game
             NavInput.Register(OnNav, NavInput.MenuPriority);
             updates = new UpdateFlow(this, RefreshUpdateCard);
             version.text = UpdateFlow.VersionLine;
+            new RoomBadge(root);
         }
 
         void OnDisable()

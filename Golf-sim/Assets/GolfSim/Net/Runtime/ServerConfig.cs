@@ -110,8 +110,14 @@ namespace GolfSim.Net
         public string HttpUrl => ActiveUrl.StartsWith("wss://") ? "https://" + ActiveUrl.Substring(6)
             : ActiveUrl.StartsWith("ws://") ? "http://" + ActiveUrl.Substring(5) : ActiveUrl;
 
-        /// <summary>wss://host/ws?token=...&amp;role=sim&amp;name=...</summary>
-        public string SocketUrl(string role) => $"{ActiveUrl}/ws?token={Esc(Token)}&role={role}&name={Esc(DeviceName)}";
+        /// <summary>
+        /// wss://host/ws?token=...&amp;role=sim&amp;name=...&amp;room=...&amp;id=...: the sim joins its room (SimRoom.Code) as
+        /// this install (SimRoom.InstallId). A blank room is the server's default room (what older sims and phones use).
+        /// </summary>
+        public string SocketUrl(string role, string room = "", string installId = "") =>
+            $"{ActiveUrl}/ws?token={Esc(Token)}&role={role}&name={Esc(DeviceName)}" +
+            (string.IsNullOrEmpty(room) ? "" : $"&room={Esc(room)}") +
+            (string.IsNullOrEmpty(installId) ? "" : $"&id={Esc(installId)}");
 
         static string Esc(string s) => System.Uri.EscapeDataString(s ?? "");
     }

@@ -83,6 +83,10 @@ namespace GolfSim.Net
         /// <summary>Yards.</summary>
         public float distanceToPin;
         public string lie;
+        /// <summary>Wind speed, mph (0 when calm).</summary>
+        public int wind;
+        /// <summary>Where the wind blows relative to the aim, degrees clockwise: 0 helping, 90 left to right, 180 into the player.</summary>
+        public int windAngle;
         /// <summary>The course map is up on the TV (remote "map" opens and closes it; it closes itself when the ball is hit).</summary>
         public bool mapOpen;
 
@@ -169,7 +173,9 @@ namespace GolfSim.Net
         public string role;
         public bool simConnected;
         public string[] remotes = new string[0];
-        /// <summary>The game in progress (id 0 when there is none).</summary>
+        /// <summary>The room the server put this client in, normalized ("" for the default room or a server without rooms).</summary>
+        public string room;
+        /// <summary>The room's game in progress (id 0 when there is none).</summary>
         public GameView game;
         /// <summary>The live ball-physics profile (empty from a server without one).</summary>
         public PhysicsProfile physics;

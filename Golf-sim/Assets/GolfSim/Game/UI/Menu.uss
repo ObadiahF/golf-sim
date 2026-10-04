@@ -20,9 +20,10 @@ Label { color: var(--text); }
 .backdrop--shown { opacity: 1; }
 .shade { position: absolute; left: 0; right: 0; top: 0; bottom: 0; -unity-background-scale-mode: stretch-to-fill; }
 
-.topbar { flex-direction: row; justify-content: space-between; align-items: center; padding: 44px 72px 0 72px; }
+.topbar { flex-direction: row; justify-content: space-between; align-items: flex-start; padding: 44px 72px 0 72px; }
 .logo { font-size: 30px; -unity-font-style: bold; letter-spacing: 6px; }
 .logo__dot { color: var(--accent); }
+.topbar__left { align-items: flex-start; }
 .topbar__right { flex-direction: row; align-items: center; }
 .clock { font-size: 30px; -unity-font-style: bold; margin: 0 0 0 28px; }
 .date { font-size: 24px; color: var(--muted); margin: 0 0 0 14px; }
@@ -150,3 +151,10 @@ Label { color: var(--text); }
 .sound__fill { height: 100%; background-color: var(--accent); }
 .sound__value { width: 90px; font-size: 24px; color: var(--muted); -unity-text-align: middle-right; margin: 0; }
 .sound__panel .sound__close { align-self: flex-start; margin: 18px 0 0 0; }
+
+/* ---- Room code (RoomBadge.cs): main menu top bar and pause menu ---- */
+.room { margin: 14px 0 0 0; max-width: 620px; }
+.room__code { font-size: 34px; -unity-font-style: bold; color: var(--accent); letter-spacing: 3px; margin: 0; }
+.room__status { font-size: 20px; color: var(--muted); margin: 2px 0 0 0; white-space: normal; }
+.room__status--warning { color: #f6a96b; }
+.room--panel { margin: 0 0 24px 0; }

@@ -64,6 +64,7 @@ namespace GolfSim.Game
             phase = Phase.Playing;
             practiceLie = "tee";
             ball.aimOffset = 0f;
+            SetWind(PracticeWind());
             SetClub(Clubs.Suggest(YardsToPin, practiceLie), publish: false);
             StartFacility();
         }
@@ -84,6 +85,7 @@ namespace GolfSim.Game
             pending = null;
             hud?.HideScorecard();
             round.StartHole(index, course.ParFor(hole.par), hole.TeeWorld);
+            SetWind(HoleWind(index));
             if (index > 0 && round.players.Length > 1) hud?.Toast($"{round.players[round.HoleOrder[0]]} has the honor");
             turnPlayer = -1;
             BeginNextTurn();
@@ -128,14 +130,16 @@ namespace GolfSim.Game
 
             if (round == null || phase != Phase.Playing)
             {
-                // Practice: the next hit starts from the tee after holing out or a penalty (GolfBall.Hit).
-                practiceLie = holed || penalty ? "tee" : r.restingSurface;
                 SendShotResult(PracticePlayer, carry, total, holed ? "holed" : penalty ? penaltyLie : r.restingSurface, holed, 0);
                 if (facility != null && phase == Phase.Playing)
                 {
+                    // The lie stays the spot's until the next ball is set up there: a holed putt isn't "tee" meanwhile
+                    // (the phone would leave its putting view, the putter still forced on it).
                     FacilityShotFinished(finished);
                     return;
                 }
+                // Practice: the next hit starts from the tee after holing out or a penalty (GolfBall.Hit).
+                practiceLie = holed || penalty ? "tee" : r.restingSurface;
                 hud?.Toast(holed ? "In the hole!" : penalty ? penaltyText : $"{carry:0} yd carry");
                 PublishState();
                 return;
@@ -223,6 +227,7 @@ namespace GolfSim.Game
         {
             if (!ball || ball.InMotion) return;
             ball.aimOffset = Mathf.Clamp(ball.aimOffset + delta, -MaxAim, MaxAim);
+            if (panel && phase == Phase.Playing) panel.LineUp(glide: true); // the camera turns with the aim
             PublishState();
         }
 

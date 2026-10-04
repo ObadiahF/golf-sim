@@ -40,6 +40,8 @@ namespace GolfSim.Game
         [Range(1, 10)] public int maxOverPar = 5;
         [Tooltip("Par used when a hole scene doesn't set one.")]
         [Range(3, 6)] public int defaultPar = 4;
+        [Tooltip("Scales each hole's wind (mostly light, now and then over 15 mph); 0 plays without wind.")]
+        [Range(0f, 2f)] public float windScale = 1f;
         [Tooltip("Seconds to watch the ball at rest before the next turn.")]
         public float turnDelay = 2.5f;
         [Tooltip("Name of the solo player when a round starts from the menu without a server game.")]

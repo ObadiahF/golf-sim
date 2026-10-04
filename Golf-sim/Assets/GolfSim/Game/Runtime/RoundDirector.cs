@@ -128,6 +128,7 @@ namespace GolfSim.Game
             connection.MulliganReceived += Mulligan;
             connection.SkipReceived += PickUp;
             connection.MapReceived += ShowMap;
+            connection.Rejected += reason => hud?.Toast(reason, 6f); // another sim has this room: say so mid-round too
             Shots.Gate = BlockedReason;
             Shots.Accepted += OnShotAccepted;
             HomeMenu.OpenChanged += OnPauseChanged;
@@ -206,6 +207,7 @@ namespace GolfSim.Game
             if (IsFetching) StopFetching();
             if (round != null) EndRound();
             round = newRound;
+            SeedWind(newRound);
             starting = true;
             phase = Phase.Loading;
             FetchCourseHoles(newRound, () =>
@@ -349,6 +351,7 @@ namespace GolfSim.Game
                 s.par = round != null && round.HoleIndex >= 0 ? round.Par : course.ParFor(hole.par);
                 s.aim = (float)Math.Round(ball.aimOffset, 1);
                 s.distanceToPin = Mathf.Round(YardsToPin);
+                FillWind(s);
                 s.lie = round == null ? practiceLie : round.CurrentBall?.lie ?? "";
                 // Putting only while a player is still on this hole (not with the ball in the cup, nor on the scorecard).
                 if (phase is (Phase.Playing or Phase.BetweenShots) && round?.CurrentBall?.Done != true) FillPutting(s);

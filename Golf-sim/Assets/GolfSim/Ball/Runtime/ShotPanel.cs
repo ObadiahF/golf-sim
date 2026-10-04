@@ -62,8 +62,8 @@ namespace GolfSim.Ball
         {
             // Blocked: e.g. a round between turns. Moving: ignored entirely, so the shot in the air keeps its wind.
             if (Shots.Blocked != null || ball.InMotion) return;
-            ball.windSpeed = windMph * ShotData.MetersPerSecondPerMph;
-            ball.windHeading = windFrom + 180f; // sliders say where the wind comes from
+            ball.windSpeed = Wind.MetersPerSecond;
+            ball.windHeading = Wind.Heading; // sliders say where the wind comes from
             if (ball.Status is BallStatus.Holed or BallStatus.InWater or BallStatus.OutOfBounds) ball.ResetToTee();
             if (followBall && flyCam)
             {
@@ -80,15 +80,19 @@ namespace GolfSim.Ball
             LineUp();
         }
 
-        /// <summary>Puts the camera behind the ball, facing along the aim, ready for the next shot (and stops chasing the last one).</summary>
-        public void LineUp()
+        /// <summary>
+        /// Puts the camera behind the ball, facing along the aim, ready for the next shot (and stops chasing the last one);
+        /// glide: moves there smoothly (the aim being turned) instead of cutting.
+        /// </summary>
+        public void LineUp(bool glide = false)
         {
             StopAllCoroutines();
             if (!flyCam) Start();
             if (!flyCam) return;
             flyCam.StopFollowing();
             flyCam.followOffset = Vector3.zero;
-            flyCam.JumpTo(BehindBall());
+            if (glide) flyCam.GlideTo(BehindBall());
+            else flyCam.JumpTo(BehindBall());
         }
 
         /// <summary>Loads a club's typical shot into the sliders (see Clubs.Bag).</summary>
@@ -106,6 +110,12 @@ namespace GolfSim.Ball
         public event Action DrawExtras;
         /// <summary>Overrides where LineUp puts the camera (e.g. low behind a putt); null = behind the ball.</summary>
         public Func<Pose?> lineUpPose;
+        /// <summary>The wind every shot from here is hit into (the Wind sliders; a round sets it for each hole).</summary>
+        public Wind Wind
+        {
+            get => new Wind(windMph, windFrom);
+            set => (windMph, windFrom) = (value.mph, value.from);
+        }
         /// <summary>The ball speed slider, m/s.</summary>
         public float BallSpeed
         {

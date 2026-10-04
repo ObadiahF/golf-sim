@@ -17,6 +17,9 @@
 .hud__stat { margin: 0 26px 0 0; }
 .hud__caption { font-size: 14px; color: var(--muted); letter-spacing: 2px; margin: 0; }
 .hud__value { font-size: 24px; -unity-font-style: bold; margin: 2px 0 0 0; }
+.hud__wind { flex-direction: row; align-items: center; }
+/* Drawn by WindArrow (points the way the wind blows: up = helping, toward the screen = into the player). */
+.hud__wind-arrow { width: 26px; height: 26px; margin: 2px 8px 0 0; color: var(--accent); }
 
 .toast {
     max-width: 760px; padding: 14px 24px; border-radius: 16px;

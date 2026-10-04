@@ -7,8 +7,8 @@ namespace GolfSim.Game
 {
     /// <summary>
     /// In-game pause menu (Back: Esc, gamepad B or the phone's Back): pauses the game (and its sounds) and offers
-    /// Resume / Restart / Sound / Main Menu, chosen with Up/Down and Select (or the mouse). Restart is skipped
-    /// while CanRestart says no (e.g. on a round's scorecard).
+    /// Resume / Restart / Sound / Main Menu, chosen with Up/Down and Select (or the mouse), with the room code for
+    /// phones joining mid-round (RoomBadge). Restart is skipped while CanRestart says no (e.g. on a round's scorecard).
     /// Behaviours listed in pauseWhileOpen (camera, shot controls...) are disabled while it is open.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
@@ -69,6 +69,7 @@ namespace GolfSim.Game
                 buttons[i].RegisterCallback<PointerEnterEvent>(_ => Highlight(index));
             }
             fade = new ScreenFade(root);
+            new RoomBadge(root);
             NavInput.Register(OnNav, NavInput.OverlayPriority);
         }
 

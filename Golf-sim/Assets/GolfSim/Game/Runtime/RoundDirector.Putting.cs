@@ -96,21 +96,22 @@ namespace GolfSim.Game
         }
 
         /// <summary>
-        /// Low behind the ball, looking at the cup (only in putting mode; otherwise the panel's own line-up). Rising
-        /// ground behind the ball lifts the camera (it stays above the terrain from the ball back to it), and it tilts
-        /// down if needed to keep the ball in view.
+        /// Low behind the ball, looking along the aim at the cup's distance and height (at the cup itself until the aim is
+        /// turned; only in putting mode, otherwise the panel's own line-up). Rising ground behind the ball lifts the camera
+        /// (it stays above the terrain from the ball back to it), and it tilts down if needed to keep the ball in view.
         /// </summary>
         Pose? PuttCameraPose()
         {
             if (!wasPutting || !ball || !hole) return null;
             var at = ball.transform.position;
-            var toPin = Vector3.ProjectOnPlane(hole.PinWorld - at, Vector3.up);
-            var back = toPin.sqrMagnitude > 1e-4f ? toPin.normalized : ball.AimDirection;
+            var toPin = hole.PinWorld - at;
+            var back = ball.AimDirection;
+            var target = at + back * Vector3.ProjectOnPlane(toPin, Vector3.up).magnitude + Vector3.up * toPin.y;
             var position = at - back * PuttCameraBack + Vector3.up * PuttCameraUp;
             for (int k = 1; k <= 6; k++) // every ~45 cm from the ball back to the camera
                 position.y = Mathf.Max(position.y, CourseSurface.GroundAt(at - back * (PuttCameraBack * k / 6f)) + PuttCameraUp);
 
-            var look = Quaternion.LookRotation(hole.PinWorld - position);
+            var look = Quaternion.LookRotation(target - position);
             float fov = Camera.main ? Camera.main.fieldOfView : 60f;
             float pitchToBall = Vector3.Angle(at - position, Vector3.ProjectOnPlane(at - position, Vector3.up));
             float pitch = Mathf.Max(look.eulerAngles.x > 180f ? look.eulerAngles.x - 360f : look.eulerAngles.x, pitchToBall - fov * PuttBallLow);

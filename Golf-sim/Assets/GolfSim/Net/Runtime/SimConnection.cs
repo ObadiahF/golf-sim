@@ -16,6 +16,9 @@ namespace GolfSim.Net
     /// queue, sends what the main thread queued, pings, and reconnects with backoff; Update (or Pump) raises
     /// one C# event per message type on the main thread. Lives across scenes (DontDestroyOnLoad). The server's
     /// ball-physics profile (hello, physics) goes straight to BallPhysicsProfile, whatever scene is up.
+    /// It joins this sim's room (SimRoom). When the server turns it away (another sim already has the room, or this
+    /// install connected again from somewhere else) it says so (Rejection, Rejected) and only retries every
+    /// RejectedRetryDelay seconds, so two sims never kick each other off in a tight loop.
     /// </summary>
     public class SimConnection : MonoBehaviour
     {
@@ -23,6 +26,9 @@ namespace GolfSim.Net
 
         const int ReceiveBuffer = 16 * 1024;
         const int SilentPings = 3; // ping intervals without receiving anything before the server counts as gone
+        public const float RejectedRetryDelay = 30f;
+        const int RoomTakenCloseStatus = 4009;
+        const string RoomTaken = "Another sim is already connected", Replaced = "Replaced by a new connection";
 
         public ServerConfig config;
         public bool logMessages;
@@ -30,9 +36,15 @@ namespace GolfSim.Net
         public static SimConnection Instance { get; private set; }
         public Status State => (Status)status;
         public bool IsConnected => State == Status.Connected;
+        /// <summary>The room this sim joins (SimRoom.Code).</summary>
+        public string Room { get; private set; } = "";
+        /// <summary>Why the server turned this sim away (e.g. "Another sim is already connected to room K7QF"); null once a hello arrives.</summary>
+        public string Rejection { get; private set; }
 
         public event Action Connected, Disconnected;
         public event Action<HelloMessage> HelloReceived;
+        /// <summary>The server turned this sim away (see Rejection); it tries again in RejectedRetryDelay seconds.</summary>
+        public event Action<string> Rejected;
         public event Action<string> NavReceived, ClubReceived, ServerError;
         public event Action<float> AimReceived;
         public event Action<bool> MapReceived;
@@ -40,7 +52,7 @@ namespace GolfSim.Net
         public event Action<RemoteShotMessage> ShotReceived;
         public event Action<GameView> GameStarted, ScorecardReceived, GameFinished;
 
-        enum Kind { Message, Opened, Closed }
+        enum Kind { Message, Opened, Closed, Rejected }
 
         readonly ConcurrentQueue<(Kind kind, string text)> inbox = new ConcurrentQueue<(Kind, string)>();
         readonly ConcurrentQueue<string> outbox = new ConcurrentQueue<string>();
@@ -48,6 +60,7 @@ namespace GolfSim.Net
         readonly List<string> unsentReliable = new List<string>(); // main thread only
         CancellationTokenSource cts;
         volatile int status;
+        volatile string sessionRejection; // background: why the server is closing the current connection, if it said
         long lastReceivedTicks;
 
         /// <summary>Creates the persistent connection object (once).</summary>
@@ -82,7 +95,8 @@ namespace GolfSim.Net
         {
             if (cts != null) return;
             cts = new CancellationTokenSource();
-            string url = config.SocketUrl("sim");
+            Room = SimRoom.Code;
+            string url = config.SocketUrl("sim", Room, SimRoom.InstallId);
             var token = cts.Token;
             Task.Run(() => RunAsync(url, token));
         }
@@ -131,6 +145,11 @@ namespace GolfSim.Net
                         Debug.LogWarning($"[SimConnection] Not connected to {config.ActiveUrl}: {item.text}. Retrying.");
                         Disconnected?.Invoke();
                         break;
+                    case Kind.Rejected:
+                        Debug.LogWarning($"[SimConnection] Turned away by {config.ActiveUrl}: {item.text}. Retrying in {RejectedRetryDelay:0} s.");
+                        Rejection = item.text;
+                        Rejected?.Invoke(item.text);
+                        break;
                     default:
                         Dispatch(item.text);
                         break;
@@ -148,6 +167,9 @@ namespace GolfSim.Net
             {
                 case MessageType.Hello:
                     var hello = JsonUtility.FromJson<HelloMessage>(json);
+                    Rejection = null;
+                    if (!string.IsNullOrEmpty(hello.room) && hello.room != Room)
+                        Debug.LogWarning($"[SimConnection] Asked for room {Room} but the server put this sim in room {hello.room}.");
                     BallPhysicsProfile.Apply(hello.physics); // a sim that connects late gets the live tuning too
                     HelloReceived?.Invoke(hello);
                     break;
@@ -189,6 +211,7 @@ namespace GolfSim.Net
                     try
                     {
                         status = (int)Status.Connecting;
+                        sessionRejection = null;
                         await socket.ConnectAsync(new Uri(url), connection.Token);
                         while (outbox.TryDequeue(out _)) { } // stale updates from the last connection
                         Interlocked.Exchange(ref lastReceivedTicks, DateTime.UtcNow.Ticks);
@@ -208,10 +231,12 @@ namespace GolfSim.Net
                 bool wasConnected = status == (int)Status.Connected;
                 status = (int)Status.Offline;
                 if (stop.IsCancellationRequested) return;
-                if (wasConnected || delay <= 1f) inbox.Enqueue((Kind.Closed, reason)); // log once per outage
-                try { await Task.Delay(TimeSpan.FromSeconds(delay), stop); }
+                string rejection = sessionRejection;
+                if (rejection != null) inbox.Enqueue((Kind.Rejected, rejection));
+                else if (wasConnected || delay <= 1f) inbox.Enqueue((Kind.Closed, reason)); // log once per outage
+                try { await Task.Delay(TimeSpan.FromSeconds(rejection != null ? RejectedRetryDelay : delay), stop); }
                 catch (OperationCanceledException) { return; }
-                delay = Mathf.Min(delay * 2f, config.maxReconnectDelay);
+                if (rejection == null) delay = Mathf.Min(delay * 2f, config.maxReconnectDelay);
             }
         }
 
@@ -222,11 +247,18 @@ namespace GolfSim.Net
             while (!connection.IsCancellationRequested && socket.State == WebSocketState.Open)
             {
                 var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), connection.Token);
-                if (result.MessageType == WebSocketMessageType.Close) return;
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    if ((int?)result.CloseStatus == RoomTakenCloseStatus)
+                        sessionRejection ??= string.IsNullOrEmpty(result.CloseStatusDescription) ? RoomTaken : result.CloseStatusDescription;
+                    return;
+                }
                 message.Write(buffer, 0, result.Count);
                 if (!result.EndOfMessage) continue;
                 Interlocked.Exchange(ref lastReceivedTicks, DateTime.UtcNow.Ticks);
-                inbox.Enqueue((Kind.Message, Encoding.UTF8.GetString(message.GetBuffer(), 0, (int)message.Length)));
+                string text = Encoding.UTF8.GetString(message.GetBuffer(), 0, (int)message.Length);
+                sessionRejection ??= RejectionIn(text);
+                inbox.Enqueue((Kind.Message, text));
                 message.SetLength(0);
             }
         }
@@ -254,6 +286,20 @@ namespace GolfSim.Net
                 await SendText(socket, ping, token);
                 nextPing = DateTime.UtcNow + interval;
             }
+        }
+
+        /// <summary>
+        /// The server's message if this frame is an error turning the sim away (room taken, or replaced by this install's
+        /// newer connection), else null. Runs on the background task (JsonUtility is thread-safe); public for tests.
+        /// </summary>
+        public static string RejectionIn(string json)
+        {
+            if (string.IsNullOrEmpty(json) || !json.Contains(MessageType.Error)) return null;
+            ErrorMessage error;
+            try { error = JsonUtility.FromJson<ErrorMessage>(json); }
+            catch (Exception) { return null; }
+            if (error?.type != MessageType.Error || string.IsNullOrEmpty(error.message)) return null;
+            return error.message.StartsWith(RoomTaken) || error.message.StartsWith(Replaced) ? error.message : null;
         }
 
         static Task SendText(ClientWebSocket socket, string json, CancellationToken token) =>

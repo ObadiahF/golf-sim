@@ -111,7 +111,8 @@ namespace GolfSim.Course
             transform.SetPositionAndRotation(KeepAboveGround(Vector3.Lerp(transform.position, target.position, k)),
                                              Quaternion.Slerp(transform.rotation, target.rotation, k));
             SyncAngles();
-            if ((transform.position - target.position).sqrMagnitude < 0.01f) glide = null;
+            // Done once there and facing the same way (turning the aim moves the camera a few cm but swings the view).
+            if ((transform.position - target.position).sqrMagnitude < 0.01f && Quaternion.Angle(transform.rotation, target.rotation) < 0.1f) glide = null;
         }
 
         static float Blend(float sharpness) => 1f - Mathf.Exp(-sharpness * Time.unscaledDeltaTime);
