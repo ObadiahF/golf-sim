@@ -90,8 +90,8 @@ Every request except `/actuator/health` and the `/ws` upgrade needs `Authorizati
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/games` | start a game (abandons any game in progress) |
-| GET | `/api/games/current` | the game in progress (204 if none) |
+| POST | `/api/games?room=` | start a game (abandons the room's game in progress; [rooms](docs/PROTOCOL-rooms.md)) |
+| GET | `/api/games/current?room=` | the room's game in progress (204 if none) |
 | GET | `/api/games/{id}` | scorecard |
 | GET | `/api/games?limit=10` | recent games |
 | POST | `/api/games/{id}/end` | finish or abandon |

@@ -10,6 +10,7 @@ import java.util.Map;
 /**
  * Full game state / scorecard, as returned by REST and sent over WebSocket.
  *
+ * @param room    the room it was started in, "" for the default room
  * @param pars    par per hole (index 0 = hole 1), null until a score for that hole is recorded
  * @param players in turn order
  * @param winners lowest total(s) among complete cards (a score on every hole) once FINISHED, otherwise empty
@@ -19,6 +20,7 @@ public record GameView(
         GameStatus status,
         int holesCount,
         String courseName,
+        String room,
         Instant createdAt,
         Instant finishedAt,
         List<Integer> pars,
@@ -65,7 +67,7 @@ public record GameView(
             }
         }
         List<String> winners = game.getStatus() == GameStatus.FINISHED ? Scoring.winners(totals) : List.of();
-        return new GameView(game.getId(), game.getStatus(), holes, game.getCourseName(), game.getCreatedAt(),
+        return new GameView(game.getId(), game.getStatus(), holes, game.getCourseName(), game.getRoom(), game.getCreatedAt(),
                 game.getFinishedAt(), Arrays.asList(pars), cards, winners);
     }
 }

@@ -5,7 +5,7 @@ import com.golfsim.server.physics.PhysicsService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-/** Pushes committed game and ball-physics changes to every connected sim and remote. */
+/** Pushes committed game changes to the sim and remotes in the game's room, and ball-physics changes to everyone. */
 @Component
 public class GameEventRelay {
 
@@ -17,24 +17,24 @@ public class GameEventRelay {
 
     @TransactionalEventListener
     public void onStarted(GameEvents.Started event) {
-        hub.broadcast(new WsMessage.GameStarted(event.game()));
+        hub.broadcast(event.game().room(), new WsMessage.GameStarted(event.game()));
     }
 
     @TransactionalEventListener
     public void onScore(GameEvents.ScoreRecorded event) {
-        hub.broadcast(new WsMessage.Scorecard(event.game()));
+        hub.broadcast(event.game().room(), new WsMessage.Scorecard(event.game()));
         if (event.justFinished()) {
-            hub.broadcast(new WsMessage.GameFinished(event.game()));
+            hub.broadcast(event.game().room(), new WsMessage.GameFinished(event.game()));
         }
     }
 
     @TransactionalEventListener
     public void onEnded(GameEvents.Ended event) {
-        hub.broadcast(new WsMessage.GameFinished(event.game()));
+        hub.broadcast(event.game().room(), new WsMessage.GameFinished(event.game()));
     }
 
     @TransactionalEventListener
     public void onPhysics(PhysicsService.Changed event) {
-        hub.broadcast(new WsMessage.Physics(event.profile()));
+        hub.broadcastAll(new WsMessage.Physics(event.profile()));
     }
 }

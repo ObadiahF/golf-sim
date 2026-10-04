@@ -39,11 +39,17 @@ public class GameService {
     /** Advisory-lock id for {@link #start}; any constant works as long as nothing else uses it. */
     static final long START_LOCK = 0x601F_57A7L;
 
-    /**
-     * Starts a new game, abandoning any game still in progress. Concurrent starts are serialised (advisory lock),
-     * so each succeeds in turn and the last one is the game left IN_PROGRESS.
-     */
+    /** {@link #start(GameRequests.StartGame, String)} in the default room. */
     public GameView start(GameRequests.StartGame request) {
+        return start(request, Rooms.DEFAULT);
+    }
+
+    /**
+     * Starts a new game in a room, abandoning that room's game still in progress (other rooms keep theirs).
+     * Concurrent starts are serialised (advisory lock), so each succeeds in turn and the last one is the game left
+     * IN_PROGRESS.
+     */
+    public GameView start(GameRequests.StartGame request, String room) {
         List<String> names = request.players().stream().map(Names::normalize).toList();
         Set<String> seen = new HashSet<>();
         for (String name : names) {
@@ -52,22 +58,28 @@ public class GameService {
             }
         }
         games.advisoryLock(START_LOCK);
-        for (Game old : games.findByStatusForUpdate(GameStatus.IN_PROGRESS)) {
+        for (Game old : games.findByRoomAndStatusForUpdate(room, GameStatus.IN_PROGRESS)) {
             endGame(old, GameStatus.ABANDONED);
         }
-        games.flush(); // free the single-in-progress unique index before inserting the new game
+        games.flush(); // free the room's in-progress unique index before inserting the new game
 
         List<Player> roster = names.stream().map(this::findOrCreatePlayer).toList();
         String course = request.courseName() == null || request.courseName().isBlank() ? null : request.courseName().trim();
-        Game game = games.save(new Game(request.holesOrDefault(), course, roster));
+        Game game = games.save(new Game(room, request.holesOrDefault(), course, roster));
         GameView view = GameView.of(game, List.of());
         events.publishEvent(new GameEvents.Started(view));
         return view;
     }
 
+    /** The default room's game in progress. */
     @Transactional(readOnly = true)
     public Optional<GameView> current() {
-        return games.findFirstByStatus(GameStatus.IN_PROGRESS).map(this::view);
+        return current(Rooms.DEFAULT);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<GameView> current(String room) {
+        return games.findFirstByRoomAndStatus(room, GameStatus.IN_PROGRESS).map(this::view);
     }
 
     @Transactional(readOnly = true)

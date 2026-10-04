@@ -32,9 +32,10 @@ class PhysicsSocketTest extends SocketTestBase {
         }
     }
 
+    /** Physics is server-wide: it reaches every room, not just the default one. */
     @Test
     void changesAreBroadcastToSimsAndRemotes() throws Exception {
-        try (WsTestClient sim = sim(); WsTestClient remote = remote()) {
+        try (WsTestClient sim = sim(); WsTestClient remote = remoteIn("K7QF")) {
             sim.await("hello");
             remote.await("hello");
             physics.update(List.of(new PhysicsProfile.Change("rough", PhysicsField.FRICTION, 0.6),

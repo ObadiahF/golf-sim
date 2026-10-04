@@ -8,10 +8,12 @@ import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
 import java.net.URI;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.nio.charset.StandardCharsets;
 import org.springframework.web.socket.BinaryMessage;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
@@ -24,6 +26,7 @@ class WsTestClient extends TextWebSocketHandler implements AutoCloseable {
     private static final int MAX_MESSAGE_CHARS = 256 * 1024;
 
     private final BlockingQueue<JsonNode> inbox = new LinkedBlockingQueue<>();
+    private final CompletableFuture<CloseStatus> closed = new CompletableFuture<>();
     private WebSocketSession session;
 
     static WsTestClient connect(String url) throws Exception {
@@ -38,6 +41,16 @@ class WsTestClient extends TextWebSocketHandler implements AutoCloseable {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         inbox.add(JSON.readTree(message.getPayload()));
+    }
+
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        closed.complete(status);
+    }
+
+    /** Waits for the server to close the connection; returns how. */
+    CloseStatus awaitClose() throws Exception {
+        return closed.get(5, TimeUnit.SECONDS);
     }
 
     void send(String json) throws Exception {

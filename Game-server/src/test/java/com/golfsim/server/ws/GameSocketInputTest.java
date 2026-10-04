@@ -3,12 +3,10 @@ package com.golfsim.server.ws;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.golfsim.server.RawHttp;
 import com.golfsim.server.game.GameRequests;
 import com.golfsim.server.game.GameStatus;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -17,14 +15,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 class GameSocketInputTest extends SocketTestBase {
 
     private static final String GRIN = "%F0%9F%98%80";
-    private static final Map<String, String> UPGRADE = Map.of(
-            "Upgrade", "websocket", "Connection", "Upgrade",
-            "Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==", "Sec-WebSocket-Version", "13");
-
-    private int upgrade(String query) throws Exception {
-        return RawHttp.status(port, "GET", "/ws?" + query, UPGRADE, null);
-    }
-
     @Test
     void emojiDeviceNameAtTheLimitDoesNotBreakHelloForAnyone() throws Exception {
         try (WsTestClient emoji = remote("A".repeat(39) + GRIN);
@@ -183,14 +173,17 @@ class GameSocketInputTest extends SocketTestBase {
         }
     }
 
-    /** GS-2: four sims send the last scores at the same moment; everyone gets exactly one gameFinished. */
+    /**
+     * GS-2: four sims send the last scores at the same moment; everyone gets exactly one gameFinished. One sim per
+     * room, so they sit in rooms of their own: scores are recorded by game id whatever room the sender is in.
+     */
     @Test
     void simultaneousFinalHoleScoresBroadcastGameFinishedOnce() throws Exception {
         List<String> names = List.of("W1", "W2", "W3", "W4");
         List<WsTestClient> sims = new ArrayList<>();
         try (WsTestClient remote = remote()) {
             for (int i = 0; i < names.size(); i++) {
-                sims.add(sim());
+                sims.add(simIn("GS2X" + i, null));
                 sims.get(i).await("hello");
             }
             for (int trial = 0; trial < 5; trial++) {

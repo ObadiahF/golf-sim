@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface GameRepository extends JpaRepository<Game, Long> {
 
-    Optional<Game> findFirstByStatus(GameStatus status);
+    Optional<Game> findFirstByRoomAndStatus(String room, GameStatus status);
 
     List<Game> findAllByOrderByCreatedAtDescIdDesc(Limit limit);
 
@@ -20,8 +20,8 @@ public interface GameRepository extends JpaRepository<Game, Long> {
     Optional<Game> findByIdForUpdate(long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select g from Game g where g.status = :status")
-    List<Game> findByStatusForUpdate(GameStatus status);
+    @Query("select g from Game g where g.room = :room and g.status = :status")
+    List<Game> findByRoomAndStatusForUpdate(String room, GameStatus status);
 
     /** Transaction-scoped Postgres advisory lock; serialises game starts (and the player rows they create). */
     @Query(value = "select 1 from pg_advisory_xact_lock(:key)", nativeQuery = true)

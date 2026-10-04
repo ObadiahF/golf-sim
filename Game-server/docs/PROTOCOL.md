@@ -4,9 +4,10 @@ This is the contract between the game server, the iPhone app (the "remote") and 
 The wire schema lives in one place in code: `src/main/java/com/golfsim/server/ws/WsMessage.java`
 (WebSocket) and `game/GameRequests.java`, `game/GameView.java`, `stats/StatsViews.java` (REST).
 Live ball physics (`/api/physics`, the `physics` message, `hello.physics`) is in `PROTOCOL-physics.md`.
+Rooms (one sim and its phones per room: `?room=`, `&id=`, `hello.room`, `game.room`) are in `PROTOCOL-rooms.md`.
 
 - Base URL: `http://<server-lan-ip>:8080` (the PC running `docker compose up`)
-- WebSocket: `ws://<server-lan-ip>:8080/ws?token=<token>&role=sim|remote&name=<device name>`
+- WebSocket: `ws://<server-lan-ip>:8080/ws?token=<token>&role=sim|remote&name=<device name>&room=<code>` (+ `&id=<install id>` for sims)
 - Token: one shared secret, server env `GOLF_API_TOKEN` (`golf-sim-dev-token` by default, for local dev only; a public server sets its own)
 - All bodies are JSON (UTF-8). Timestamps are ISO-8601 UTC strings, e.g. `"2026-10-02T07:43:47.309802Z"`.
 - JSON input is strict, on REST and WebSocket alike: integer fields take JSON integers only (`1.7` and `9.0` are
@@ -67,6 +68,7 @@ Returned by every `/api/games` endpoint and embedded in WebSocket messages (`hel
   "status": "IN_PROGRESS",
   "holesCount": 2,
   "courseName": "Demo Links",
+  "room": "K7QF",
   "createdAt": "2026-10-02T07:43:47.309802Z",
   "finishedAt": null,
   "pars": [4, null],
@@ -83,6 +85,7 @@ Returned by every `/api/games` endpoint and embedded in WebSocket messages (`hel
 | `status` | `IN_PROGRESS`, `FINISHED` (every player has a score on every hole, or ended as finished) or `ABANDONED` |
 | `players[].holesPlayed` | holes with a score; the card is *complete* when it equals `holesCount` |
 | `courseName` | free text or `null` |
+| `room` | the room the game was started in (`PROTOCOL-rooms.md`); `""` for the default room |
 | `pars` | par per hole, index 0 = hole 1; `null` until a score for that hole has been recorded |
 | `players` | in turn order; `turnOrder` is 1-based |
 | `players[].strokes` | strokes per hole, index 0 = hole 1, `null` = not played yet; always `holesCount` long |
@@ -91,7 +94,7 @@ Returned by every `/api/games` endpoint and embedded in WebSocket messages (`hel
 
 ### Endpoints
 
-#### `POST /api/games`: start a game
+#### `POST /api/games?room=K7QF`: start a game
 
 ```json
 { "players": ["Obi", "Sam"], "holes": 9, "courseName": "Pebble" }
@@ -99,8 +102,11 @@ Returned by every `/api/games` endpoint and embedded in WebSocket messages (`hel
 
 - `players`: 1..8 names, unique ignoring case. Turn order = list order.
 - `holes`: integer 1..18, default 9. `courseName`: optional, max 100, no control characters (tab, newline, NUL...).
-- Any game still IN_PROGRESS is set to `ABANDONED` first (WS: `gameFinished` for it). Simultaneous starts are
-  handled one after another: each gets `201`, and the last one is the game left IN_PROGRESS.
+- `room` (query, optional): the room to start it in; absent or empty = the default room. Malformed: `400` with
+  `fieldErrors.room`.
+- The room's game still IN_PROGRESS is set to `ABANDONED` first (WS: `gameFinished` for it); other rooms' games
+  are untouched. Simultaneous starts are handled one after another: each gets `201`, and the last one is the game
+  left IN_PROGRESS.
 
 Player names:
 
@@ -112,11 +118,12 @@ Player names:
   `fieldErrors["players[0]"]: "must be 1 to 40 characters with at least one visible character and no control or invisible characters"`.
 - Players are matched by a full case fold, so `İvan`, `ivan`, `IVAN` and `ıvan` are one player, as are `Straße`
   and `STRASSE`. An existing player keeps the original spelling.
-- Response `201` with the game. WS: `gameStarted` is broadcast to every sim and remote.
+- Response `201` with the game. WS: `gameStarted` is broadcast to the sim and remotes in the game's room.
 
-#### `GET /api/games/current`
+#### `GET /api/games/current?room=K7QF`
 
-`200` with the IN_PROGRESS game, or `204 No Content` (empty body) when none.
+`200` with the room's IN_PROGRESS game (`room` absent or empty = the default room), or `204 No Content` (empty
+body) when none.
 
 #### `GET /api/games/{id}`
 
@@ -239,11 +246,15 @@ ws://192.168.1.50:8080/ws?token=golf-sim-dev-token&role=remote&name=Obi%27s%20iP
 | `token` | yes | the shared token (`401` on the upgrade otherwise) |
 | `role` | yes | `sim` (Unity) or `remote` (iPhone app); `400` on the upgrade otherwise |
 | `name` | no | device name shown to others (default `sim-xxxxxx` / `remote-xxxxxx`) |
+| `room` | no | room code, 4-8 letters/digits, case-insensitive; absent or empty = the default room (`PROTOCOL-rooms.md`); `400` when malformed |
+| `id` | sims | the sim's permanent install id, 1-64 of `A-Z a-z 0-9 _ -`; `400` when malformed |
 
 URL-encode query values (UTF-8). A query with malformed `%` escapes refuses the upgrade with `400`.
 Device names are cleaned rather than refused: normalised like player names, control and invisible characters
 dropped, cut to 40 code points (never inside an emoji); a name with nothing visible left gets the default.
-Any number of sims and remotes may connect; relays go to all of them.
+Everything below is scoped to the client's room: relays, `simStatus`, `hello` and game events stay inside it (only
+`physics` reaches everyone). A room holds one sim and any number of remotes; a second sim is refused (or replaces
+the first when it has the same install `id`), see `PROTOCOL-rooms.md`.
 
 ### Framing and rules
 
@@ -269,26 +280,26 @@ Any number of sims and remotes may connect; relays go to all of them.
 | type | from | to | purpose |
 |------|------|----|---------|
 | `hello` | server | the new connection | first message after connecting |
-| `simStatus` | server | remotes | first sim connected / last sim disconnected |
+| `simStatus` | server | remotes | the room's sim connected / disconnected |
 | `ping` / `pong` | any / server | sender | keepalive |
 | `error` | server | sender | rejected message |
-| `nav` | remote | sims | D-pad: menu navigation |
-| `club` | remote | sims | club picked |
-| `aim` | remote | sims | turn aim by a delta |
-| `aimReset` | remote | sims | aim back at the pin/default line |
-| `shot` | remote | sims | swing detected: hit the ball |
-| `mulligan` | remote | sims | retake the last shot (optional for the sim) |
-| `skip` | remote | sims | skip / pick up on this hole (optional for the sim) |
-| `map` | remote | sims | show or hide the course map on the TV (optional for the sim) |
+| `nav` | remote | sim | D-pad: menu navigation |
+| `club` | remote | sim | club picked |
+| `aim` | remote | sim | turn aim by a delta |
+| `aimReset` | remote | sim | aim back at the pin/default line |
+| `shot` | remote | sim | swing detected: hit the ball |
+| `mulligan` | remote | sim | retake the last shot (optional for the sim) |
+| `skip` | remote | sim | skip / pick up on this hole (optional for the sim) |
+| `map` | remote | sim | show or hide the course map on the TV (optional for the sim) |
 | `state` | sim | remotes | what is on screen (drives the app's mode) |
 | `shotResult` | sim | remotes | where the shot ended up |
 | `turn` | sim | remotes | whose turn it is now |
 | `shotRejected` | sim | remotes | a `shot` arrived while the sim couldn't hit it |
 | `holeScore` | sim | server | persist a player's strokes on a hole |
-| `gameStarted` | server | everyone | a game was started (`POST /api/games`) |
-| `scorecard` | server | everyone | full game state after any score is recorded |
-| `gameFinished` | server | everyone | the game left IN_PROGRESS (finished or abandoned) |
-| `physics` | server | everyone | the ball-physics profile changed (`PROTOCOL-physics.md`) |
+| `gameStarted` | server | the game's room | a game was started (`POST /api/games`) |
+| `scorecard` | server | the game's room | full game state after any score is recorded |
+| `gameFinished` | server | the game's room | the game left IN_PROGRESS (finished or abandoned) |
+| `physics` | server | everyone, every room | the ball-physics profile changed (`PROTOCOL-physics.md`) |
 
 Sending a message as the wrong role, or a server-only type, gets an `error`.
 
@@ -300,6 +311,7 @@ Sending a message as the wrong role, or a server-only type, gets an `error`.
 {
   "type": "hello",
   "role": "remote",
+  "room": "K7QF",
   "simConnected": true,
   "remotes": ["Obi's iPhone", "Sams-iPhone"],
   "game": { "id": 1, "status": "IN_PROGRESS", "...": "GameView, or null when no game is in progress" },
@@ -308,8 +320,9 @@ Sending a message as the wrong role, or a server-only type, gets an `error`.
 }
 ```
 
-`role` echoes yours. `remotes` lists connected remote device names (including you if you are one).
-`state` is the last `state` message any sim sent (verbatim), or `null` (no sim / none sent yet).
+`role` echoes yours, `room` your normalised room code (`""` for the default room). `remotes` lists the device names
+of the remotes in your room (including you if you are one). `game` is your room's game in progress.
+`state` is the last `state` message your room's sim sent (verbatim), or `null` (no sim / none sent yet).
 `physics` is the live ball-physics profile (`GET /api/physics`).
 
 #### `simStatus`
@@ -318,7 +331,7 @@ Sending a message as the wrong role, or a server-only type, gets an `error`.
 { "type": "simStatus", "connected": false }
 ```
 
-Sent to remotes only when the overall "any sim connected" flag changes.
+Sent to the room's remotes when its sim connects or disconnects (not when a sim is refused or replaced).
 
 #### `gameStarted`
 
@@ -355,12 +368,14 @@ The sim loads the course and starts the round with `game.id`, `game.players` (tu
 Error messages you may see: `Missing "type"`, `Unknown message type '<t>'`, `Expected a JSON object`,
 `Invalid JSON` (also for data after the object), `Invalid JSON: Duplicate field '<key>'`, `Binary messages are not supported`, `Invalid number` (`NaN` / `Infinity` tokens), `Invalid value for '<field>'`,
 `Invalid value for '<field>': numbers must be finite`, `Message too large (max 65536 characters)`, `<type>: <field> <constraint>` (e.g. `club: club must not be blank`),
-`'<type>' must be sent by a sim|remote`, `'<type>' is sent by the server only`, `no sim connected`,
+`'<type>' must be sent by a sim|remote`, `'<type>' is sent by the server only`, `no sim connected` (in your room),
+`Another sim is already connected to room <CODE>` / `... to this server` and `Replaced by a new connection from the
+same sim` (each followed by the server closing the connection, `PROTOCOL-rooms.md`),
 and the REST messages for `holeScore` (e.g. `Game 9 not found`, `hole must be between 1 and 9`).
 
 ### Remote -> sim (relayed)
 
-If no sim is connected the remote gets `error {"message": "no sim connected"}` and nothing is relayed.
+If no sim is connected in the remote's room it gets `error {"message": "no sim connected"}` and nothing is relayed.
 
 ```json
 { "type": "nav", "key": "up" }
@@ -428,6 +443,8 @@ Optional fields (relayed unchanged; older sims leave them out):
 | `waitReason` | why not, e.g. `"Wait for the next turn"`; `""` while `canShoot` |
 | `canReplay` | the sim offers an instant replay of the last shot now; `nav {key:"up"}` plays it |
 | `mapOpen` | bool: the course map is up on the TV (the app's Map button is lit; `map` changes it) |
+| `wind` | wind speed in mph, `0` when calm (each hole of a round has its own; the range and putting green are calm) |
+| `windAngle` | where the wind blows relative to the aim, degrees clockwise: `0` helping, `90` left to right, `180` into the player |
 | `putting` | bool: the current player is putting (the app shows its putting view) |
 | `puttDistance` | metres to the pin |
 | `elevation` | metres the pin sits above (+) or below (-) the ball |
@@ -464,7 +481,8 @@ Sent when a phone's `shot` arrives while the sim can't hit it (between turns, ba
 ```
 
 Same rules as `POST /api/games/{gameId}/scores` (idempotent upsert; safe to resend). On success the server
-broadcasts `scorecard` to everyone (the sender included), then `gameFinished` if that completed the game.
+broadcasts `scorecard` to the game's room (the sender included when it is that room's sim), then `gameFinished`
+if that completed the game. Scores are recorded by `gameId`, whatever room the sim is in.
 On failure the sim gets `error`.
 
 ## 4. Flows

@@ -26,10 +26,11 @@ class GameSocketTest extends SocketTestBase {
             WsTestClient sim = sim();
             assertThat(sim.await("hello").get("simConnected").asBoolean()).isTrue();
             assertThat(remote.await("simStatus").get("connected").asBoolean()).isTrue();
-            WsTestClient secondSim = sim();
-            secondSim.await("hello");
-            remote.assertNo("simStatus"); // only changes are reported
-            secondSim.close();
+            try (WsTestClient secondSim = sim()) { // one sim per room: refused, and the first one is untouched
+                assertThat(secondSim.await("error").get("message").asText())
+                        .isEqualTo("Another sim is already connected to this server");
+                assertThat(secondSim.awaitClose().getCode()).isEqualTo(4009);
+            }
             remote.assertNo("simStatus");
             sim.close();
             assertThat(remote.await("simStatus").get("connected").asBoolean()).isFalse();
@@ -49,10 +50,10 @@ class GameSocketTest extends SocketTestBase {
                 Thread.sleep(100);
             }
             assertThat(silent.isOpen()).isFalse();
-            for (int i = 0; i < 50 && !hub.remoteNames().isEmpty(); i++) {
+            for (int i = 0; i < 50 && !hub.clients().isEmpty(); i++) {
                 Thread.sleep(50);
             }
-            assertThat(hub.remoteNames()).isEmpty();
+            assertThat(hub.clients()).isEmpty();
         }
     }
 

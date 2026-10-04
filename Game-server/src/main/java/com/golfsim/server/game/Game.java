@@ -37,6 +37,10 @@ public class Game {
     @Column(name = "course_name", length = 100)
     private String courseName;
 
+    /** The room it was started in ({@link Rooms#DEFAULT} for the default room). */
+    @Column(nullable = false, length = Rooms.MAX_LENGTH)
+    private String room = Rooms.DEFAULT;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -54,7 +58,8 @@ public class Game {
     protected Game() {
     }
 
-    public Game(int holesCount, String courseName, List<Player> players) {
+    public Game(String room, int holesCount, String courseName, List<Player> players) {
+        this.room = room;
         this.holesCount = holesCount;
         this.courseName = courseName;
         this.players = new ArrayList<>(players);
@@ -89,6 +94,10 @@ public class Game {
 
     public String getCourseName() {
         return courseName;
+    }
+
+    public String getRoom() {
+        return room;
     }
 
     public Instant getCreatedAt() {

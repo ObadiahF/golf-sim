@@ -8,10 +8,12 @@ import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.golfsim.server.api.JsonFields;
 import com.golfsim.server.auth.TokenHandshakeInterceptor;
 import com.golfsim.server.game.GameService;
+import com.golfsim.server.game.Rooms;
 import com.golfsim.server.physics.PhysicsService;
 import com.golfsim.server.ws.WsHub.Client;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -26,7 +28,10 @@ import org.springframework.web.socket.adapter.NativeWebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-/** {@code /ws}: relays remote commands to sims and sim updates to remotes, and persists sim hole scores. */
+/**
+ * {@code /ws}: relays remote commands to the sim in the remote's room and sim updates to the remotes in its room,
+ * and persists sim hole scores.
+ */
 @Component
 public class GameSocketHandler extends TextWebSocketHandler {
 
@@ -40,6 +45,8 @@ public class GameSocketHandler extends TextWebSocketHandler {
      */
     static final long READ_IDLE_TIMEOUT_MS = 60_000;
     private static final String TOMCAT_READ_IDLE_TIMEOUT = "org.apache.tomcat.websocket.READ_IDLE_TIMEOUT_MS";
+    /** Close code for a sim refused because its room already has a sim (4000-4999: application-defined). */
+    static final CloseStatus ROOM_TAKEN = new CloseStatus(4009, "Room already has a sim");
 
     private final WsHub hub;
     private final GameService games;
@@ -62,25 +69,34 @@ public class GameSocketHandler extends TextWebSocketHandler {
                 && wrapper.getNativeSession(jakarta.websocket.Session.class) instanceof jakarta.websocket.Session ws) {
             ws.getUserProperties().put(TOMCAT_READ_IDLE_TIMEOUT, READ_IDLE_TIMEOUT_MS);
         }
-        Role role = (Role) session.getAttributes().get(TokenHandshakeInterceptor.ROLE);
-        String name = (String) session.getAttributes()
+        Map<String, Object> attributes = session.getAttributes();
+        Role role = (Role) attributes.get(TokenHandshakeInterceptor.ROLE);
+        String name = (String) attributes
                 .getOrDefault(TokenHandshakeInterceptor.NAME, role.wireName() + "-" + session.getId().substring(0, 6));
-        Client client = new Client(
-                new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS, SEND_BUFFER_BYTES), role, name);
-        boolean firstSim = role == Role.SIM && !hub.simConnected();
-        hub.add(client);
-        hub.send(client, new WsMessage.Hello(role, hub.simConnected(), hub.remoteNames(),
-                games.current().orElse(null), hub.lastSimState(), physics.current()));
-        if (firstSim) {
-            hub.sendTo(Role.REMOTE, new WsMessage.SimStatus(true));
+        String room = (String) attributes.get(TokenHandshakeInterceptor.ROOM);
+        Client client = new Client(new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS, SEND_BUFFER_BYTES),
+                role, name, room, (String) attributes.get(TokenHandshakeInterceptor.INSTALL_ID));
+        WsHub.Admission admission = hub.add(client);
+        if (!admission.admitted()) {
+            hub.sendAndClose(client, new WsMessage.Error("Another sim is already connected to " + Rooms.describe(room)),
+                    ROOM_TAKEN);
+            return;
+        }
+        hub.send(client, new WsMessage.Hello(role, room, hub.simConnected(room), hub.remoteNames(room),
+                games.current(room).orElse(null), hub.lastSimState(room), physics.current()));
+        if (admission.other() != null) {
+            hub.sendAndClose(admission.other(), new WsMessage.Error("Replaced by a new connection from the same sim"),
+                    CloseStatus.POLICY_VIOLATION);
+        } else if (role == Role.SIM) {
+            hub.sendTo(room, Role.REMOTE, new WsMessage.SimStatus(true));
         }
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         hub.remove(session.getId())
-                .filter(c -> c.role() == Role.SIM && !hub.simConnected())
-                .ifPresent(c -> hub.sendTo(Role.REMOTE, new WsMessage.SimStatus(false)));
+                .filter(c -> c.role() == Role.SIM)
+                .ifPresent(c -> hub.sendTo(c.room(), Role.REMOTE, new WsMessage.SimStatus(false)));
     }
 
     /** Frames arrive in parts so oversized messages can be refused politely; see {@link MessageAssembler}. */
@@ -91,7 +107,10 @@ public class GameSocketHandler extends TextWebSocketHandler {
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage frame) {
-        Client client = hub.get(session.getId()).orElseThrow();
+        Client client = hub.get(session.getId()).orElse(null);
+        if (client == null) {
+            return; // a refused or replaced sim's last frames, arriving while it closes
+        }
         MessageAssembler assembler = (MessageAssembler) session.getAttributes()
                 .computeIfAbsent(ASSEMBLER, k -> new MessageAssembler());
         if (!assembler.add(frame.getPayload(), frame.isLast())) {
@@ -142,18 +161,18 @@ public class GameSocketHandler extends TextWebSocketHandler {
             case WsMessage.RemoteCommand command -> {
                 requireRole(client, Role.REMOTE, tree);
                 validate(command, tree);
-                if (!hub.simConnected()) {
+                if (!hub.simConnected(client.room())) {
                     throw new Rejected("no sim connected");
                 }
-                hub.relay(Role.SIM, json);
+                hub.relay(client.room(), Role.SIM, json);
             }
             case WsMessage.SimUpdate update -> {
                 requireRole(client, Role.SIM, tree);
                 validate(update, tree);
                 if (update instanceof WsMessage.State) {
-                    hub.setLastSimState(tree);
+                    hub.setLastSimState(client.room(), tree);
                 }
-                hub.relay(Role.REMOTE, json);
+                hub.relay(client.room(), Role.REMOTE, json);
             }
             case WsMessage.HoleScore score -> {
                 requireRole(client, Role.SIM, tree);

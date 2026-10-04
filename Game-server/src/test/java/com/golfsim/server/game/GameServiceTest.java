@@ -57,6 +57,25 @@ class GameServiceTest extends IntegrationTest {
     }
 
     @Test
+    void eachRoomHasItsOwnGameInProgress() {
+        GameView legacy = games.start(start(9, "Obi"));
+        GameView a = games.start(start(9, "Obi"), "AAAA");
+        GameView b = games.start(start(9, "Sam"), "BBBB");
+
+        assertThat(a.room()).isEqualTo("AAAA");
+        assertThat(games.current()).map(GameView::id).contains(legacy.id());
+        assertThat(games.current("AAAA")).map(GameView::id).contains(a.id());
+        assertThat(games.current("CCCC")).isEmpty();
+
+        GameView a2 = games.start(start(9, "Obi"), "AAAA");
+        assertThat(games.get(a.id()).status()).isEqualTo(GameStatus.ABANDONED);
+        assertThat(games.current("AAAA")).map(GameView::id).contains(a2.id());
+        assertThat(games.get(legacy.id()).status()).isEqualTo(GameStatus.IN_PROGRESS);
+        assertThat(games.get(b.id()).status()).isEqualTo(GameStatus.IN_PROGRESS);
+        assertThat(jdbc.queryForObject("select count(*) from games where status = 'IN_PROGRESS'", Long.class)).isEqualTo(3);
+    }
+
+    @Test
     void duplicateNamesAreRejected() {
         assertThatThrownBy(() -> games.start(start(9, "Obi", "obi")))
                 .isInstanceOf(ResponseStatusException.class)

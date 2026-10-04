@@ -4,10 +4,12 @@ import com.golfsim.server.game.GameRequests;
 import com.golfsim.server.game.GameService;
 import com.golfsim.server.game.GameStatus;
 import com.golfsim.server.game.GameView;
+import com.golfsim.server.game.Rooms;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,16 +31,17 @@ public class GameController {
         this.games = games;
     }
 
+    /** Starts a game in {@code ?room=} (default room when absent), abandoning only that room's game in progress. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public GameView start(@Valid @RequestBody GameRequests.StartGame request) {
-        return games.start(request);
+    public GameView start(@Valid @RequestBody GameRequests.StartGame request, @RequestParam(required = false) String room) {
+        return games.start(request, room(room));
     }
 
-    /** The IN_PROGRESS game, or 204 No Content when there is none. */
+    /** The IN_PROGRESS game of {@code ?room=} (default room when absent), or 204 No Content when there is none. */
     @GetMapping("/current")
-    public ResponseEntity<GameView> current() {
-        return games.current().map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
+    public ResponseEntity<GameView> current(@RequestParam(required = false) String room) {
+        return games.current(room(room)).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @GetMapping("/{id}")
@@ -59,5 +62,9 @@ public class GameController {
     @PostMapping("/{id}/scores")
     public GameView score(@PathVariable long id, @Valid @RequestBody GameRequests.Score request) {
         return games.recordScore(id, request);
+    }
+
+    private static String room(String raw) {
+        return Rooms.parse(raw).orElseThrow(() -> new InvalidFieldsException(Map.of("room", Rooms.RULE)));
     }
 }

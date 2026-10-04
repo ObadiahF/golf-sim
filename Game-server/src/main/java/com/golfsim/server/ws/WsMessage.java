@@ -47,11 +47,11 @@ import java.util.List;
 })
 public sealed interface WsMessage {
 
-    /** Sent by a remote; validated and relayed unchanged to every connected sim. */
+    /** Sent by a remote; validated and relayed unchanged to the sim in its room. */
     sealed interface RemoteCommand extends WsMessage {
     }
 
-    /** Sent by a sim; validated and relayed unchanged to every connected remote. */
+    /** Sent by a sim; validated and relayed unchanged to every remote in its room. */
     sealed interface SimUpdate extends WsMessage {
     }
 
@@ -152,14 +152,15 @@ public sealed interface WsMessage {
     // ---- server -> clients ----
 
     /**
-     * First message on every connection.
+     * First message on every connection; everything but {@code physics} is about the client's room.
      *
-     * @param remotes device names of the connected remotes
-     * @param game    the IN_PROGRESS game, or null
-     * @param state   the last {@code state} message from the sim, or null
+     * @param room    the normalised room code, "" for the default room
+     * @param remotes device names of the remotes in the room
+     * @param game    the room's IN_PROGRESS game, or null
+     * @param state   the last {@code state} message from the room's sim, or null
      * @param physics the live ball-physics profile (what {@code GET /api/physics} returns)
      */
-    record Hello(Role role, boolean simConnected, List<String> remotes, GameView game, JsonNode state,
+    record Hello(Role role, String room, boolean simConnected, List<String> remotes, GameView game, JsonNode state,
             PhysicsProfile physics) implements ServerMessage {
     }
 

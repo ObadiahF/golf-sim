@@ -67,6 +67,35 @@ class GameControllerTest extends IntegrationTest {
     }
 
     @Test
+    void startAndCurrentAreScopedToTheRoomParameter() throws Exception {
+        long legacy = startGame("{\"players\":[\"Obi\"]}");
+        call(get("/api/games/current").param("room", "K7QF")).andExpect(status().isNoContent());
+
+        String body = call(post("/api/games").param("room", " k7qf").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"players\":[\"Sam\"]}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.room").value("K7QF"))
+                .andReturn().getResponse().getContentAsString();
+        long roomGame = objectMapper.readTree(body).get("id").asLong();
+        call(get("/api/games/current?room=K7QF")).andExpect(jsonPath("$.id").value(roomGame));
+        call(get("/api/games/current")).andExpect(jsonPath("$.id").value(legacy)).andExpect(jsonPath("$.room").value(""));
+        call(get("/api/games/current?room=")).andExpect(jsonPath("$.id").value(legacy));
+        call(get("/api/games/" + legacy)).andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+
+        startGame("{\"players\":[\"Sam\"]}"); // the default room's restart leaves K7QF alone
+        call(get("/api/games/" + legacy)).andExpect(jsonPath("$.status").value("ABANDONED"));
+        call(get("/api/games/" + roomGame)).andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+
+        call(get("/api/games/current?room=K7-Q"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.room").value("must be 4 to 8 letters or digits"));
+        postJson("/api/games?room=ABC", "{\"players\":[\"Sam\"]}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.room").exists());
+        call(get("/api/games/" + roomGame)).andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+    }
+
+    @Test
     void scoresBuildTheScorecardAndFinishTheGame() throws Exception {
         long id = startGame("{\"players\":[\"Obi\",\"Sam\"],\"holes\":1}");
         postJson("/api/games/" + id + "/scores", "{\"player\":\"Obi\",\"hole\":1,\"par\":4,\"strokes\":3}")

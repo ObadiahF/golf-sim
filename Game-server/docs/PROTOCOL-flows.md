@@ -1,12 +1,14 @@
 # Golf Sim protocol: flows
 
-Worked message sequences for [PROTOCOL.md](PROTOCOL.md).
+Worked message sequences for [PROTOCOL.md](PROTOCOL.md). Everything happens inside one room
+([PROTOCOL-rooms.md](PROTOCOL-rooms.md)): the app connects and calls the game endpoints with the room code the TV
+shows, and "everyone" below means the sim and remotes in that room.
 
 ## Remote navigation (menus)
 
 ```
 app                              server                         sim
- |-- connect role=remote ------->|                               |
+ |-- connect role=remote&room= ->|                               |
  |<-- hello {simConnected,state}-|                               |
  |-- nav {key:"down"} ---------->|-- nav {key:"down"} ---------->|  moves menu focus
  |-- nav {key:"select"} -------->|-- nav {key:"select"} -------->|  opens item
@@ -20,7 +22,7 @@ The app shows the D-pad whenever the latest `state.screen` is not `"game"` (or t
 
 ```
 app                              server                         sim
- |-- POST /api/games {players} ->|  abandons any IN_PROGRESS game (gameFinished, status ABANDONED)
+ |-- POST /api/games?room= ----->|  abandons the room's IN_PROGRESS game (gameFinished, status ABANDONED)
  |<-- 201 GameView --------------|-- gameStarted {game} ------->|  loads course, hole 1, first player
  |<-- gameStarted {game} --------|                               |
  |                               |<-- state {screen:"game",...} -|
@@ -57,5 +59,5 @@ sim shows the final scorecard and sends state {screen:"results"}; the app goes b
 ```
 
 To quit early, the app calls `POST /api/games/{id}/end` (`ABANDONED` by default, or `{"status":"FINISHED"}`);
-everyone gets `gameFinished`. Starting a new game also abandons the current one. A game finished early only crowns
+everyone gets `gameFinished`. Starting a new game also abandons the room's current one. A game finished early only crowns
 players with complete cards, and only complete cards count in stats (see `POST /api/games/{id}/end`).
