@@ -56,6 +56,12 @@ namespace GolfSim.Ball
 
         void Clear(GolfBall b) => line.Clear();
 
+        /// <summary>Recolours the trace (HDR), e.g. to match the glowing ball after dark (BallGlow).</summary>
+        public void SetColor(Color hdrColor)
+        {
+            if (line != null && material == null) line.Color = hdrColor; // never recolour a material asset someone assigned
+        }
+
         void LateUpdate()
         {
             bool tracing = ball.Status == BallStatus.Flying || (traceRoll && ball.Status == BallStatus.Rolling);

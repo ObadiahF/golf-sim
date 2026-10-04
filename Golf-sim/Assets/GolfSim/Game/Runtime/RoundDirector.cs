@@ -268,8 +268,10 @@ namespace GolfSim.Game
             {
                 starting = false;
                 Bind(holeInfo, golfBall);
+                int holeIndex = round != null ? (loadingHole >= 0 ? loadingHole : Mathf.Max(0, round.HoleIndex)) : 0;
+                ApplyScenery(holeIndex); // its time of day (RoundDirector.Scenery.cs)
                 // A hole we didn't load (HOME > Restart Hole) restarts the current hole.
-                if (round != null) StartHole(loadingHole >= 0 ? loadingHole : Mathf.Max(0, round.HoleIndex));
+                if (round != null) StartHole(holeIndex);
                 else StartPractice();
             }
             else

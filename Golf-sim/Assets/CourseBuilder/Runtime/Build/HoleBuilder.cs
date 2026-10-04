@@ -101,6 +101,7 @@ namespace GolfSim.Course
             info.holeRef = pkg.holeRef;
             info.par = pkg.par;
             info.handicap = pkg.handicap;
+            info.theme = pkg.theme;
             info.teePosition = tee;
             info.pinPosition = pin;
             info.holePath = Enumerable.Range(0, pkg.holePath.Count).Select(i => pkg.ToLocal(pkg.holePath[i], terrain)).ToArray();

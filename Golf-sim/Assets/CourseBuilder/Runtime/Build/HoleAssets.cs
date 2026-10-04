@@ -31,13 +31,38 @@ namespace GolfSim.Course
             {
                 var mat = RuntimeMaterials.Create(m => m.lit, name);
                 mat.color = color; // .color targets the shader's [MainColor]
-                if (doubleSided)
-                {
-                    mat.SetFloat("_Cull", 0f); // URP Lit: render both faces
-                    mat.doubleSidedGI = true;
-                }
+                if (doubleSided) DoubleSided(mat);
                 return mat;
             });
+
+        /// <summary>Lit and glowing: `glow` is the HDR emission (bloom picks up anything above ~1).</summary>
+        public Material GlowMaterial(string name, Color color, Color glow, bool doubleSided = false) =>
+            Shared($"Materials/{name}.mat", () =>
+            {
+                var mat = Glow(name, color, glow);
+                if (doubleSided) DoubleSided(mat);
+                return mat;
+            });
+
+        /// <summary>URP Lit: render both faces (a cloth flag seen from either side).</summary>
+        public static void DoubleSided(Material mat)
+        {
+            mat.SetFloat("_Cull", 0f);
+            mat.doubleSidedGI = true;
+        }
+
+        public static bool IsDoubleSided(Material mat) => mat && mat.HasProperty("_Cull") && mat.GetFloat("_Cull") == 0f;
+
+        /// <summary>A new glowing material (not shared): the emissive template with this base colour and HDR emission.</summary>
+        public static Material Glow(string name, Color color, Color glow)
+        {
+            var mat = RuntimeMaterials.Create(m => m.litEmissive, name);
+            mat.color = color;
+            mat.EnableKeyword("_EMISSION"); // on the template already; kept so an editor fallback still glows
+            mat.SetColor("_EmissionColor", glow);
+            mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            return mat;
+        }
 
         /// <summary>A material from one of the RuntimeMaterials templates (e.g. the cup's shaders).</summary>
         public Material TemplateMaterial(string name, Func<RuntimeMaterials, Material> template) =>

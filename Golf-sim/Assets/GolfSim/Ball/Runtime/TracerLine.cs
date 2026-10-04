@@ -37,6 +37,13 @@ namespace GolfSim.Ball
         }
 
         public GameObject gameObject => line ? line.gameObject : null;
+
+        /// <summary>The line's HDR colour (on its material: vertex colours are 8-bit). E.g. the night ball's green.</summary>
+        public Color Color
+        {
+            get => line ? line.sharedMaterial.GetColor("_BaseColor") : Color.white;
+            set { if (line) line.sharedMaterial.SetColor("_BaseColor", value); }
+        }
         public int Count => points.Count;
         public Vector3 Last => points[points.Count - 1];
 

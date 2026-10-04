@@ -33,9 +33,17 @@ public static class SetupRuntimeMaterials
         library.cupMask = Template("RuntimeCupMask", "GolfSim/CupMask", _ => { });
         library.cupInterior = Template("RuntimeCupInterior", "GolfSim/CupInterior", _ => { });
         library.terrain = AssetDatabase.LoadAssetAtPath<Material>(UrpTerrainLit);
+        library.litEmissive = Template("RuntimeLitEmissive", "Universal Render Pipeline/Lit", mat =>
+        {
+            mat.EnableKeyword("_EMISSION"); // the emissive variant, which no other asset may use
+            mat.SetColor("_EmissionColor", Color.black);
+            mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+        });
+        library.nightSky = Template("RuntimeNightSky", "GolfSim/NightSky", _ => { });
         EditorUtility.SetDirty(library);
         AssetDatabase.SaveAssets();
-        return $"lit={library.lit} transparent={library.litTransparent} line={library.line} cup={library.cupMask}/{library.cupInterior} terrain={library.terrain}";
+        return $"lit={library.lit} transparent={library.litTransparent} line={library.line} cup={library.cupMask}/{library.cupInterior} terrain={library.terrain} " +
+               $"glow={library.litEmissive} nightSky={library.nightSky}";
     }
 
     static Material Template(string name, string shaderName, System.Action<Material> setup)

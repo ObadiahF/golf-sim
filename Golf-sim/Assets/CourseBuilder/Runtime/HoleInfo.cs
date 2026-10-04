@@ -27,6 +27,8 @@ namespace GolfSim.Course
         public string holeRef;
         public int par;
         public int handicap;
+        [Tooltip("CourseTheme name the hole was dressed with (hole.json \"theme\"); picks its scenery (ThemeScenery).")]
+        public string theme;
 
         public Vector3 teePosition;
         public Vector3 pinPosition;

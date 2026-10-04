@@ -4,7 +4,8 @@ using UnityEngine;
 namespace GolfSim.Course
 {
     /// <summary>
-    /// Templates for every material the game makes in code (markers, cup, water, tracer and lines, runtime terrain).
+    /// Templates for every material the game makes in code (markers, cup, water, tracer and lines, runtime terrain,
+    /// night glow and sky).
     /// A built game only has the shaders, and keyword variants, that some included asset uses, so Shader.Find comes
     /// back null there for a shader only code asks for. The asset at Resources/RuntimeMaterials references these
     /// templates, which keeps them in every build; code clones them. Tools/unity_scripts/SetupRuntimeMaterials.cs makes them.
@@ -24,6 +25,10 @@ namespace GolfSim.Course
         public Material cupInterior;
         [Tooltip("URP Terrain Lit for holes built while the game runs (the pipeline's default terrain material is editor-only).")]
         public Material terrain;
+        [Tooltip("Opaque URP Lit with emission on: the glowing ball, flag, tee markers and lanterns after dark.")]
+        public Material litEmissive;
+        [Tooltip("GolfSim/NightSky skybox: dusk and night (stars, moon, afterglow).")]
+        public Material nightSky;
 
         static RuntimeMaterials loaded;
 
