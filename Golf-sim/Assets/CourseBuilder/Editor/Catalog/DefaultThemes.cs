@@ -36,6 +36,20 @@ namespace GolfSim.CourseEditor
                        layerPrefer = { ["native"] = new[] { "sand", "desert" } } },
             new Spec { name = "mountain", styleTags = new[] { "mountain" },
                        layerPrefer = { ["native"] = new[] { "rock", "mountain" } } },
+            // Scenic course types: their own ground layers (Tools/unity_scripts/SetupSceneryThemes.cs makes them from
+            // ambientCG textures and tags them with the theme's word) plus sky and air in ThemeScenery.cs.
+            new Spec { name = "autumn", styleTags = new[] { "autumn" }, brushPrefer = new[] { "autumn" }, woodsFloor = 0.3f,
+                       layerPrefer = { ["native"] = new[] { "autumn" }, ["woods"] = new[] { "autumn" }, ["rough"] = new[] { "autumn" } } },
+            new Spec { name = "tropical", styleTags = new[] { "tropical" }, nativeGrass = 0.05f, brush = 0.35f, woodsFloor = 0.7f,
+                       layerPrefer = { ["native"] = new[] { "tropical" }, ["scrub"] = new[] { "tropical" }, ["bunker"] = new[] { "tropical" } } },
+            new Spec { name = "canyon", styleTags = new[] { "canyon", "dry" }, roughGrass = 0.5f, nativeGrass = 0.2f, brush = 0.2f, woodsFloor = 0.2f,
+                       layerPrefer = { ["native"] = new[] { "canyon" }, ["scrub"] = new[] { "canyon" }, ["woods"] = new[] { "canyon" },
+                                       ["bunker"] = new[] { "canyon" } } },
+            new Spec { name = "winter", styleTags = new[] { "winter" }, roughGrass = 0.25f, nativeGrass = 0.08f, brush = 0.05f, woodsFloor = 0.05f,
+                       layerPrefer = { ["native"] = new[] { "snow" }, ["scrub"] = new[] { "snow" }, ["woods"] = new[] { "snow" },
+                                       ["rough"] = new[] { "winter" } } },
+            new Spec { name = "heathland", styleTags = new[] { "heathland" }, brushPrefer = new[] { "heather" }, brush = 0.5f, nativeGrass = 0.4f,
+                       layerPrefer = { ["native"] = new[] { "heather" }, ["scrub"] = new[] { "heather" } } },
         };
 
         public const string StripeTag = "stripe";
@@ -90,7 +104,34 @@ namespace GolfSim.CourseEditor
                        Query(AssetCategory.GroundCover, any: new[] { "fern", "bush" }, none: new[] { "dry" })),
             };
             theme.waterMaterial = Query(AssetCategory.WaterMaterial);
+            KeepToOwnSeason(theme);
             return theme;
+        }
+
+        /// <summary>
+        /// Tags of seasonal models: a model carrying one (orange broadleaf trees, red bushes) dresses only themes whose
+        /// styleTags include it, never the summer themes whose queries would otherwise match it too.
+        /// </summary>
+        public static readonly string[] SeasonTags = { "autumn" };
+
+        /// <summary>Adds the other seasons' tags to the theme's model queries as excluded. Returns true if it changed anything.</summary>
+        public static bool KeepToOwnSeason(CourseTheme theme)
+        {
+            var others = SeasonTags.Where(t => !theme.styleTags.Contains(t)).ToArray();
+            bool changed = false;
+            foreach (var slot in theme.scatter) changed |= Exclude(ref slot.assets, others);
+            foreach (var slot in theme.details) changed |= Exclude(ref slot.assets, others);
+            return changed;
+        }
+
+        static bool Exclude(ref AssetQuery query, string[] tags)
+        {
+            var q = query;
+            var missing = tags.Where(t => !q.noneTags.Contains(t)).ToArray();
+            if (missing.Length == 0) return false;
+            // A new query: the slots of a fresh theme share KindQueries' objects.
+            query = new AssetQuery(q.category, q.allTags, q.anyTags, q.noneTags.Concat(missing).ToArray(), q.preferTags);
+            return true;
         }
 
         static AssetQuery Query(AssetCategory c, string[] all = null, string[] any = null, string[] none = null, string[] prefer = null) =>

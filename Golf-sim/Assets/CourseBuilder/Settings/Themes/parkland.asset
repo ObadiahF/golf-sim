@@ -230,7 +230,8 @@ MonoBehaviour:
       allTags:
       - conifer
       anyTags: []
-      noneTags: []
+      noneTags:
+      - autumn
       preferTags: []
   - kind: 1
     assets:
@@ -238,7 +239,8 @@ MonoBehaviour:
       allTags:
       - deciduous
       anyTags: []
-      noneTags: []
+      noneTags:
+      - autumn
       preferTags: []
   - kind: 2
     assets:
@@ -246,7 +248,8 @@ MonoBehaviour:
       allTags:
       - palm
       anyTags: []
-      noneTags: []
+      noneTags:
+      - autumn
       preferTags: []
   - kind: 3
     assets:
@@ -254,14 +257,16 @@ MonoBehaviour:
       allTags: []
       anyTags:
       - cactus
-      noneTags: []
+      noneTags:
+      - autumn
       preferTags: []
   - kind: 4
     assets:
       category: 1
       allTags: []
       anyTags: []
-      noneTags: []
+      noneTags:
+      - autumn
       preferTags: []
   - kind: 5
     assets:
@@ -270,6 +275,7 @@ MonoBehaviour:
       anyTags: []
       noneTags:
       - small
+      - autumn
       preferTags: []
   - kind: 6
     assets:
@@ -278,6 +284,7 @@ MonoBehaviour:
       anyTags: []
       noneTags:
       - large
+      - autumn
       preferTags: []
   details:
   - rule:
@@ -296,6 +303,7 @@ MonoBehaviour:
       anyTags: []
       noneTags:
       - dry
+      - autumn
       preferTags: []
     scale: 1
     maxPrototypes: 4
@@ -315,7 +323,8 @@ MonoBehaviour:
       - grass
       - dry
       anyTags: []
-      noneTags: []
+      noneTags:
+      - autumn
       preferTags: []
     scale: 1
     maxPrototypes: 4
@@ -336,7 +345,8 @@ MonoBehaviour:
       - bush
       - shrub
       - heather
-      noneTags: []
+      noneTags:
+      - autumn
       preferTags:
       - dry
     scale: 1
@@ -358,6 +368,7 @@ MonoBehaviour:
       - bush
       noneTags:
       - dry
+      - autumn
       preferTags: []
     scale: 1
     maxPrototypes: 4

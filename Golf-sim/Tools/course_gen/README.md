@@ -7,7 +7,9 @@ Course Builder builds generated and real holes with one pipeline.
 ## Use it from Unity
 
 **Golf > Course Generator**
-1. Pick a preset (Parkland, Forest, Water / Lakes, Links, Desert, Mountain) and optionally a par.
+1. Pick a preset (Parkland, Forest, Water / Lakes, Links, Desert, Mountain, and the scenic Autumn Parkland, Tropical Island,
+   Red Rock Canyon, Winter, Heathland) and optionally a par. Each names a Unity theme of the same name (ground, models;
+   its sky and air are `ThemeScenery.cs`, the time of day the game's, see `Assets/CourseBuilder/Runtime/Scenery`).
 2. Optional: open *Customize* and pin knobs (trees, water, bunkers, relief, dogleg ...).
 3. **Generate Random Hole** creates the package under `Assets/CourseData/generated/<id>/` and builds it in the scene, dressed by the preset's theme.
 4. Rate it 👍 / 👎. Press **Retrain From Ratings** now and then. With *Use learned taste* on, generation steers toward what you liked.

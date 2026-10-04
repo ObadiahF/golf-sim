@@ -1,0 +1,2 @@
+Snow 010 A by ambientCG (https://ambientcg.com/a/Snow010A), CC0 1.0 public domain. 1K-JPG download.
+MaskMap packed from AmbientOcclusion (G), Displacement (B) and inverted Roughness (A).

@@ -56,6 +56,15 @@ THEMES: dict[str, Theme] = {t.name: t for t in [
     Theme("desert", {"cactus": 0.6, "palm": 0.4}, woods=60, native_trees=5, shrubs=120, boulders=90, rocks=60),
     Theme("mountain", {"conifer": 0.9, "deciduous": 0.1}, woods=300, native_trees=20, shrubs=60, boulders=120,
           rocks=50),
+    Theme("autumn", {"deciduous": 0.85, "conifer": 0.15}, woods=280, native_trees=16, shrubs=70, boulders=10, rocks=8,
+          rough_trees=2.0),
+    Theme("tropical", {"palm": 0.75, "deciduous": 0.25}, woods=200, native_trees=12, shrubs=110, boulders=8, rocks=10,
+          rough_trees=2.5),
+    Theme("canyon", {"cactus": 0.7, "palm": 0.3}, woods=40, native_trees=4, shrubs=90, boulders=160, rocks=90),
+    Theme("winter", {"conifer": 0.95, "deciduous": 0.05}, woods=300, native_trees=18, shrubs=30, boulders=30, rocks=15,
+          rough_trees=1.0),
+    Theme("heathland", {"conifer": 0.6, "deciduous": 0.4}, woods=150, native_trees=6, shrubs=140, boulders=12,
+          rocks=10),
 ]}
 DEFAULT_THEME = "coastal"
 

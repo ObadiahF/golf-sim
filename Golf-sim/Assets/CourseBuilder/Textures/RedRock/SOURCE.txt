@@ -1,0 +1,2 @@
+Rock 029 by ambientCG (https://ambientcg.com/a/Rock029), CC0 1.0 public domain. 1K-JPG download.
+MaskMap packed from AmbientOcclusion (G), Displacement (B) and inverted Roughness (A).

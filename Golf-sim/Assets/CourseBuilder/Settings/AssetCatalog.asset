@@ -105,6 +105,7 @@ MonoBehaviour:
     asset: {fileID: 919132149155446097, guid: b3da1778a10a6eb48b449d9c0bc21c2e, type: 3}
     tags:
     - conifer
+    - deciduous
     scale: {x: 0.5, y: 0.8}
     weight: 1
   - name: Pine_D
@@ -112,6 +113,7 @@ MonoBehaviour:
     asset: {fileID: 919132149155446097, guid: e17a253999e7e294981e5ed8ce32646f, type: 3}
     tags:
     - conifer
+    - deciduous
     scale: {x: 0.5, y: 0.8}
     weight: 1
   - name: Conifer
@@ -126,6 +128,7 @@ MonoBehaviour:
     asset: {fileID: 919132149155446097, guid: b9c14b320122db54f928119ed33feac8, type: 3}
     tags:
     - conifer
+    - deciduous
     scale: {x: 0.8, y: 1.2}
     weight: 1
   - name: Cypress_Forest_Desktop
@@ -303,6 +306,152 @@ MonoBehaviour:
     - bush
     scale: {x: 0.8, y: 1.2}
     weight: 1
+  - name: Golf_Snow
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: c4a62815b72264254ad931d426b09363, type: 2}
+    tags:
+    - native
+    - scrub
+    - woods
+    - snow
+    - winter
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_AutumnLeaves
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: d878d6e627d3e4664935fe94e6908ca3, type: 2}
+    tags:
+    - native
+    - woods
+    - autumn
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_RedRock
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 2b3f5c942273b4f9bbf52c447c547830, type: 2}
+    tags:
+    - native
+    - canyon
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_RedDirt
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 5e3944b6031eb48a2a3305bdfabcd23f, type: 2}
+    tags:
+    - scrub
+    - woods
+    - canyon
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_WhiteSand
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 9471fc44fa727410db8d8066a9f1b7eb, type: 2}
+    tags:
+    - bunker
+    - tropical
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_JungleMoss
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: f254c1e374fa348019982fd2c0369bc5, type: 2}
+    tags:
+    - native
+    - scrub
+    - tropical
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_RoughFrost
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 537c6efc8b091406687cbb69d231ceff, type: 2}
+    tags:
+    - rough
+    - winter
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_RoughAutumn
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 36cef33bad1be45699e4b4fcc2a1d0dd, type: 2}
+    tags:
+    - rough
+    - autumn
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Golf_BunkerCanyon
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 6f819d3103a6f407fa363790bcaadfc2, type: 2}
+    tags:
+    - bunker
+    - canyon
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Heather_A
+    category: 4
+    asset: {fileID: 8574412962073106934, guid: 795e383430200a14bb52726e97a0e7f4, type: 2}
+    tags:
+    - native
+    - scrub
+    - heather
+    - heathland
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: VistaSample_PalmTree
+    category: 0
+    asset: {fileID: 5198912114356191991, guid: d8464d656f0bcee46b1e6f6f47664fa0, type: 3}
+    tags:
+    - palm
+    - tropical
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: Heather_A
+    category: 3
+    asset: {fileID: 8267427934229748759, guid: cce04f533c148314abf74aff71206ec7, type: 3}
+    tags:
+    - heather
+    - links
+    - heathland
+    scale: {x: 0.7, y: 1.2}
+    weight: 1
+  - name: Bush_Red
+    category: 3
+    asset: {fileID: 3381235597526909217, guid: a18ae5a380cefaa42984dd62c858aa2b, type: 3}
+    tags:
+    - bush
+    - autumn
+    scale: {x: 0.7, y: 1.2}
+    weight: 1
+  - name: Broadleaf
+    category: 0
+    asset: {fileID: 1209782007571842203, guid: e2eaafa2ebe1b48da8397086336f7d65, type: 3}
+    tags:
+    - deciduous
+    - parkland
+    - lakes
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: BroadleafOrange
+    category: 0
+    asset: {fileID: 7411739396717515161, guid: 2955dc9622569406482f4020ca883348, type: 3}
+    tags:
+    - deciduous
+    - autumn
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: BroadleafRed
+    category: 0
+    asset: {fileID: 8157542989442779754, guid: 4b7891e02ab3844318533b20af8d11dc, type: 3}
+    tags:
+    - deciduous
+    - autumn
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
+  - name: BroadleafGold
+    category: 0
+    asset: {fileID: 6455093488850051605, guid: dfa33e71d6d4f481083852a96294e931, type: 3}
+    tags:
+    - deciduous
+    - autumn
+    scale: {x: 0.8, y: 1.2}
+    weight: 1
   themes:
   - {fileID: 11400000, guid: b10de85801d3f433fa2d67073ffa0292, type: 2}
   - {fileID: 11400000, guid: e037abcf28dd044a082e5ca1a8eb6ba9, type: 2}
@@ -311,4 +460,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: efeff0af482fd4ba0a27cfc10117db59, type: 2}
   - {fileID: 11400000, guid: 15d67148366a34bc999d5dcfe96483b7, type: 2}
   - {fileID: 11400000, guid: 3c607a50b07d94cafbcd4098dadd803b, type: 2}
+  - {fileID: 11400000, guid: 01a5d54f5c6c7427db8c1ed4d5f129a9, type: 2}
+  - {fileID: 11400000, guid: a0ca0cc2b7cfe4765bddbe791941b2ce, type: 2}
+  - {fileID: 11400000, guid: 8b78ad9a72c804801b8cbceaf894bd65, type: 2}
+  - {fileID: 11400000, guid: 5eab5f335b7624d71a0f96ed3022884b, type: 2}
+  - {fileID: 11400000, guid: c452866967fa149d0a17e096f7d7e354, type: 2}
   defaultTheme: {fileID: 11400000, guid: b10de85801d3f433fa2d67073ffa0292, type: 2}
