@@ -55,6 +55,7 @@ namespace GolfSim.Ball
             launchDirection = Mathf.Clamp(azimuth, -45f, 45f),
             backspin = Mathf.Clamp(back, -3000f, 15000f),
             sidespin = Mathf.Clamp(side, -6000f, 6000f),
+            club = Clubs.Normalize(club),
         };
 
         static bool IsFinite(float x) => !float.IsNaN(x) && !float.IsInfinity(x);

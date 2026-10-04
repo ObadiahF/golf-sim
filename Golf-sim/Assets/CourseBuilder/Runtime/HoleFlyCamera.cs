@@ -79,8 +79,12 @@ namespace GolfSim.Course
         void Track()
         {
             if (!trackTarget) return;
+            var pos = transform.position;
             if (followOffset != Vector3.zero)
-                transform.position = KeepAboveGround(Vector3.Lerp(transform.position, trackTarget.position + followOffset, Blend(followSharpness)));
+                pos = KeepAboveGround(Vector3.Lerp(pos, trackTarget.position + followOffset, Blend(followSharpness)));
+            // Rise smoothly to look over whatever hides the ball (a bunker's lip, a dip in the fairway).
+            pos.y = Mathf.Lerp(pos.y, SeeOverTerrain(pos, trackTarget.position).y, Blend(followSharpness * 2f));
+            transform.position = pos;
             var wanted = Quaternion.LookRotation(trackTarget.position - transform.position);
             transform.rotation = Quaternion.Slerp(transform.rotation, wanted, Blend(trackSharpness));
             SyncAngles();
@@ -129,6 +133,35 @@ namespace GolfSim.Course
                 + transform.TransformDirection(new Vector3(input.x, 0f, input.z)) * speed
                 + Vector3.up * (input.y * speed);
             transform.position = KeepAboveGround(pos);
+        }
+
+        const float ViewNear = 0.8f;        // m off the subject where the sightline starts to count (the ground it sits on)
+        const float ViewClearance = 0.12f;  // m the sightline keeps above the terrain
+        const float MaxViewLift = 12f;      // m above the subject at most
+
+        /// <summary>
+        /// The eye raised (never lowered) until it sees the subject over the terrain: the sightline clears the ground
+        /// from ViewNear off the subject back to the eye. A ball down in a bunker is otherwise hidden behind its lip.
+        /// </summary>
+        public static Vector3 SeeOverTerrain(Vector3 eye, Vector3 subject)
+        {
+            var terrain = Terrain.activeTerrain;
+            if (!terrain) return eye;
+            subject += Vector3.up * 0.05f; // the top half of a ball
+            var back = new Vector3(eye.x - subject.x, 0f, eye.z - subject.z);
+            float length = back.magnitude;
+            if (length <= ViewNear) return eye;
+            float need = eye.y;
+            for (float d = ViewNear; d < length; d += 0.5f)
+            {
+                float t = d / length;
+                var p = subject + back * t;
+                float ground = terrain.SampleHeight(p) + terrain.transform.position.y + ViewClearance;
+                // The sightline is at subject.y + (eye.y - subject.y) * t here: the eye height that puts it on the ground.
+                need = Mathf.Max(need, subject.y + (ground - subject.y) / t);
+            }
+            eye.y = Mathf.Min(need, Mathf.Max(eye.y, subject.y + MaxViewLift));
+            return eye;
         }
 
         Vector3 KeepAboveGround(Vector3 pos)

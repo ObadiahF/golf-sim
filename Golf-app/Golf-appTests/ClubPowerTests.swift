@@ -6,14 +6,15 @@ import Testing
 @MainActor
 struct ClubPowerTests {
     private let impact = Impact(rate: 20, face: 0, angle: 90, time: 0)
-    private var wedge: Club { Club.bag.first { $0.name == "Wedge" }! }
+    private var wedge: Club { Club.bag.first { $0.name == "Pitching Wedge" }! }
     private var driver: Club { Club.bag[0] }
 
     @Test func defaultsToFullPowerAndPersists() throws {
         let settings = try testSettings("ClubPowerTests")
         let powers = AppSettings.poweredClubs.map { settings.power(for: $0) }
         #expect(powers == Array(repeating: 1, count: Club.bag.count - 1))
-        #expect(AppSettings.poweredClubs.map(\.name) == ["Driver", "3 Wood", "5 Iron", "7 Iron", "9 Iron", "Wedge"])
+        #expect(AppSettings.poweredClubs.map(\.name) == ["Driver", "3 Wood", "5 Wood", "4 Hybrid", "5 Iron", "6 Iron", "7 Iron", "8 Iron",
+                                                         "9 Iron", "Pitching Wedge", "Gap Wedge", "Sand Wedge", "Lob Wedge"])
         settings.setPower(0.8, for: wedge)
         let defaults = try #require(UserDefaults(suiteName: "ClubPowerTests"))
         let reloaded = AppSettings(defaults: defaults)
@@ -38,6 +39,17 @@ struct ClubPowerTests {
         let loaded = AppSettings(defaults: defaults)
         #expect(loaded.power(for: wedge) == 1 && loaded.power(for: driver) == 0.9)
         defaults.removePersistentDomain(forName: "ClubPowerTests.bad")
+    }
+
+    @Test func settingsSavedForTheOldWedgeMoveToThePitchingWedge() throws {
+        let defaults = try #require(UserDefaults(suiteName: "ClubPowerTests.renamed"))
+        defer { defaults.removePersistentDomain(forName: "ClubPowerTests.renamed") }
+        defaults.set(["Wedge": 0.8], forKey: "clubPower")
+        defaults.set(["Wedge": 1.5], forKey: "clubSensitivity")
+        let loaded = AppSettings(defaults: defaults)
+        #expect(abs(loaded.power(for: wedge) - 0.8) < 1e-9)
+        #expect(loaded.sensitivity(for: wedge) == 1.5)
+        #expect(Club.index(named: "Wedge") == Club.index(named: "Pitching Wedge"))
     }
 
     @Test func powerScalesThatClubsBallSpeedOnly() throws {

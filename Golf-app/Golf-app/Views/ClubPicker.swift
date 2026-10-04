@@ -14,7 +14,7 @@ struct ClubPicker: View {
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(Theme.chalk)
             }
-            HStack(spacing: 6) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: Self.perRow), spacing: 6) {
                 ForEach(Club.bag.indices, id: \.self) { index in
                     chip(index)
                 }
@@ -23,12 +23,15 @@ struct ClubPicker: View {
         .card(padding: 14)
     }
 
+    /// 14 clubs: two rows of seven.
+    static let perRow = 7
+
     private func chip(_ index: Int) -> some View {
         let isSelected = index == selected
         return Button { onSelect(index) } label: {
             Text(Club.bag[index].short)
                 .font(.system(size: 18, weight: .heavy, design: .rounded))
-                .frame(maxWidth: .infinity, minHeight: 54)
+                .frame(maxWidth: .infinity, minHeight: 46)
                 .foregroundStyle(isSelected ? Theme.fairwayBottom : Theme.chalk)
                 .background(isSelected ? Theme.flag : Color.white.opacity(0.08), in: .rect(cornerRadius: 14))
         }

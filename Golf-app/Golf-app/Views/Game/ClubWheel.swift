@@ -43,7 +43,7 @@ struct ClubWheel<Center: View>: View {
                 shape.fill(lit ? Theme.flag : Theme.card)
                 shape.stroke(lit ? Theme.flag : Theme.cardStroke, lineWidth: 1)
                 Text(Club.bag[index].short)
-                    .font(.system(size: 20, weight: .heavy, design: .rounded))
+                    .font(.system(size: size < 260 ? 15 : 18, weight: .heavy, design: .rounded)) // 14 slices
                     .foregroundStyle(lit ? Theme.fairwayBottom : Theme.chalk)
                     .offset(RingSegment.labelOffset(start: start, end: end, radius: size * (1 + Self.inner) / 4))
                     .accessibilityLabel(Club.bag[index].name)

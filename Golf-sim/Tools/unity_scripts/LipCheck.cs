@@ -1,40 +1,55 @@
 // Dev helper, run from the shell with the Unity CLI (not compiled into the project):
 //   unity command run_script --file Tools/unity_scripts/LipCheck.cs --entry LipCheck.Run
-// Slow putts dying at the hole on a flat green, passing the cup centre at several sideways offsets: which drop
-// (centre over the cup, or hanging over the lip and pulled in by BallPhysics.LipPull) and which stay out.
+// Putts at the hole on a flat green (a throwaway terrain), passing the cup centre at several sideways offsets and
+// speeds, simulated with PuttPredictor (the same BallPhysics.Cup steps as the ball): which drop, which lip out or
+// hop the hole, and which stop short. Expected: dead centre drops up to ~1.9 m/s at the hole, 3 cm off ~1.1 m/s,
+// 5 cm off (the edge) only dying putts, and slow putts hanging over the lip (6-7 cm off) are pulled in (LipPull).
 using System.Text;
 using GolfSim.Ball;
 using UnityEngine;
 
 public static class LipCheck
 {
-    const float Step = 0.002f;
+    const float Approach = 1f; // m from the start to the cup
 
     public static string Run()
     {
-        var green = BallPhysicsSettings.CreateInstance<BallPhysicsSettings>().For("green");
-        var cup = new Vector3(0f, 0f, 2f);
-        var sb = new StringBuilder("side cm   would stop      result\n");
-        foreach (float side in new[] { 0f, 3f, 5f, 6f, 7f, 8f })
-            foreach (float past in new[] { -0.08f, -0.03f, 0f, 0.05f })
+        var settings = BallPhysicsSettings.Defaults;
+        var data = new TerrainData { heightmapResolution = 33, alphamapResolution = 16 };
+        data.size = new Vector3(40f, 10f, 40f);
+        data.terrainLayers = new[] { new TerrainLayer { name = "green" } };
+        var go = Terrain.CreateTerrainGameObject(data);
+        go.hideFlags = HideFlags.HideAndDontSave;
+        go.transform.position = new Vector3(5000f, -500f, 5000f); // far from any hole
+        try
+        {
+            var map = new TerrainSurfaceMap(go.GetComponent<Terrain>(), null);
+            var cup = go.transform.position + new Vector3(20f, 0f, 20f);
+            cup.y = map.HeightAt(cup);
+            float decel = settings.For("green").rolling * BallPhysicsSettings.Gravity;
+            var sb = new StringBuilder("side cm   speed at the cup (m/s): result\n");
+            foreach (float side in new[] { 0f, 1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f })
             {
-                // Speed that rolls (2 m + past) on this green, from 2 m short of the cup.
-                float speed = Mathf.Sqrt(2f * green.rolling * BallPhysicsSettings.Gravity * (2f + past));
-                var s = new BallState { position = new Vector3(side / 100f, 0f, 0f), velocity = Vector3.forward * speed };
-                string result = "stopped";
-                for (float t = 0f; t < 30f; t += Step)
+                sb.Append($"{side,6:0}  ");
+                foreach (float atCup in new[] { 0.1f, 0.3f, 0.6f, 1f, 1.3f, 1.6f, 1.9f, 2.2f, 2.6f })
                 {
-                    if (InCup(s, cup)) { result = "HOLED"; break; }
-                    bool moving = BallPhysics.Roll(ref s, Step, Vector3.up, green, BallPhysics.LipPull(s.position, cup));
-                    if (!moving) { result = InCup(s, cup) ? "HOLED" : $"stopped {Offset(s, cup) * 100f:0.0} cm from the centre"; break; }
+                    var origin = cup + new Vector3(side / 100f, 0f, -Approach);
+                    origin.y = map.HeightAt(origin) + BallPhysicsSettings.Radius;
+                    // Rolls Approach metres losing speed to the green, plus a little for the launch hop.
+                    var shot = ShotData.FromMph(0f, 0f, 0f, 0f, 0f);
+                    shot.club = Clubs.Putter;
+                    shot.ballSpeed = Mathf.Sqrt(atCup * atCup + 2f * decel * Approach) * 1.02f;
+                    var p = PuttPredictor.Simulate(map, settings, origin, Vector3.forward, shot, cup, step: GolfBall.Step);
+                    string end = p.holed ? "IN" : Vector3.Dot(p.end - cup, Vector3.forward) > 0f ? "out" : "short";
+                    sb.Append($"  {atCup:0.0}:{end,-5}");
                 }
-                sb.AppendLine($"{side,6:0}   {past * 100f,+5:0} cm past   {result}");
+                sb.AppendLine();
             }
-        return sb.ToString();
+            return sb.ToString();
+        }
+        finally
+        {
+            Object.DestroyImmediate(go);
+        }
     }
-
-    static float Offset(BallState s, Vector3 cup) => Vector3.ProjectOnPlane(s.position - cup, Vector3.up).magnitude;
-
-    static bool InCup(BallState s, Vector3 cup) =>
-        Offset(s, cup) <= GolfBall.CupRadius && Vector3.ProjectOnPlane(s.velocity, Vector3.up).magnitude <= GolfBall.CupCaptureSpeed;
 }

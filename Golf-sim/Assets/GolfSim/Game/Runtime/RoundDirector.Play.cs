@@ -77,7 +77,7 @@ namespace GolfSim.Game
         }
 
         /// <summary>The HUD's lie with what it costs the selected club, e.g. "Rough −12%".</summary>
-        string LieLabel(string lie) => ball ? ball.Settings.LieFor(lie, Clubs.Find(club).shot.ballSpeed).Label : lie;
+        string LieLabel(string lie) => ball ? ball.Settings.LieFor(lie, Clubs.Find(club).shot).Label : lie;
 
         void StartHole(int index)
         {

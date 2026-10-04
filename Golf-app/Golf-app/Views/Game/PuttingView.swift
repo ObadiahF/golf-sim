@@ -34,7 +34,7 @@ struct PuttingView: View {
     }
 
     /// The wedge: picking it leaves putting mode (the sim sends a non-putting state).
-    static var chipClub: Int { Club.bag.firstIndex { $0.name == "Wedge" } ?? 0 }
+    static var chipClub: Int { Club.index(named: "Pitching Wedge") ?? 0 }
 }
 
 /// Distance to the hole in metres and feet, the rise or fall, how long it plays and the green speed, and a

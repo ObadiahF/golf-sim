@@ -33,7 +33,7 @@ namespace GolfSim.Ball
                                               ShotData shot, Vector3? cup = null, List<Vector3> path = null,
                                               float pathSpacing = 0.1f, float step = CoarseStep, float maxTime = MaxTime)
         {
-            var lie = settings.LieFor(map.Contains(origin) ? map.SurfaceAt(origin) : "green", shot.ballSpeed);
+            var lie = settings.LieFor(map.Contains(origin) ? map.SurfaceAt(origin) : "green", shot);
             var s = BallPhysics.Launch(origin, aim, lie.Apply(shot));
             bool flying = true;
             float sinceDot = 0f;
@@ -44,7 +44,9 @@ namespace GolfSim.Ball
             while (time < maxTime)
             {
                 var from = s.position;
-                float dt = flying ? Mathf.Min(step, GolfBall.Step) : step;
+                // The short launch hop and the hole itself (dropping in or lipping out) always take the fine step.
+                bool fine = flying || (cup is Vector3 c && Flat(s.position - c).magnitude < GolfBall.CupRadius + 0.15f);
+                float dt = fine ? Mathf.Min(step, GolfBall.Step) : step;
                 time += dt;
                 if (Step(ref s, ref flying, map, settings, dt, cup, ref result)) break;
                 float moved = Flat(s.position - from).magnitude;
@@ -65,16 +67,30 @@ namespace GolfSim.Ball
         static bool Step(ref BallState s, ref bool flying, TerrainSurfaceMap map, BallPhysicsSettings settings, float dt,
                          Vector3? cup, ref PuttPrediction result)
         {
+            if (cup is Vector3 pin)
+            {
+                var contact = BallPhysics.Cup(ref s, dt, pin, map);
+                if (contact == CupContact.Holed)
+                {
+                    result.holed = true;
+                    result.end = pin;
+                    return Stop(ref result);
+                }
+                if (contact == CupContact.Inside)
+                {
+                    if (!flying && s.velocity.y > GolfBall.RollSpeed) flying = true;
+                    return false;
+                }
+            }
             if (flying)
             {
                 BallPhysics.Fly(ref s, dt, settings, Vector3.zero);
                 if (!map.Contains(s.position)) return Stop(ref result);
                 float ground = map.HeightAt(s.position) + BallPhysicsSettings.Radius;
-                if (s.position.y > ground) return false;
+                if (s.position.y > ground || (cup is Vector3 hole && BallPhysics.OverCup(s.position, hole))) return false;
                 s.position.y = ground;
                 var landing = settings.For(map.SurfaceAt(s.position));
                 if (landing.hazard) return Stop(ref result);
-                if (InCup(s, cup, ref result)) return true;
                 var normal = map.NormalAt(s.position);
                 BallPhysics.Bounce(ref s, normal, landing);
                 if (Vector3.Dot(s.velocity, normal) < GolfBall.RollSpeed)
@@ -85,28 +101,18 @@ namespace GolfSim.Ball
                 return false;
             }
 
-            if (InCup(s, cup, ref result)) return true;
             var surface = settings.For(map.SurfaceAt(s.position));
             if (surface.hazard) return Stop(ref result);
             bool moving = BallPhysics.Roll(ref s, dt, map.NormalAt(s.position), surface, BallPhysics.LipPull(s.position, cup));
             if (!map.Contains(s.position)) return Stop(ref result);
             s.position.y = map.HeightAt(s.position) + BallPhysicsSettings.Radius;
-            return !moving && (InCup(s, cup, ref result) || Stop(ref result));
+            return !moving && Stop(ref result);
         }
 
         static bool Stop(ref PuttPrediction result)
         {
             result.stillMoving = false;
             return true;
-        }
-
-        static bool InCup(BallState s, Vector3? cup, ref PuttPrediction result)
-        {
-            if (cup is not Vector3 pin) return false;
-            if (Flat(s.position - pin).magnitude > GolfBall.CupRadius || Flat(s.velocity).magnitude > GolfBall.CupCaptureSpeed) return false;
-            result.holed = true;
-            result.end = pin;
-            return Stop(ref result);
         }
 
         /// <summary>
