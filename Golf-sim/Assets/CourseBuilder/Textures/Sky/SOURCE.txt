@@ -1,0 +1,3 @@
+StarrySky_HDR.exr: Night Sky HDRI 002 by ambientCG (https://ambientcg.com/a/NightSkyHDRI002), CC0 1.0 public domain. 2K download.
+Twilight_HDR.exr: Evening Sky HDRI 018 B by ambientCG (https://ambientcg.com/a/EveningSkyHDRI018B), CC0 1.0 public domain. 2K download.
+Equirectangular, drawn by GolfSim/NightSky (Assets/CourseBuilder/Shaders) under its own stars, moon and clouds.

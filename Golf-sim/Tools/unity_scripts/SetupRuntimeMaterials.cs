@@ -40,10 +40,32 @@ public static class SetupRuntimeMaterials
             mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
         });
         library.nightSky = Template("RuntimeNightSky", "GolfSim/NightSky", _ => { });
+        library.starrySky = SkyPhoto("StarrySky_HDR.exr");
+        library.twilightSky = SkyPhoto("Twilight_HDR.exr");
+        library.water = Template("RuntimeWater", "GolfSim/Water", mat => mat.CopyPropertiesFromMaterial(new Material(mat.shader))); // the shader's defaults
         EditorUtility.SetDirty(library);
         AssetDatabase.SaveAssets();
         return $"lit={library.lit} transparent={library.litTransparent} line={library.line} cup={library.cupMask}/{library.cupInterior} terrain={library.terrain} " +
-               $"glow={library.litEmissive} nightSky={library.nightSky}";
+               $"glow={library.litEmissive} nightSky={library.nightSky} skies={library.starrySky}/{library.twilightSky} water={library.water}";
+    }
+
+    /// <summary>
+    /// An equirectangular HDR sky from Textures/Sky: wraps around but not over the poles, no mipmaps (they would leave
+    /// a seam where the panorama's edges meet; the sky is magnified on screen anyway), BC6H in builds.
+    /// </summary>
+    static Texture2D SkyPhoto(string file)
+    {
+        string path = "Assets/CourseBuilder/Textures/Sky/" + file;
+        var imp = (TextureImporter)AssetImporter.GetAtPath(path) ?? throw new System.Exception($"No sky photo at {path}");
+        imp.textureShape = TextureImporterShape.Texture2D;
+        imp.mipmapEnabled = false;
+        imp.wrapModeU = TextureWrapMode.Repeat;
+        imp.wrapModeV = TextureWrapMode.Clamp;
+        imp.filterMode = FilterMode.Bilinear;
+        imp.maxTextureSize = 2048;
+        imp.textureCompression = TextureImporterCompression.CompressedHQ;
+        imp.SaveAndReimport();
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
     }
 
     static Material Template(string name, string shaderName, System.Action<Material> setup)

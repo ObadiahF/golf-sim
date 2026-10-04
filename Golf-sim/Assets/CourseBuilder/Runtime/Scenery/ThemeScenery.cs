@@ -20,6 +20,8 @@ namespace GolfSim.Course
         /// <summary>Chance of a round starting at each TimeOfDay (Day, GoldenHour, Dusk, Night); relative weights.</summary>
         public float[] startWeights = { 0.55f, 0.2f, 0.12f, 0.13f };
         public AirLife air;
+        /// <summary>The ponds' shallow tint and deep colour (GolfSim/Water), or null for the material's own.</summary>
+        public Color? waterShallow, waterDeep;
 
         static readonly ThemeScenery Plain = new ThemeScenery { theme = "", label = "Golf course" };
 
@@ -37,10 +39,13 @@ namespace GolfSim.Course
             new ThemeScenery { theme = "autumn", label = "Autumn Parkland", fogTint = new Color(1.06f, 0.97f, 0.88f), haze = 1.15f,
                                startWeights = new[] { 0.4f, 0.35f, 0.12f, 0.13f } },
             new ThemeScenery { theme = "tropical", label = "Tropical Island", fogTint = new Color(0.92f, 1.02f, 1.04f), haze = 1.3f,
+                               waterShallow = new Color(0.5f, 1f, 0.92f), waterDeep = new Color(0f, 0.2f, 0.24f),
                                air = AirLife.Fireflies, startWeights = new[] { 0.5f, 0.2f, 0.15f, 0.15f } },
             new ThemeScenery { theme = "canyon", label = "Red Rock Canyon", fogTint = new Color(1.1f, 0.9f, 0.8f), haze = 0.55f,
+                               waterShallow = new Color(0.72f, 0.8f, 0.62f), waterDeep = new Color(0.04f, 0.1f, 0.09f),
                                startWeights = new[] { 0.4f, 0.3f, 0.15f, 0.15f } },
             new ThemeScenery { theme = "winter", label = "Winter", fogTint = new Color(0.92f, 0.96f, 1.08f), haze = 1.15f,
+                               waterShallow = new Color(0.6f, 0.72f, 0.78f), waterDeep = new Color(0.02f, 0.06f, 0.1f),
                                air = AirLife.Snow, startWeights = new[] { 0.5f, 0.2f, 0.15f, 0.15f } },
             new ThemeScenery { theme = "heathland", label = "Heathland", fogTint = new Color(0.98f, 0.96f, 1.02f), haze = 1.2f },
         };

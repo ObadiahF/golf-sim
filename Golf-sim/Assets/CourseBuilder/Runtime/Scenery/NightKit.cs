@@ -5,33 +5,41 @@ using UnityEngine.Rendering;
 namespace GolfSim.Course
 {
     /// <summary>
-    /// What makes a hole playable after dark: a floodlight over each green and one over the tee, glowing flags,
-    /// flagsticks and tee markers, a glowing ring around each cup (it reads from the tee as a bright dot to aim at)
-    /// and lanterns along the hole in the rough. Lights are few on purpose: the terrain is one renderer and URP
-    /// lights it with at most four extra lights (floodlight, tee light, the glowing ball). The lanterns only glow.
-    /// None of it has a collider or an obstacle entry, so the ball never notices.
+    /// What makes a hole playable after dark: two floodlight poles beside each green throwing warm pools of light on
+    /// it, a lamp post behind the tee, glowing flags, flagsticks and tee markers, a glowing ring around each cup (from
+    /// the tee it reads as a bright dot to aim at) and lanterns in the rough along the hole, each with its own small pool
+    /// of light (the renderer is Forward+, so lights aren't capped per object). None of it has a collider or an
+    /// obstacle entry, so the ball never notices.
     /// </summary>
-    public static class NightKit
+    public static partial class NightKit
     {
-        const float LanternSpacing = 42f, LanternOffset = 17f, LanternClearance = 3f;
         const float RingInner = 0.075f, RingOuter = 0.11f, RingLift = 0.004f;
         const int RingSegments = 40;
-        static readonly Color FloodColor = new Color(1f, 0.93f, 0.8f);
+        const float FloodHeight = 11f, FloodIntensity = 520f, FloodRange = 60f, FloodAngle = 62f;
+        static readonly float[] FloodSpots = { 24f, 30f, 18f, 36f }; // meters to the side of the pin, nearest first
+        static readonly Color FloodColor = new Color(1f, 0.86f, 0.66f);  // sodium-warm against the cool moonlight
+        static readonly Color LampGlow = new Color(4f, 3.3f, 2.4f);
         static readonly Color CupGlow = new Color(1.2f, 3.2f, 1.6f);
-        static readonly Color LanternGlow = new Color(3.2f, 1.9f, 0.7f);
-        static readonly string[] NoLanterns = { "water", "bunker", "green", "fairway", "tee" };
+        static readonly Color PostColor = new Color(0.08f, 0.07f, 0.06f);
 
         public static void Build(SceneryRig rig, HoleInfo hole, float darkness)
         {
             var terrain = hole.GetComponentInChildren<Terrain>();
             var root = rig.Child("Night Kit");
             var assets = new HoleAssets();
+            var post = assets.ColorMaterial("LampPost", PostColor);
+            var lamp = assets.GlowMaterial("LampGlow", Color.white, LampGlow);
             float lit = Mathf.Sqrt(darkness); // the lights are nearly as bright at dusk: the green must read as well
+            var forward = Vector3.ProjectOnPlane(hole.PinWorld - hole.TeeWorld, Vector3.up).normalized;
+            var side = Vector3.Cross(Vector3.up, forward);
 
             foreach (var flag in hole.GetComponentsInChildren<FlagWave>())
             {
                 var pin = flag.transform.parent;
-                Light(root, "Green Floodlight", pin.position + Vector3.up * 9f, 36f, 70f * lit);
+                if (terrain)
+                    foreach (float s in new[] { -1f, 1f })
+                        if (FloodSpot(hole, terrain, pin.position, side * s, forward, out var foot))
+                            Floodlight(root, foot, pin.position, FloodHeight, FloodIntensity * lit, post, lamp);
                 Glow(assets, flag.GetComponent<Renderer>(), 1.8f);
                 Glow(assets, pin.Find("Flagstick")?.GetComponent<Renderer>(), 1.4f);
                 if (terrain) CupRing(rig, assets, root, pin.position, terrain);
@@ -40,25 +48,58 @@ namespace GolfSim.Course
             var tee = hole.transform.Find("Tee");
             if (tee)
             {
-                Light(root, "Tee Light", tee.position + Vector3.up * 5f, 14f, 22f * lit);
-                foreach (var marker in tee.GetComponentsInChildren<Renderer>()) Glow(assets, marker, 1.6f);
+                var foot = tee.position - forward * 9f + side * 4f;
+                if (terrain) foot.y = Ground(terrain, foot);
+                Floodlight(root, foot, tee.position, 6f, 60f * lit, post, lamp);
+                foreach (var marker in tee.GetComponentsInChildren<Renderer>()) Glow(assets, marker, 1.1f);
             }
 
-            if (terrain) Lanterns(root, hole, terrain, assets);
+            if (terrain) Lanterns(root, hole, terrain, assets, lit);
         }
 
-        static void Light(Transform parent, string name, Vector3 position, float range, float intensity)
+        /// <summary>Where a floodlight pole stands beside the green: the nearest spot off to that side a pole may stand on.</summary>
+        static bool FloodSpot(HoleInfo hole, Terrain terrain, Vector3 pin, Vector3 side, Vector3 forward, out Vector3 foot)
         {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            go.transform.position = position;
-            var light = go.AddComponent<Light>();
-            light.type = LightType.Point;
-            light.color = FloodColor;
-            light.range = range;
+            foreach (float d in FloodSpots)
+            {
+                foot = pin + side * d + forward * 6f;
+                if (!Clear(hole, terrain, foot)) continue;
+                foot.y = Ground(terrain, foot);
+                return true;
+            }
+            foot = default;
+            return false;
+        }
+
+        /// <summary>A pole with a lamp head at `height`, its spot aimed at `target`.</summary>
+        static void Floodlight(Transform parent, Vector3 foot, Vector3 target, float height, float intensity, Material post, Material lamp)
+        {
+            var pole = new GameObject("Floodlight").transform;
+            pole.SetParent(parent, false);
+            pole.position = foot;
+            Primitive(PrimitiveType.Cylinder, pole, new Vector3(0f, height / 2f, 0f), new Vector3(0.14f, height / 2f, 0.14f), post);
+            var head = foot + Vector3.up * height;
+            var aim = Quaternion.LookRotation(target - head);
+            var lampHead = Primitive(PrimitiveType.Cube, pole, Vector3.up * height, new Vector3(0.9f, 0.25f, 0.5f), lamp);
+            lampHead.rotation = aim;
+
+            var light = new GameObject("Spot").AddComponent<Light>();
+            light.transform.SetParent(pole, false);
+            light.transform.SetPositionAndRotation(head, aim);
+            light.type = LightType.Spot;
+            light.spotAngle = FloodAngle;
+            light.innerSpotAngle = FloodAngle * 0.5f;
+            light.range = FloodRange;
+            Configure(light, FloodColor, intensity);
+        }
+
+        /// <summary>A small warm point light (lanterns), or any light of the kit: no shadows, always per pixel.</summary>
+        static void Configure(Light light, Color color, float intensity)
+        {
+            light.color = color;
             light.intensity = intensity;
             light.shadows = LightShadows.None;
-            light.renderMode = LightRenderMode.ForcePixel; // a vertex light on the terrain's big patches would barely show
+            light.renderMode = LightRenderMode.ForcePixel;
         }
 
         /// <summary>Swaps a renderer to a glowing copy of its own colour (HDR emission = colour × strength).</summary>
@@ -84,7 +125,7 @@ namespace GolfSim.Course
                 foreach (float r in new[] { RingInner, RingOuter })
                 {
                     var p = cup + dir * r;
-                    p.y = terrain.SampleHeight(p) + terrain.transform.position.y + RingLift;
+                    p.y = Ground(terrain, p) + RingLift;
                     vertices.Add(p - cup);
                 }
                 if (i == RingSegments) break;
@@ -106,42 +147,7 @@ namespace GolfSim.Course
             renderer.shadowCastingMode = ShadowCastingMode.Off;
         }
 
-        /// <summary>Lanterns on both sides of the hole path, only where they stand in rough or native ground and clear of trees.</summary>
-        static void Lanterns(Transform parent, HoleInfo hole, Terrain terrain, HoleAssets assets)
-        {
-            var path = hole.holePath;
-            if (path.Length < 2) return;
-            var post = assets.ColorMaterial("LanternPost", new Color(0.08f, 0.07f, 0.06f));
-            var orb = assets.GlowMaterial("LanternGlow", new Color(1f, 0.85f, 0.6f), LanternGlow);
-            var root = new GameObject("Lanterns").transform;
-            root.SetParent(parent, false);
-
-            float total = 0f;
-            for (int i = 1; i < path.Length; i++) total += Vector3.Distance(path[i - 1], path[i]);
-            for (float along = 25f; along < total - 30f; along += LanternSpacing)
-            {
-                PointAlong(path, along, out var at, out var heading);
-                var side = Vector3.Cross(Vector3.up, heading).normalized;
-                foreach (float s in new[] { -1f, 1f })
-                {
-                    var world = hole.transform.TransformPoint(at + side * (LanternOffset * s));
-                    if (!Clear(hole, terrain, world)) continue;
-                    world.y = terrain.SampleHeight(world) + terrain.transform.position.y;
-                    Lantern(root, world, post, orb);
-                }
-            }
-        }
-
-        static void Lantern(Transform parent, Vector3 ground, Material post, Material orb)
-        {
-            var lantern = new GameObject("Lantern").transform;
-            lantern.SetParent(parent, false);
-            lantern.position = ground;
-            Primitive(PrimitiveType.Cylinder, lantern, new Vector3(0f, 0.55f, 0f), new Vector3(0.06f, 0.55f, 0.06f), post);
-            Primitive(PrimitiveType.Sphere, lantern, new Vector3(0f, 1.2f, 0f), Vector3.one * 0.22f, orb);
-        }
-
-        static void Primitive(PrimitiveType type, Transform parent, Vector3 position, Vector3 scale, Material material)
+        static Transform Primitive(PrimitiveType type, Transform parent, Vector3 position, Vector3 scale, Material material)
         {
             var go = GameObject.CreatePrimitive(type);
             SceneryRig.Discard(go.GetComponent<Collider>());
@@ -151,56 +157,9 @@ namespace GolfSim.Course
             var renderer = go.GetComponent<Renderer>();
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
+            return go.transform;
         }
 
-        /// <summary>On the terrain, on ground a lantern may stand on, and not inside a tree, shrub or rock.</summary>
-        static bool Clear(HoleInfo hole, Terrain terrain, Vector3 world)
-        {
-            var data = terrain.terrainData;
-            var local = world - terrain.transform.position;
-            float u = local.x / data.size.x, v = local.z / data.size.z;
-            if (u < 0.02f || u > 0.98f || v < 0.02f || v > 0.98f) return false;
-            string surface = DominantSurface(hole, data, u, v);
-            if (surface == null || System.Array.IndexOf(NoLanterns, surface) >= 0) return false;
-            var holeLocal = hole.transform.InverseTransformPoint(world);
-            foreach (var o in hole.obstacles)
-            {
-                float clearance = LanternClearance + Mathf.Max(o.radius, o.crownRadius * 0.6f);
-                if (new Vector2(o.position.x - holeLocal.x, o.position.z - holeLocal.z).sqrMagnitude < clearance * clearance) return false;
-            }
-            return true;
-        }
-
-        static string DominantSurface(HoleInfo hole, TerrainData data, float u, float v)
-        {
-            int x = Mathf.Clamp(Mathf.RoundToInt(u * (data.alphamapWidth - 1)), 0, data.alphamapWidth - 1);
-            int z = Mathf.Clamp(Mathf.RoundToInt(v * (data.alphamapHeight - 1)), 0, data.alphamapHeight - 1);
-            var weights = data.GetAlphamaps(x, z, 1, 1);
-            int best = -1;
-            float bestWeight = 0f;
-            for (int i = 0; i < weights.GetLength(2); i++)
-                if (weights[0, 0, i] > bestWeight) { bestWeight = weights[0, 0, i]; best = i; }
-            return best >= 0 && best < hole.terrainLayerSurfaces.Length ? hole.terrainLayerSurfaces[best] : null;
-        }
-
-        /// <summary>The point `distance` meters along the path and the path's flat heading there.</summary>
-        static void PointAlong(Vector3[] path, float distance, out Vector3 point, out Vector3 heading)
-        {
-            for (int i = 1; i < path.Length; i++)
-            {
-                var a = path[i - 1];
-                var b = path[i];
-                float length = Vector3.Distance(a, b);
-                if (distance <= length || i == path.Length - 1)
-                {
-                    point = Vector3.Lerp(a, b, length > 0f ? Mathf.Clamp01(distance / length) : 0f);
-                    heading = Vector3.ProjectOnPlane(b - a, Vector3.up).normalized;
-                    return;
-                }
-                distance -= length;
-            }
-            point = path[0];
-            heading = Vector3.forward;
-        }
+        static float Ground(Terrain terrain, Vector3 world) => terrain.SampleHeight(world) + terrain.transform.position.y;
     }
 }

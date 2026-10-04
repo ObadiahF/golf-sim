@@ -22,12 +22,22 @@ Material:
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs: []
+    m_TexEnvs:
+    - _SkyTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _CloudCover: 0.25
+    - _HorizonGlow: 1
     - _MoonSize: 0.022
+    - _SkyTexContrast: 1
+    - _SkyTexExposure: 0
+    - _SkyTexRotation: 0
     - _StarBrightness: 1
     m_Colors:
+    - _CloudColor: {r: 0.11999995, g: 0.13999996, b: 0.19999996, a: 1}
     - _GlowColor: {r: 0, g: 0, b: 0, a: 1}
     - _GlowDirection: {r: 0, g: 0, b: 1, a: 0}
     - _GroundColor: {r: 0.02, g: 0.02, b: 0.03, a: 1}

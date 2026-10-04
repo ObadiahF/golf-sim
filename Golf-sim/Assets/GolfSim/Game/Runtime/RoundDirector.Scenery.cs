@@ -51,7 +51,11 @@ namespace GolfSim.Game
         void ApplyScenery(int index)
         {
             Sky = round != null ? SkyFor(index) : TimeOfDay.Day;
-            if (round == null || !hole) return; // practice: the scene's own day
+            if (round == null || !hole)
+            {
+                Scenery.Clear(); // practice: the scene's own day
+                return;
+            }
             var rig = Scenery.Apply(hole, Sky);
             var preset = SkyPreset.For(Sky);
             var glow = ball.GetComponent<BallGlow>();

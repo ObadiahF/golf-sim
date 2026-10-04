@@ -12,3 +12,5 @@ RedRock       Rock029              1K-JPG     5.9 MB           canyon: native
 RedDirt       Ground070            1K-JPG     6.5 MB           canyon: scrub, woods
 WhiteSand     Ground027            1K-JPG     4.1 MB           tropical: bunkers
 JungleMoss    Ground037            1K-JPG     6.7 MB           tropical: native, scrub
+Sky           NightSkyHDRI002      2K (EXR)   7.6 MB           night sky with the Milky Way (GolfSim/NightSky)
+Sky           EveningSkyHDRI018B   2K (EXR)   3.7 MB           dusk twilight sky (GolfSim/NightSky)

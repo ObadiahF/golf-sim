@@ -5,11 +5,15 @@
 //   unity command run_script --file Tools/unity_scripts/SceneryCheck.cs --entry SceneryCheck.Revert
 // Check: the scenery pieces without Play mode. SkySchedule (deterministic, never goes back toward day, fixed choices),
 // every theme has its scenery row and a baked runtime theme, and per time of day on a hole built from a package:
-// the sun, sky, ambient and fog match the preset, the night kit (floodlight, cup ring, glowing flag) is there only
+// the sun, sky, ambient and fog match the preset (a night sky's horizon is the fog colour), the sky reflection probe is
+// rendered after the day, the ponds are GolfSim/Water, the night kit (floodlights, cup ring, glowing flag) is there only
 // after dark, and the glowing ball glows and goes back to the day ball.
 // Shots: builds the package's hole dressed as <theme> (any theme, whatever the package asks for) at <time> (Day,
-// GoldenHour, Dusk, Night) and saves three views as PNGs: from behind the tee, the ball on the tee up close, and the
-// green from the fairway. Particles (fireflies, snow) don't run in edit mode. Revert reopens the scene unsaved.
+// GoldenHour, Dusk, Night) and saves up to four views as PNGs: from behind the tee, the ball on the tee up close, the
+// green from the fairway, and across the biggest pond toward the moon or sun (its reflection). Particles (fireflies,
+// snow) don't run in edit mode. Revert reopens the scene unsaved.
+// Play mode (GolfServer autoConnect off first): PlayNight starts a one-hole night round, PlayState reports it,
+// PlayShot hits a shot and flies it 1.5 s (capture the game view to see the glowing ball and tracer).
 using System;
 using System.IO;
 using System.Linq;
@@ -82,11 +86,17 @@ public static class SceneryCheck
             Expect(RenderSettings.ambientMode == (preset.skyAmbient ? AmbientMode.Skybox : AmbientMode.Trilight), $"{time}: ambient mode");
             Expect(RenderSettings.skybox && (RenderSettings.skybox.shader.name == "GolfSim/NightSky") == !preset.proceduralSky,
                    $"{time}: sky is {(RenderSettings.skybox ? RenderSettings.skybox.shader.name : "none")}");
+            Expect(RenderSettings.fogColor == (preset.proceduralSky ? RenderSettings.fogColor : RenderSettings.skybox.GetColor("_HorizonColor")),
+                   $"{time}: the sky's horizon is the fog colour");
+            var probe = GameObject.Find("Scenery/Sky Reflection");
+            Expect((probe != null) == (time != TimeOfDay.Day), $"{time}: sky reflection probe {(probe ? "rendered" : "absent (the scene's own)")}");
+            var water = hole.GetComponentsInChildren<MeshRenderer>().Where(r => r.name.StartsWith(WaterBuilder.NamePrefix)).ToArray();
+            Expect(water.All(r => r.sharedMaterial.shader.name == "GolfSim/Water"), $"{time}: {water.Length} ponds drawn with GolfSim/Water");
             var kit = GameObject.Find("Scenery/Night Kit");
             Expect((kit != null) == preset.IsDark, $"{time}: night kit {(kit ? "built" : "absent")}");
             if (kit)
             {
-                Expect(kit.GetComponentsInChildren<Light>().Any(l => l.name == "Green Floodlight"), $"{time}: green floodlight");
+                Expect(kit.GetComponentsInChildren<Light>().Count(l => l.type == LightType.Spot) >= 2, $"{time}: floodlights on the green and the tee");
                 Expect(kit.transform.Find("Cup Ring"), $"{time}: glowing cup ring");
                 var flag = hole.GetComponentInChildren<FlagWave>().GetComponent<Renderer>().sharedMaterial;
                 Expect(flag.IsKeywordEnabled("_EMISSION") && flag.GetColor("_EmissionColor").maxColorComponent > 1f, $"{time}: the flag glows");
@@ -131,6 +141,7 @@ public static class SceneryCheck
         var approach = pin - forward * 20f + Vector3.up * 3.5f;
         approach.y = Mathf.Max(approach.y, Ground(approach) + 2.5f);
         Render(approach, pin + Vector3.up * 0.8f, Path.Combine(output, $"{tag}_green.png"));
+        if (WaterView(hole, out var from, out var to)) Render(from, to, Path.Combine(output, $"{tag}_water.png"));
         return $"saved {tag}_*.png to {output} ({hole.name})";
     }
 
@@ -188,8 +199,35 @@ public static class SceneryCheck
         return RuntimeHoleBuilder.Build(pkg, CourseRound.Load().themes);
     }
 
-    static string FirstPackage() =>
-        Directory.GetDirectories(TrainerHoles.CacheFolder).First(d => File.Exists(Path.Combine(d, HolePackage.FileName)));
+    /// <summary>The first cached hole with a pond (so the water is checked too), else the first one.</summary>
+    static string FirstPackage()
+    {
+        var all = Directory.GetDirectories(TrainerHoles.CacheFolder).Where(d => File.Exists(Path.Combine(d, HolePackage.FileName))).ToArray();
+        return all.FirstOrDefault(d => HolePackage.Load(Path.Combine(d, HolePackage.FileName)).water.Length > 0) ?? all.First();
+    }
+
+    /// <summary>
+    /// Across the biggest pond toward the moon (night sky) or the sun: where its reflection and glint path are. Uses only
+    /// what any version of the scene has (pond objects by name, the sky's _MoonDirection, the sun), so before/after
+    /// shots stand at the same spot.
+    /// </summary>
+    static bool WaterView(HoleInfo hole, out Vector3 from, out Vector3 to)
+    {
+        from = to = default;
+        var pond = hole.GetComponentsInChildren<MeshRenderer>().Where(r => r.name.StartsWith("Water "))
+                       .OrderByDescending(r => r.bounds.size.x * r.bounds.size.z).FirstOrDefault();
+        if (!pond) return false;
+        var sky = RenderSettings.skybox;
+        var sun = SkyLighting.FindSun();
+        var light = sky && sky.HasProperty("_MoonDirection") ? (Vector3)sky.GetVector("_MoonDirection") : sun ? -sun.transform.forward : Vector3.forward;
+        var flat = Vector3.ProjectOnPlane(light, Vector3.up).normalized;
+        var b = pond.bounds;
+        float reach = Mathf.Max(b.extents.x, b.extents.z);
+        from = b.center - flat * (reach * 0.8f + 4f);
+        from.y = Mathf.Max(b.max.y, Ground(from)) + 3.5f;
+        to = from + Quaternion.AngleAxis(16f, Vector3.Cross(Vector3.up, flat)) * flat * 20f; // 16° down: where the light's reflection lies
+        return true;
+    }
 
     static float Ground(Vector3 p)
     {
@@ -201,11 +239,13 @@ public static class SceneryCheck
     {
         var cam = Camera.main;
         cam.transform.SetPositionAndRotation(from, Quaternion.LookRotation(lookAt - from));
+        cam.aspect = (float)Width / Height; // the Game view's aspect would stretch the shot
         var rt = RenderTexture.GetTemporary(Width, Height, 24, RenderTextureFormat.ARGB32);
         var previous = cam.targetTexture;
         cam.targetTexture = rt;
         cam.Render();
         cam.targetTexture = previous;
+        cam.ResetAspect();
         var active = RenderTexture.active;
         RenderTexture.active = rt;
         var tex = new Texture2D(Width, Height, TextureFormat.RGB24, false);
