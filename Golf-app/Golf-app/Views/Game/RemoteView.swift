@@ -71,7 +71,7 @@ struct RemoteView: View {
     /// scorecard that offers it. A screen the app doesn't know gets the D-pad's general use.
     static func hint(_ game: GameLink) -> String {
         guard game.isConnected else { return "Start the game server and check its address in Settings." }
-        guard game.simConnected else { return "Start the golf sim on the PC." }
+        guard game.simConnected else { return GameLink.noSimHint }
         let hint = switch game.screen {
         case "menu": "Left/right to choose, OK to play. Add players and start a round in Players."
         case "courseSelect": "Arrows to choose, OK to pick, Back to go back."

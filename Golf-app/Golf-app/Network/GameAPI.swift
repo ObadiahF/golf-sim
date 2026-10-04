@@ -19,16 +19,19 @@ nonisolated struct GameAPI: Sendable {
     let baseURL: URL
     var token = AppConfig.serverToken
     var session: URLSession = .shared
+    /// The room code from Settings (normalized); "" = the default room. Scopes starting and finding the current game.
+    var room = ""
 
-    /// Starts a game with these players in turn order; the server tells the sim to start it.
+    /// Starts a game with these players in turn order in this room (abandoning only this room's game in progress);
+    /// the server tells the room's sim to start it.
     func startGame(players: [String], holes: Int) async throws -> GameView {
         struct Body: Encodable { var players: [String]; var holes: Int }
-        return try await request("games", method: "POST", body: Body(players: players, holes: holes))
+        return try await request("games" + AppConfig.roomQuery(room), method: "POST", body: Body(players: players, holes: holes))
     }
 
-    /// The game in progress, or nil.
+    /// This room's game in progress, or nil.
     func currentGame() async throws -> GameView? {
-        let data = try await send("games/current", method: "GET", body: NoBody?.none) // 204 when there is none
+        let data = try await send("games/current" + AppConfig.roomQuery(room), method: "GET", body: NoBody?.none) // 204 when there is none
         return data.isEmpty ? nil : try decode(data)
     }
 
@@ -101,6 +104,6 @@ nonisolated struct GameAPI: Sendable {
 extension GameAPI {
     /// The API on the PC from Settings, or nil when no host is known yet.
     static func forSettings(_ settings: AppSettings) -> GameAPI? {
-        settings.serverURL.map { GameAPI(baseURL: $0) }
+        settings.serverURL.map { GameAPI(baseURL: $0, room: settings.room) }
     }
 }

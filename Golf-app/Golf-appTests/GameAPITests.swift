@@ -64,6 +64,7 @@ struct GameAPITests {
         Stub.reply = (204, "")
         #expect(try await api.currentGame() == nil)
         #expect(Stub.lastRequest?.url?.path == "/api/games/current")
+        #expect(Stub.lastRequest?.url?.query == nil) // the default room: no room parameter
         Stub.reply = (200, GameProtocolTests.gameJSON)
         #expect(try await api.currentGame()?.players.count == 2)
     }
@@ -102,5 +103,32 @@ struct GameAPITests {
         Stub.reply = (200, "[\(GameProtocolTests.gameJSON)]")
         #expect(try await api.recentGames(limit: 1).first?.id == 12)
         #expect(Stub.lastRequest?.url?.query == "limit=1")
+    }
+
+    @Test func roomScopesStartAndCurrent() async throws {
+        var api = api
+        api.room = "K7QF2"
+        Stub.reply = (201, GameProtocolTests.gameJSON)
+        _ = try await api.startGame(players: ["Ann"], holes: 9)
+        #expect(Stub.lastRequest?.url?.absoluteString == "http://10.0.0.5:8080/api/games?room=K7QF2")
+        Stub.reply = (204, "")
+        _ = try await api.currentGame()
+        #expect(Stub.lastRequest?.url?.absoluteString == "http://10.0.0.5:8080/api/games/current?room=K7QF2")
+        // Other calls aren't scoped; anything odd in the code is escaped.
+        Stub.reply = (200, GameProtocolTests.gameJSON)
+        _ = try await api.game(id: 12)
+        #expect(Stub.lastRequest?.url?.query == nil)
+        api.room = "A B+&"
+        Stub.reply = (204, "")
+        _ = try await api.currentGame()
+        #expect(Stub.lastRequest?.url?.query(percentEncoded: true) == "room=A%20B%2B%26")
+    }
+
+    @MainActor @Test func settingsCarryTheRoomToTheAPI() throws {
+        let settings = try testSettings("GameAPITests.room")
+        settings.server = "10.0.0.5"
+        #expect(GameAPI.forSettings(settings)?.room == "")
+        settings.setRoom("k7qf2")
+        #expect(GameAPI.forSettings(settings)?.room == "K7QF2")
     }
 }

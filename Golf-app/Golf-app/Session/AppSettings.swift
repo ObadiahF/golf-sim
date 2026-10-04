@@ -12,6 +12,7 @@ final class AppSettings {
         static let flipFace = "flipFace"
         static let shapeShots = "shapeShots"
         static let server = "server"
+        static let room = "room"
         static let players = "players"
         static let holes = "roundHoles"
         static let clubPower = "clubPower"
@@ -34,6 +35,9 @@ final class AppSettings {
     var shapeShots: Bool { didSet { defaults.set(shapeShots, forKey: Key.shapeShots) } }
     /// A local or LAN game server ("192.168.1.20:9000"); empty = the hosted server.
     var server: String { didSet { defaults.set(server, forKey: Key.server) } }
+    /// The room code shown on the TV (normalized, 4-8 A-Z/0-9); empty = the default room (older sims). Set through
+    /// `setRoom`, which refuses a malformed code.
+    private(set) var room: String { didSet { defaults.set(room, forKey: Key.room) } }
     /// Player names for the next round, in turn order (only kept on this phone).
     var players: [String] { didSet { defaults.set(players, forKey: Key.players) } }
     /// Holes in the next round: 9 or 18.
@@ -49,6 +53,15 @@ final class AppSettings {
 
     /// The hosted game server, unless Settings names a local or LAN one.
     var defaultServer: String { AppConfig.hostedServer }
+
+    /// Saves a typed room code, normalized; returns why it was refused (nothing saved), or nil when saved.
+    @discardableResult
+    func setRoom(_ code: String) -> String? {
+        if let problem = AppConfig.roomProblem(code) { return problem }
+        let room = AppConfig.normalizedRoom(code)
+        if room != self.room { self.room = room }
+        return nil
+    }
 
     var club: Club { Club.at(clubIndex) }
     /// The sample's default was -1 (phone screen facing the golfer); flipping makes it +1.
@@ -120,6 +133,8 @@ final class AppSettings {
         flipFace = defaults.bool(forKey: Key.flipFace)
         shapeShots = defaults.bool(forKey: Key.shapeShots)
         server = defaults.string(forKey: Key.server) ?? ""
+        let storedRoom = defaults.string(forKey: Key.room) ?? ""
+        room = AppConfig.roomProblem(storedRoom) == nil ? AppConfig.normalizedRoom(storedRoom) : ""
         players = defaults.stringArray(forKey: Key.players) ?? []
         let storedPower = Self.renamingClubs(defaults.dictionary(forKey: Key.clubPower) as? [String: Double] ?? [:])
         clubPower = storedPower.filter { Self.clubPowerRange.contains($0.value) }

@@ -45,6 +45,12 @@ final class SwingSession {
     @ObservationIgnored private var stillSince: Double?
     /// The club the sim last reported, so a repeat of the same state doesn't undo the player's pick.
     @ObservationIgnored private var mirroredClub: String?
+    /// The club the player just picked, until the sim reports it or `clubEchoWindow` passes. Meanwhile states with
+    /// another club are stale echoes (of earlier quick taps on a slow link) and don't replay them.
+    @ObservationIgnored private var pickedClub: String?
+    @ObservationIgnored private var pickExpiry: Task<Void, Never>?
+    /// How long a pick waits for the sim to confirm it before following the sim again (internal for tests).
+    @ObservationIgnored var clubEchoWindow: Duration = .seconds(1.5)
 
     var club: Club { settings.club }
 
@@ -103,7 +109,21 @@ final class SwingSession {
         guard index != settings.clubIndex else { return }
         useClub(index)
         game.club(club.name)
+        if game.simReady { awaitConfirmation(of: club.name) } // no sim, no echoes to wait for
         Haptics.tick()
+    }
+
+    /// Holds the sim's echoes off until it reports this club; when the window passes unconfirmed (the sim refused
+    /// the pick, e.g. the putting green keeps the putter), shows the club the sim actually has.
+    private func awaitConfirmation(of name: String) {
+        pickedClub = name
+        pickExpiry?.cancel()
+        pickExpiry = Task { [weak self, clubEchoWindow] in
+            try? await Task.sleep(for: clubEchoWindow)
+            guard !Task.isCancelled, let self, pickedClub == name else { return }
+            pickedClub = nil
+            if let club = game.state?.club { mirror(club) }
+        }
     }
 
     private func useClub(_ index: Int) {
@@ -256,7 +276,19 @@ final class SwingSession {
     }
 
     private func mirrorClub(of state: GameProtocol.SimState) {
-        guard let name = state.club, name != mirroredClub else { return }
+        guard let name = state.club else { return }
+        if let picked = pickedClub {
+            guard name == picked else { return } // a stale echo; the expiry re-syncs if the sim never confirms
+            pickedClub = nil
+            pickExpiry?.cancel()
+        } else if name == mirroredClub {
+            return
+        }
+        mirror(name)
+    }
+
+    /// Uses the sim's club here (never sent back to it).
+    private func mirror(_ name: String) {
         mirroredClub = name
         if let index = Club.index(named: name), index != settings.clubIndex { useClub(index) }
     }

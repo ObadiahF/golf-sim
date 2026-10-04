@@ -43,6 +43,23 @@ nonisolated enum AppConfig {
         return "“\(text)” isn't a server address. Use a host or IP, with an optional port, e.g. 192.168.1.20:\(String(defaultServerPort)) or https://golf.example."
     }
 
+    /// Room codes: 4-8 letters or digits; the sim shows its code on the TV. Empty = the default room (older sims).
+    static let roomLengths = 4...8
+    private static let roomCharacters = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+    /// A typed room code as the server sees it: trimmed and upper case.
+    static func normalizedRoom(_ code: String) -> String {
+        code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    }
+
+    /// Why a typed room code can't be used, or nil when it can (empty means the default room).
+    static func roomProblem(_ code: String) -> String? {
+        let room = normalizedRoom(code)
+        guard !room.isEmpty else { return nil }
+        let valid = roomLengths.contains(room.count) && room.unicodeScalars.allSatisfy(roomCharacters.contains)
+        return valid ? nil : "“\(room)” isn't a room code. Use the \(roomLengths.lowerBound)-\(roomLengths.upperBound) letters and digits shown on the TV, or leave it empty."
+    }
+
     /// The server's WebSocket endpoint: http -> ws, https -> wss, at `/ws`.
     static func webSocketURL(server: URL) -> URL? {
         guard var parts = URLComponents(url: server, resolvingAgainstBaseURL: false) else { return nil }
@@ -53,7 +70,7 @@ nonisolated enum AppConfig {
 
     /// The WebSocket endpoint with this query. Values are fully percent-encoded: `URLQueryItem` leaves `+` literal,
     /// and the server decodes that as a space.
-    static func webSocketURL(server: URL, query: KeyValuePairs<String, String>) -> URL? {
+    static func webSocketURL(server: URL, query: [(key: String, value: String)]) -> URL? {
         guard let endpoint = webSocketURL(server: server),
               var parts = URLComponents(url: endpoint, resolvingAgainstBaseURL: false)
         else { return nil }
@@ -63,6 +80,11 @@ nonisolated enum AppConfig {
 
     /// Characters a query name or value may keep as they are (RFC 3986 unreserved).
     private static let unreserved = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+
+    /// `?room=<code>` for a games REST path, or "" for the default room.
+    static func roomQuery(_ room: String) -> String {
+        room.isEmpty ? "" : "?room=" + percentEncode(room)
+    }
 
     static func percentEncode(_ text: String) -> String {
         text.addingPercentEncoding(withAllowedCharacters: unreserved) ?? text

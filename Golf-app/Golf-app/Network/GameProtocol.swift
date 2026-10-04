@@ -167,6 +167,8 @@ nonisolated enum GameProtocol {
         var remotes: [String]?
         var game: GameView?
         var state: SimState?
+        /// The room this connection is in, normalized ("" = the default room); absent from older servers.
+        var room: String?
     }
 
     // MARK: Decoding
@@ -231,6 +233,8 @@ nonisolated struct GameView: Codable, Equatable, Sendable, Identifiable {
     /// In turn order.
     var players: [PlayerCard]
     var winners: [String]
+    /// The room the game belongs to ("" = the default room); absent from older servers.
+    var room: String?
 
     struct PlayerCard: Codable, Equatable, Sendable, Identifiable {
         var name: String

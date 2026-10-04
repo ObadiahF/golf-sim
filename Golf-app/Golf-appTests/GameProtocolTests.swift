@@ -108,9 +108,9 @@ struct GameProtocolTests {
         #expect(ClubWheel<EmptyView>.index(at: CGPoint(x: 150, y: 0), size: size) == 0) // top: driver
         #expect(ClubWheel<EmptyView>.index(at: CGPoint(x: 160, y: 2), size: size) == 0)
         #expect(ClubWheel<EmptyView>.index(at: CGPoint(x: 120, y: 2), size: size) == 0)
-        #expect(ClubWheel<EmptyView>.index(at: CGPoint(x: 300, y: 150), size: size) == 2) // right: 90° / (360/7) ≈ 1.75
+        #expect(ClubWheel<EmptyView>.index(at: CGPoint(x: 300, y: 140), size: size) == 3) // just above right: 86° / (360/14) ≈ 3.35
         #expect(ClubWheel<EmptyView>.index(at: CGPoint(x: 140, y: 5), size: size) == 0)
-        #expect(ClubWheel<EmptyView>.index(at: CGPoint(x: 0, y: 150), size: size) == 5) // left: 270° ≈ 5.25
+        #expect(ClubWheel<EmptyView>.index(at: CGPoint(x: 0, y: 140), size: size) == 11) // just above left: 274° ≈ 10.65
     }
 
     @Test func rosterRules() {

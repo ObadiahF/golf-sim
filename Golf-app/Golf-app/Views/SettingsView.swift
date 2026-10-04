@@ -11,6 +11,9 @@ struct SettingsView: View {
     @State private var serverDraft = ""
     /// Why the typed server address was refused.
     @State private var serverProblem: String?
+    @State private var roomDraft = ""
+    /// Why the typed room code was refused.
+    @State private var roomProblem: String?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -55,18 +58,22 @@ struct SettingsView: View {
                         .submitLabel(.go)
                         .onSubmit { applyServer() }
                         .onChange(of: serverDraft) { serverProblem = nil }
-                    if let serverProblem {
-                        Label(serverProblem, systemImage: "exclamationmark.triangle.fill")
-                            .font(.footnote)
-                            .foregroundStyle(Theme.warn)
-                    }
+                    problemLabel(serverProblem)
+                    TextField("Room code on the TV, e.g. K7QF2", text: $roomDraft)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .submitLabel(.go)
+                        .onSubmit { applyRoom() }
+                        .onChange(of: roomDraft) { roomProblem = nil }
+                    problemLabel(roomProblem)
                     Button("Reconnect", systemImage: "arrow.clockwise") {
-                        if applyServer() { game.reconnect() }
+                        let serverApplied = applyServer()
+                        if applyRoom() && serverApplied { game.reconnect() }
                     }
                 } header: {
                     Text("Game server")
                 } footer: {
-                    Text(verbatim: "Rounds and scores go through the game server, \(settings.serverURL?.absoluteString ?? AppConfig.hostedServer). Leave the address empty to use the hosted server. For a server on your PC or LAN, type its address, e.g. \(Self.exampleServer), and allow TCP \(AppConfig.defaultServerPort) in that PC's firewall.")
+                    Text(verbatim: "Rounds and scores go through the game server, \(settings.serverURL?.absoluteString ?? AppConfig.hostedServer). Leave the address empty to use the hosted server. For a server on your PC or LAN, type its address, e.g. \(Self.exampleServer), and allow TCP \(AppConfig.defaultServerPort) in that PC's firewall. Type the room code the TV shows (main or pause menu) so this phone controls that sim; leave it empty for an older sim without one.")
                 }
 
                 Section {
@@ -132,6 +139,7 @@ struct SettingsView: View {
             .onAppear {
                 hostDraft = settings.host
                 serverDraft = settings.server
+                roomDraft = settings.room
             }
         }
     }
@@ -155,5 +163,27 @@ struct SettingsView: View {
         serverProblem = nil
         if draft != settings.server { settings.server = draft }
         return true
+    }
+
+    /// Empty means the default room; anything else must be a 4-8 character code. False (with the reason shown) when it isn't.
+    @discardableResult
+    private func applyRoom() -> Bool {
+        roomProblem = settings.setRoom(roomDraft)
+        guard roomProblem == nil else {
+            Haptics.problem()
+            return false
+        }
+        roomDraft = settings.room // shows the normalized code
+        return true
+    }
+
+    /// The reason a typed value was refused, under its field.
+    @ViewBuilder
+    private func problemLabel(_ problem: String?) -> some View {
+        if let problem {
+            Label(problem, systemImage: "exclamationmark.triangle.fill")
+                .font(.footnote)
+                .foregroundStyle(Theme.warn)
+        }
     }
 }

@@ -69,13 +69,17 @@ name on the game server (Spring Boot + Postgres in `../Game-server`).
    `netsh advfirewall firewall add rule name="Golf server" dir=in action=allow protocol=TCP localport=8080`,
    and type its address under Settings › Game server (e.g. `192.168.1.20:8080`; an invalid address
    is refused with a message). Allow inbound **UDP 4242** too, for the direct swing link.
-2. **Start the sim** (Unity) on the PC. It connects to the server as the `sim`.
-3. **Open the app.** It connects to the game server, and finds the PC for the direct swing link (UDP
+2. **Start the sim** (Unity) on the PC. It connects to the server as the `sim` in its own room and
+   shows the room code on the TV (main menu and pause menu, e.g. "Room K7QF2").
+3. **Open the app** and type that code once under Settings › Game server › Room code (4-8 letters or
+   digits, saved; empty = the default room, for an older sim without a code). Each sim and its phones
+   are a room, so two sims on one server don't mix up each other's phones. It connects to the game server, and finds the PC for the direct swing link (UDP
    discovery, or the IP you type in Settings). The header pill says **Sim connected** when the
-   server and the sim are both up. If the server drops mid-hole, a "Disconnected — reconnecting…"
+   server and the room's sim are both up; with no sim in the room the remote says to start the sim
+   and check the room code. If the server drops mid-hole, a "Disconnected — reconnecting…"
    banner shows and the controls that need it grey out until it's back.
 4. **Players tab:** add everyone's name (up to 8), drag to set the turn order, pick **9 or 18
-   holes** and tap **Start Game**. The sim loads hole 1. Starting a new game ends one in progress;
+   holes** and tap **Start Game**. The sim loads hole 1. Starting a new game ends the room's game in progress;
    **End game** abandons it (after a confirmation).
 5. **Play tab, remote mode** (any sim screen except a hole): a TV-remote D-pad. Arrows move,
    **OK** selects, **Back** goes back. The card above it names the TV's screen and what the buttons do
@@ -85,7 +89,9 @@ name on the game server (Spring Boot + Postgres in `../Game-server`).
 6. **Play tab, gameplay mode** (switches automatically while the sim plays a hole): the header
    names the player up, with hole, par, strokes, distance and lie.
    - **Club wheel:** tap a club, or touch the ring and drag round to it. The sim suggests a club
-     each turn and the wheel follows it.
+     each turn and the wheel follows it. After a tap the phone waits up to 1.5 s for the sim to report
+     that club, ignoring older states (quick taps on a slow link don't replay); if the sim never takes it
+     (the green keeps the putter), the wheel goes back to the sim's club.
    - **Aim:** hold the rotate buttons to turn the aim 1° per tick; tap the middle to aim at the pin.
    - **Swing:** the Address button in the middle of the wheel works as in practice. Shots go to the
      sim through the server; if the server is down they fall back to direct UDP. Between shots the
@@ -113,10 +119,12 @@ name on the game server (Spring Boot + Postgres in `../Game-server`).
 ### Game server messages
 
 REST under `/api` with `Authorization: Bearer golf-sim-dev-token` (the token is in
-`AppConfig.swift`): `POST /api/games {players, holes}`, `GET /api/games/current`,
+`AppConfig.swift`): `POST /api/games?room=<code> {players, holes}`, `GET /api/games/current?room=<code>`
+(`room` left out for the default room),
 `GET /api/games?limit=1`, `POST /api/games/{id}/end`, `GET /api/players`, `GET /api/leaderboard`.
 
-WebSocket `ws(s)://<server>/ws?token=…&role=remote&name=<device>` (query values percent-encoded, `+` as `%2B`), JSON text frames. The phone sends
+WebSocket `ws(s)://<server>/ws?token=…&role=remote&name=<device>&room=<code>` (no `room` for the default
+room; `hello` and games carry the server's `room`, absent from older servers; query values percent-encoded, `+` as `%2B`), JSON text frames. The phone sends
 `nav {key}`, `club {club}`, `aim {delta}`, `aimReset`, `mulligan`, `skip`, `shot` (the UDP shot
 fields) and `ping` every 20 s. It shows `hello`, `simStatus`, `state` (its `screen` picks remote or
 gameplay mode), `shotResult`, `shotRejected`, `turn`, `scorecard`, `gameFinished` and `error`. It reconnects after

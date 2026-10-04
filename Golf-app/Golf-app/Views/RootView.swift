@@ -27,8 +27,9 @@ struct RootView: View {
         .onChange(of: session.game.screen) {
             if session.game.state?.isGame == true || session.game.showsScorecard { tab = .play }
         }
-        // Follow the server address (by default the PC found by discovery).
+        // Follow the server address (by default the PC found by discovery) and the room code.
         .onChange(of: session.settings.serverURL) { session.game.reconnect() }
+        .onChange(of: session.settings.room) { session.game.reconnect() }
     }
 }
 

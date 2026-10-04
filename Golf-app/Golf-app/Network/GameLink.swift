@@ -25,6 +25,8 @@ final class GameLink {
     static let backoff: [Double] = [1, 2, 5]
     /// The server keeps device names to 40 characters.
     static let maxNameLength = 40
+    /// What to do when the server is up but no sim is in this phone's room.
+    static let noSimHint = "Start the golf sim on the PC, and check that the room code in Settings matches the one on the TV."
 
     private(set) var connection: Connection = .idle
     private(set) var simConnected = false
@@ -158,12 +160,15 @@ final class GameLink {
     }
 
     private func socketURL() -> URL? {
-        settings.serverURL.flatMap { Self.socketURL(server: $0, name: deviceName) }
+        settings.serverURL.flatMap { Self.socketURL(server: $0, name: deviceName, room: settings.room) }
     }
 
-    /// `ws(s)://<server>/ws?token=…&role=remote&name=<device>`, every value percent-encoded.
-    static func socketURL(server: URL, name: String) -> URL? {
-        AppConfig.webSocketURL(server: server, query: ["token": AppConfig.serverToken, "role": "remote", "name": name])
+    /// `ws(s)://<server>/ws?token=…&role=remote&name=<device>&room=<code>`, every value percent-encoded; no `room`
+    /// for the default room (empty code), so older servers see the query they know.
+    static func socketURL(server: URL, name: String, room: String = "") -> URL? {
+        var query = [("token", AppConfig.serverToken), ("role", "remote"), ("name", name)]
+        if !room.isEmpty { query.append(("room", room)) }
+        return AppConfig.webSocketURL(server: server, query: query.map { (key: $0.0, value: $0.1) })
     }
 
     private func ping(_ ws: URLSessionWebSocketTask) {

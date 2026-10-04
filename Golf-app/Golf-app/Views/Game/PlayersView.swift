@@ -132,7 +132,7 @@ struct PlayersView: View {
         call {
             _ = try await $0.startGame(players: settings.players, holes: settings.holes)
             Haptics.addressSet()
-            if !session.game.simConnected { problem = "Game started. Start the sim on the PC to play it." }
+            if !session.game.simConnected { problem = "Game started. \(GameLink.noSimHint)" }
         }
     }
 
