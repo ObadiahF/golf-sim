@@ -279,6 +279,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: GolfSim.Game::GolfSim.Game.MainMenu
   modes:
   - {fileID: 11400000, guid: 4aeb9587001dc4d3cb1dafe8780dbb24, type: 2}
+  - {fileID: 11400000, guid: a3263976d65044d7e9e4bdfdb64927e0, type: 2}
   - {fileID: 11400000, guid: 6b6d475c5364a4eeb949f56b6abf01ec, type: 2}
   - {fileID: 11400000, guid: 3c0d842ac73de4900b1e15ea759c27d8, type: 2}
   - {fileID: 11400000, guid: 6ae60f8f00de94c79bf454bae4d10e27, type: 2}

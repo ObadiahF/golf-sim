@@ -33,5 +33,7 @@ namespace GolfSim.Game
         public PracticeMode practice;
         [Tooltip("Channel art, shown on the tile and the preview screen.")]
         public Texture2D banner;
+        [Tooltip("Round modes: the time of day of every hole (Auto: an afternoon that may run into dusk and night).")]
+        public GolfSim.Course.SkyChoice sky = GolfSim.Course.SkyChoice.Auto;
     }
 }

@@ -159,7 +159,7 @@ namespace GolfSim.Game
             switch (mode.kind)
             {
                 case GameMode.ModeKind.Update: updates.Start(); break;
-                case GameMode.ModeKind.Round: RoundDirector.PlayFromMenu(HoleChoices[holeChoice]); break;
+                case GameMode.ModeKind.Round: RoundDirector.PlayFromMenu(HoleChoices[holeChoice], mode.sky); break;
                 case GameMode.ModeKind.Scores: scores.Show(); break;
                 case GameMode.ModeKind.Settings: sound.Show(); break;
                 default:
