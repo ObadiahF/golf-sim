@@ -1,0 +1,16 @@
+Ground textures, all CC0 1.0 public domain from ambientCG (https://ambientcg.com).
+Each folder holds <Name>_Color.jpg, <Name>_Normal.jpg (OpenGL) and <Name>_MaskMap.png packed for URP terrain
+(G = ambient occlusion, B = displacement, A = 1 - roughness); SOURCE.txt in each folder says the same.
+Tools/unity_scripts/SetupTurf.cs and SetupSceneryThemes.cs turn them into TerrainLayers (Assets/CourseBuilder/Layers).
+
+Folder        ambientCG id         Download   In the project   Used by
+Turf          Grass005             2K         ~27 MB           green, tee, fairway (all themes)
+BunkerSand    Ground093A           2K         ~14 MB           bunkers (all themes; tinted red for canyon)
+Snow          Snow010A             1K-JPG     4.1 MB           winter: native, scrub, woods
+AutumnLeaves  ScatteredLeaves008   1K-JPG     6.3 MB           autumn: native, woods
+RedRock       Rock029              1K-JPG     5.9 MB           canyon: native
+RedDirt       Ground070            1K-JPG     6.5 MB           canyon: scrub, woods
+WhiteSand     Ground027            1K-JPG     4.1 MB           tropical: bunkers
+JungleMoss    Ground037            1K-JPG     6.7 MB           tropical: native, scrub
+Sky           NightSkyHDRI002      2K (EXR)   7.6 MB           night sky with the Milky Way (GolfSim/NightSky)
+Sky           EveningSkyHDRI018B   2K (EXR)   3.7 MB           dusk twilight sky (GolfSim/NightSky)

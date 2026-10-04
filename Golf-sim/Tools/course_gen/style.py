@@ -93,6 +93,17 @@ PRESETS: dict[str, Preset] = {p.name: p for p in [
             relief=0.4, rough_width=0.15, scrub=0.92, spreads={"tree_density": 0.05}),
     _preset("mountain", "Mountain", "mountain", relief=0.95, hilliness=0.35, tree_density=0.65, water=0.2,
             bunkers=0.35, dogleg=0.5, spreads={"slope": 0.3}),
+    # Scenic course types: their look (leaf-litter, white sand, red rock, snow, heather; sky and air) is Unity's
+    # (CourseTheme assets + ThemeScenery.cs); here they differ in shape and planting.
+    _preset("autumn", "Autumn Parkland", "autumn", tree_density=0.7, water=0.25, relief=0.35, rough_width=0.55),
+    _preset("tropical", "Tropical Island", "tropical", water=0.75, tree_density=0.4, bunkers=0.6, relief=0.25,
+            fairway_width=0.55, scrub=0.3, par_weights=(0.3, 0.5, 0.2)),
+    _preset("canyon", "Red Rock Canyon", "canyon", relief=0.85, hilliness=0.3, tree_density=0.08, water=0.1,
+            bunkers=0.3, fairway_width=0.4, rough_width=0.15, scrub=0.85, dogleg=0.5,
+            spreads={"tree_density": 0.05, "slope": 0.3}),
+    _preset("winter", "Winter", "winter", tree_density=0.6, water=0.15, relief=0.55, bunkers=0.3, scrub=0.35),
+    _preset("heathland", "Heathland", "heathland", tree_density=0.25, water=0.1, bunkers=0.6, relief=0.3,
+            hilliness=0.6, rough_width=0.6, scrub=0.75, fairway_width=0.55),
 ]}
 
 

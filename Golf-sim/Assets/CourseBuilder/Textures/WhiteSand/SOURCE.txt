@@ -1,0 +1,2 @@
+Ground 027 by ambientCG (https://ambientcg.com/a/Ground027), CC0 1.0 public domain. 1K-JPG download.
+MaskMap packed from AmbientOcclusion (G), Displacement (B) and inverted Roughness (A).

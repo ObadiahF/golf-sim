@@ -18,3 +18,8 @@ MonoBehaviour:
   cupMask: {fileID: 2100000, guid: 84eefaae5c8fb46bf8976a558608db57, type: 2}
   cupInterior: {fileID: 2100000, guid: 08ca06b6bf9c843078f9b2c933a86efc, type: 2}
   terrain: {fileID: 2100000, guid: 594ea882c5a793440b60ff72d896021e, type: 2}
+  litEmissive: {fileID: 2100000, guid: 91d8a0013a8aa47cf9b25ad633d3eb71, type: 2}
+  nightSky: {fileID: 2100000, guid: e1b4c3ec7b4bb46d4a095b028c1a58d5, type: 2}
+  starrySky: {fileID: 2800000, guid: b13a9a952872f4198be3445cf0497bb6, type: 3}
+  twilightSky: {fileID: 2800000, guid: 240ed0d418942419796d12b8adcbd14a, type: 3}
+  water: {fileID: 2100000, guid: 2b1393bb4e4b4459a9b340d6ffc1f38a, type: 2}

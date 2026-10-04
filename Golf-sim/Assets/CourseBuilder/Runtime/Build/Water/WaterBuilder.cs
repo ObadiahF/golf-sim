@@ -3,14 +3,21 @@ using UnityEngine.Rendering;
 
 namespace GolfSim.Course
 {
-    /// <summary>Turns hole.json water bodies into flat water meshes shaped like the OSM ponds.</summary>
+    /// <summary>
+    /// Turns hole.json water bodies into flat water meshes shaped like the OSM ponds, drawn with GolfSim/Water (the
+    /// RuntimeMaterials template: waves, sky reflection, depth colour, shore foam). A theme's own water material is only
+    /// used when a build has no template; with neither, a plain transparent pond.
+    /// </summary>
     public static class WaterBuilder
     {
+        public const string NamePrefix = "Water "; // each pond's object: "Water 0", "Water 1" ... (Scenery tints them)
         static readonly Color FallbackColor = new Color(0.08f, 0.20f, 0.18f, 0.88f); // murky pond green
 
         public static void Create(Transform parent, HolePackage pkg, Material waterMaterial, HoleAssets assets)
         {
-            var material = waterMaterial ? waterMaterial : assets.TransparentMaterial("PondWater", FallbackColor);
+            var library = RuntimeMaterials.Load();
+            var material = library && library.water ? assets.TemplateMaterial("Water", m => m.water)
+                         : waterMaterial ? waterMaterial : assets.TransparentMaterial("PondWater", FallbackColor);
             for (int i = 0; i < pkg.water.Length; i++)
             {
                 var body = pkg.water[i];
@@ -18,7 +25,7 @@ namespace GolfSim.Course
                 mesh.name = $"Hole{pkg.holeRef}_Water{i}";
                 assets.PerHole($"Water{i}.asset", mesh);
 
-                var go = new GameObject($"Water {i}");
+                var go = new GameObject(NamePrefix + i);
                 go.transform.SetParent(parent, false);
                 go.transform.localPosition = new Vector3(0f, body.level - pkg.MinElevation, 0f);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;

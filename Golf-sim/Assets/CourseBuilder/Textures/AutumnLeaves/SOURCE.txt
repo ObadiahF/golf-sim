@@ -1,0 +1,2 @@
+Scattered Leaves 008 by ambientCG (https://ambientcg.com/a/ScatteredLeaves008), CC0 1.0 public domain. 1K-JPG download.
+MaskMap packed from AmbientOcclusion (G), Displacement (B) and inverted Roughness (A).
