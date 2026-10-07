@@ -8,7 +8,9 @@ import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.golfsim.server.api.JsonFields;
 import com.golfsim.server.auth.TokenHandshakeInterceptor;
 import com.golfsim.server.game.GameService;
+import com.golfsim.server.game.GameView;
 import com.golfsim.server.game.Rooms;
+import com.golfsim.server.physics.PhysicsProfile;
 import com.golfsim.server.physics.PhysicsService;
 import com.golfsim.server.ws.WsHub.Client;
 import jakarta.validation.ConstraintViolation;
@@ -76,14 +78,24 @@ public class GameSocketHandler extends TextWebSocketHandler {
         String room = (String) attributes.get(TokenHandshakeInterceptor.ROOM);
         Client client = new Client(new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS, SEND_BUFFER_BYTES),
                 role, name, room, (String) attributes.get(TokenHandshakeInterceptor.INSTALL_ID));
-        WsHub.Admission admission = hub.add(client);
+        GameView game = games.current(room).orElse(null);
+        PhysicsProfile profile = physics.current();
+        WsHub.Admission admission;
+        // Joining and the hello's state are one step against a sim's state being stored and relayed (handle, under the
+        // same lock): a state either goes out before this client joins and is the one in its hello, or reaches it
+        // after the hello. Otherwise a state relayed in between could arrive first and the older hello overwrite it.
+        synchronized (hub) {
+            admission = hub.add(client);
+            if (admission.admitted()) {
+                hub.send(client, new WsMessage.Hello(role, room, hub.simConnected(room), hub.remoteNames(room), game,
+                        hub.lastSimState(room), profile));
+            }
+        }
         if (!admission.admitted()) {
             hub.sendAndClose(client, new WsMessage.Error("Another sim is already connected to " + Rooms.describe(room)),
                     ROOM_TAKEN);
             return;
         }
-        hub.send(client, new WsMessage.Hello(role, room, hub.simConnected(room), hub.remoteNames(room),
-                games.current(room).orElse(null), hub.lastSimState(room), physics.current()));
         if (admission.other() != null) {
             hub.sendAndClose(admission.other(), new WsMessage.Error("Replaced by a new connection from the same sim"),
                     CloseStatus.POLICY_VIOLATION);
@@ -169,10 +181,12 @@ public class GameSocketHandler extends TextWebSocketHandler {
             case WsMessage.SimUpdate update -> {
                 requireRole(client, Role.SIM, tree);
                 validate(update, tree);
-                if (update instanceof WsMessage.State) {
-                    hub.setLastSimState(client.room(), tree);
+                synchronized (hub) { // see afterConnectionEstablished: never between a remote joining and its hello
+                    if (update instanceof WsMessage.State) {
+                        hub.setLastSimState(client.room(), tree);
+                    }
+                    hub.relay(client.room(), Role.REMOTE, json);
                 }
-                hub.relay(client.room(), Role.REMOTE, json);
             }
             case WsMessage.HoleScore score -> {
                 requireRole(client, Role.SIM, tree);
