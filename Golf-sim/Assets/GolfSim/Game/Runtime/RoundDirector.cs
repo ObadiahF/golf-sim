@@ -62,6 +62,12 @@ namespace GolfSim.Game
         Action pending, queuedLoad;
         float pendingAt;
         string lastState;
+        float lastSentAt;
+        /// <summary>
+        /// Real seconds after which "state" is sent again unchanged: a phone that missed one (a dropped frame, a reconnect
+        /// racing a change) catches up within this instead of showing the wrong screen until something else changes.
+        /// </summary>
+        const float StateRefresh = 3f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
@@ -159,6 +165,7 @@ namespace GolfSim.Game
             NavInput.Poll();
             PollMapKeys();
             TrackMiniMap();
+            if (Time.realtimeSinceStartup - lastSentAt > StateRefresh) PublishState(force: true);
             if (pending != null && !HomeMenu.IsOpen && Hold?.Invoke() != true && Time.realtimeSinceStartup >= pendingAt) RunPending();
         }
 
@@ -370,7 +377,7 @@ namespace GolfSim.Game
             return s;
         }
 
-        /// <summary>Redraws the HUD and sends "state" when anything changed (always when forced, e.g. on reconnect).</summary>
+        /// <summary>Redraws the HUD and sends "state" when anything changed (always when forced: on reconnect, and every StateRefresh).</summary>
         internal void PublishState(bool force = false)
         {
             var state = BuildState();
@@ -381,6 +388,7 @@ namespace GolfSim.Game
             string json = state.ToJson();
             if (!force && json == lastState) return;
             lastState = json;
+            lastSentAt = Time.realtimeSinceStartup;
             connection.Send(state);
         }
     }
