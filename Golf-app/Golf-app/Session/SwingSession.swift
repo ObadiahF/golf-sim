@@ -36,6 +36,8 @@ final class SwingSession {
     private(set) var result: SimResult?
     /// The putting power meter (filled live while putting).
     private(set) var meter = PuttMeter()
+    /// The player the phone was handed to (the sim put someone else up), until they tap Address.
+    private(set) var handedTo: String?
     /// Raw swing data for tuning detection (Settings > Record swings).
     let recorder = SwingRecorder()
 
@@ -45,6 +47,8 @@ final class SwingSession {
     @ObservationIgnored private var stillSince: Double?
     /// The club the sim last reported, so a repeat of the same state doesn't undo the player's pick.
     @ObservationIgnored private var mirroredClub: String?
+    /// The player the sim last said was up, to notice the next one being someone else.
+    @ObservationIgnored private var playerUp: String?
     /// The club the player just picked, until the sim reports it or `clubEchoWindow` passes. Meanwhile states with
     /// another club are stale echoes (of earlier quick taps on a slow link) and don't replay them.
     @ObservationIgnored private var pickedClub: String?
@@ -92,6 +96,7 @@ final class SwingSession {
         }
         if stage == .idle || isUnavailable { motion.start { [weak self] in self?.handle($0) } }
         meter.reset() // a new putt starts from empty
+        handedTo = nil
         detector.thresholds = settings.detection(for: club) // picks up a sensitivity changed in Settings
         settleStart = nil
         stillSince = nil
@@ -164,6 +169,7 @@ final class SwingSession {
     // MARK: Pipeline
 
     private func handle(_ sample: MotionSample) {
+        guard stage != .idle else { return } // stopped (e.g. handed over): a late sample never swings
         if stage == .settling { return settle(sample) }
         let event = detector.process(sample)
         if club.isPutter { trackPutt(sample, event: event) }
@@ -238,7 +244,9 @@ final class SwingSession {
         switch message {
         case .state(let state): follow(state)
         case .hello(let hello): follow(hello.state)
-        case .turn: meter.reset()
+        case .turn(let turn):
+            meter.reset()
+            noticeUp(turn.player)
         case .shotResult(let shot):
             meter.finish(shot)
             guard let id = lastShotID, lastShot != nil, result == nil else { return }
@@ -271,6 +279,7 @@ final class SwingSession {
     }
 
     private func follow(_ state: GameProtocol.SimState?) {
+        noticeUp(state?.player)
         meter.follow(state)
         state.map(mirrorClub)
     }
@@ -287,6 +296,17 @@ final class SwingSession {
         mirror(name)
     }
 
+    /// Another player is up: the phone is being handed over, so the detector stops (passing it round mustn't fire a
+    /// stroke) until they tap Address. The same player again (a round on their own) keeps the re-arm between shots.
+    private func noticeUp(_ player: String?) {
+        guard let player, !player.isEmpty else { return }
+        defer { playerUp = player }
+        guard let previous = playerUp, previous != player else { return }
+        handedTo = player
+        if isActive { stop() }
+        meter.reset()
+    }
+
     /// Uses the sim's club here (never sent back to it).
     private func mirror(_ name: String) {
         mirroredClub = name
@@ -298,6 +318,7 @@ final class SwingSession {
     /// One line telling the golfer what to do next (or why the sim can't take a swing yet).
     var instruction: String {
         if let wait = game.shotWait, stage != .settling, !isUnavailable { return wait }
+        if stage == .idle, let player = handedTo { return "\(player) is up: tap Address when ready" }
         return switch stage {
         case .idle: "Tap Address, take your grip and hold still"
         case .settling: "Take your grip… hold still"

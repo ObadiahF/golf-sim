@@ -133,6 +133,16 @@ struct GameProtocolTests {
         #expect(AppConfig.webSocketURL(server: URL(string: "https://golf.example")!)?.absoluteString == "wss://golf.example/ws")
     }
 
+    /// Every field today's sim writes (JsonUtility writes them all, wind included), so no "state" is dropped as
+    /// malformed and leaves the phone on the last screen: a replay mid-putt shows the remote (Select skips it).
+    @Test func decodesTheSimsFullState() throws {
+        let json = #"{"type":"state","screen":"replay","canShoot":false,"waitReason":"Wait for the replay to finish","canReplay":false,"gameId":31,"currentPlayer":"Ann","hole":4,"par":3,"strokes":2,"club":"Putter","aim":-1.5,"distanceToPin":3.0,"lie":"green","wind":7,"windAngle":135,"mapOpen":false,"putting":true,"puttDistance":2.71,"elevation":-0.04,"stimp":9.3,"puttPlaysAs":3.05,"puttingAssist":"full","practice":"","attempts":0,"made":0}"#
+        guard case .state(let state) = try #require(decode(json)) else { Issue.record("not a state"); return }
+        #expect(state.puttPlaysAs == 3.05 && state.club == "Putter")
+        #expect(PlayScreen.of(state) == .remote)
+        #expect(PlayScreen.of(GameProtocol.SimState(screen: "game", putting: true)) == .putting)
+    }
+
     @Test func shotResultLies() {
         let water = GameProtocol.ShotResult(player: "A", lie: "water")
         #expect(water.lieText == "In the water (+1)" && water.outcome == "InWater")

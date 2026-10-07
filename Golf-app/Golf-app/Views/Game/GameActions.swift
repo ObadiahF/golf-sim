@@ -4,12 +4,19 @@ import SwiftUI
 /// (Pick up asks first). Greyed out while the server is down, since they only work through it.
 struct GameActions: View {
     let game: GameLink
+    /// Keeps the Replay button's room while it's hidden, so the screen above doesn't resize between turns (putting:
+    /// the meter and Address button stay put).
+    var holdsReplay = false
     @State private var confirmPickUp = false
 
     var body: some View {
         VStack(spacing: 8) {
-            if game.offersReplay {
-                ReplayButton(game: game).transition(.opacity)
+            if game.offersReplay || holdsReplay {
+                ReplayButton(game: game)
+                    .opacity(game.offersReplay ? 1 : 0)
+                    .disabled(!game.offersReplay)
+                    .accessibilityHidden(!game.offersReplay)
+                    .transition(.opacity)
             }
             HStack(spacing: 8) {
                 PillButton(title: "Menu", systemImage: "pause.fill") { game.nav(.back) }

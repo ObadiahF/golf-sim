@@ -169,6 +169,28 @@ struct PuttMeterTests {
     @Test func rangeLeavesRoomAboveTheTarget() {
         #expect(PuttMeter.range(target: nil, distance: nil) == 3)
         #expect(PuttMeter.range(target: 6, distance: 5) == 9)
+        #expect(PuttMeter.range(target: 5.4, distance: 5.03) == 9) // 8.1 up to the next tick
+        #expect(PuttMeter.range(target: 9, distance: 8) == 14) // 13.5: two-metre ticks
+    }
+
+    private func putting(_ player: String, strokes: Int, distance: Double, playsAs: Double) -> GameProtocol.SimState? {
+        let json = #"{"type":"state","screen":"game","canShoot":true,"currentPlayer":"\#(player)","hole":3,"strokes":\#(strokes),"club":"Putter","putting":true,"puttDistance":\#(distance),"puttPlaysAs":\#(playsAs)}"#
+        guard case .state(let state)? = GameProtocol.decode(Data(json.utf8)) else { return nil }
+        return state
+    }
+
+    @Test func rangeIsSetPerPuttNotPerAim() {
+        var meter = PuttMeter()
+        meter.follow(putting("Ann", strokes: 1, distance: 5.03, playsAs: 5.4))
+        #expect(meter.range == 9)
+        meter.follow(putting("Ann", strokes: 1, distance: 5.03, playsAs: 6.9)) // aimed: the target moves, not the scale
+        meter.follow(putting("Ann", strokes: 1, distance: 5.03, playsAs: 3.1))
+        #expect(meter.range == 9)
+        meter.follow(putting("Bob", strokes: 2, distance: 1.2, playsAs: 1.5)) // the next putt
+        #expect(meter.range == 3)
+        meter.follow(GameProtocol.SimState(screen: "game", hole: 3, putting: false))
+        meter.follow(putting("Bob", strokes: 2, distance: 7.6, playsAs: 8)) // back on the green
+        #expect(meter.range == 12)
     }
 }
 

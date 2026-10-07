@@ -120,6 +120,37 @@ struct GameLinkTests {
         #expect(server.accepted >= 2)
     }
 
+    @Test func aFailedSendRedialsAndResyncs() async throws {
+        let server = try FakeServer()
+        defer { server.stop() }
+        let link = try await makeLink(server)
+        link.start()
+        defer { link.stop() }
+        await waitUntil(seconds: 4) { link.isConnected }
+        let dead = try #require(link.socket)
+        link.sendFailed(on: dead, reason: "Socket is not connected")
+        #expect(link.lastError == "Socket is not connected")
+        await waitUntil(seconds: 6) { server.accepted >= 2 && link.isConnected }
+        #expect(server.accepted == 2 && link.simReady && link.socket !== dead) // a fresh hello, a fresh socket
+
+        link.sendFailed(on: dead, reason: "late") // the old socket's failure leaves the new one alone
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(link.isConnected && server.accepted == 2)
+    }
+
+    @Test func aRedialKeepsTheNewConnectionsSim() async throws {
+        let server = try FakeServer()
+        defer { server.stop() }
+        let link = try await makeLink(server)
+        link.start()
+        defer { link.stop() }
+        await waitUntil(seconds: 4) { link.simReady }
+        link.reconnect()
+        await waitUntil(seconds: 4) { link.simReady }
+        try await Task.sleep(for: .milliseconds(300)) // the old loop winding down mustn't clear it
+        #expect(link.simReady)
+    }
+
     @Test func noServerMeansWaiting() async throws {
         let server = try FakeServer()
         let link = try await makeLink(server)

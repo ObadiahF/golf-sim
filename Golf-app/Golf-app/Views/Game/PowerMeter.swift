@@ -71,7 +71,7 @@ struct PowerMeter: View {
 
     /// A tick per metre (per 2 m on long meters).
     private func ticks(height: CGFloat) -> some View {
-        let step = range > 12 ? 2.0 : 1.0
+        let step = PuttMeter.tickStep(range)
         return ForEach(Array(stride(from: step, to: range, by: step)), id: \.self) { metres in
             Rectangle()
                 .fill(Theme.chalk.opacity(0.18))

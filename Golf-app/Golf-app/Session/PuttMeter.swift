@@ -26,6 +26,9 @@ nonisolated struct PuttMeter: Equatable, Sendable {
     private(set) var struck: Double?
     /// The last putt's result, once the sim reports it.
     private(set) var result: Result?
+    /// Metres at the top of the meter, set when a putt is set up and kept while it is aimed (the plays-as target
+    /// moves with the aim; the scale doesn't).
+    private(set) var range = Self.range(target: nil, distance: nil)
     /// Metres to the hole when the putt was struck, until its result arrives.
     private var pendingDistance: Double?
     /// The hole and Play screen of the sim state last followed, to notice a new hole or leaving the putting view.
@@ -62,16 +65,21 @@ nonisolated struct PuttMeter: Equatable, Sendable {
     /// view clears the meter, and so does a new stroke: the sim taking a swing again (`canShoot`) with another
     /// player up or another stroke count, which is how the same player's next putt starts (the sim sends no
     /// `turn` between one player's own strokes). While the putt rolls (`canShoot: false`) the meter keeps it.
+    /// Entering the putting view, a new hole or a new stroke sets up a putt: the meter's `range` is fixed for it.
     mutating func follow(_ state: GameProtocol.SimState?) {
         let putting = PlayScreen.of(state) == .putting
+        var setUp = putting && !wasPutting
         if let hole = state?.hole, hole > 0, hole != followedHole {
             followedHole = hole
             reset(clearingResult: true)
+            setUp = putting
         } else if wasPutting, !putting {
             reset()
         } else if let stroke = Self.readyStroke(state), let readyStroke, stroke != readyStroke {
             reset()
+            setUp = putting
         }
+        if setUp { range = Self.range(target: state?.puttPlaysAs, distance: state?.puttDistance) }
         readyStroke = Self.readyStroke(state) ?? readyStroke
         wasPutting = putting
     }
@@ -111,10 +119,16 @@ nonisolated struct PuttMeter: Equatable, Sendable {
         struck = nil
     }
 
-    /// The top of the meter for this target and distance (metres): room above both, at least 3 m.
+    /// The top of the meter for this target and distance (metres): room above both, at least 3 m, rounded up to
+    /// a tick so the scale reads in whole steps.
     static func range(target: Double?, distance: Double?) -> Double {
-        max(3, (target ?? 0) * 1.5, (distance ?? 0) * 1.5)
+        let top = max(3, (target ?? 0) * 1.5, (distance ?? 0) * 1.5)
+        let step = tickStep(top)
+        return (top / step).rounded(.up) * step
     }
+
+    /// Metres between the meter's ticks: one, or two on long meters.
+    static func tickStep(_ range: Double) -> Double { range > 12 ? 2 : 1 }
 }
 
 /// Which screen the Play tab shows for the sim's state.

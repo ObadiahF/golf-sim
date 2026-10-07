@@ -12,13 +12,15 @@ struct PuttingView: View {
 
     var body: some View {
         ScreenScaffold(title: state?.playTitle ?? "Practice", session: session) { fit in
-            DisconnectedBanner(game: game)
-            // The putting green is putts only: its made count stands where the Chip button would be.
+            // The putting green is putts only: its made count stands where the Chip button would be. The banner
+            // covers the card rather than pushing the meter and Address button down.
             PuttCard(state: state, onChip: state?.facility == .puttingGreen ? nil : { session.selectClub(Self.chipClub) })
+                .overlay(alignment: .top) {
+                    DisconnectedBanner(game: game).background(Theme.fairwayBottom, in: .rect(cornerRadius: 14))
+                }
             InstructionText(session: session)
             HStack(alignment: .center, spacing: 18) {
-                PowerMeter(value: meter.shown, peak: meter.peak, target: state?.puttPlaysAs,
-                           range: PuttMeter.range(target: state?.puttPlaysAs, distance: state?.puttDistance))
+                PowerMeter(value: meter.shown, peak: meter.peak, target: state?.puttPlaysAs, range: meter.range)
                     .frame(width: 110)
                 AddressButton(stage: session.stage, size: fit.size(160, 124), action: session.address)
                     .frame(maxWidth: .infinity)
@@ -28,7 +30,7 @@ struct PuttingView: View {
             GameAim(game: game, compact: fit.tight)
             PuttResultStrip(result: meter.result, delivery: session.delivery)
         } bottom: {
-            GameActions(game: game)
+            GameActions(game: game, holdsReplay: true)
             SimulateSwingButton(session: session)
         }
     }

@@ -48,7 +48,8 @@ final class GameLink {
     @ObservationIgnored private let settings: AppSettings
     @ObservationIgnored private let session: URLSession
     @ObservationIgnored private let deviceName: String
-    @ObservationIgnored private var socket: URLSessionWebSocketTask?
+    /// The socket in use (internal read so tests can fail a send on it).
+    @ObservationIgnored private(set) var socket: URLSessionWebSocketTask?
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private var lastReceived = Date()
 
@@ -130,8 +131,10 @@ final class GameLink {
             pinger.cancel()
             watchdog.cancel()
             ws.cancel(with: .goingAway, reason: nil)
-            if socket === ws { socket = nil }
-            simConnected = false
+            if socket === ws { // after stop() / reconnect() a newer socket may already have said hello
+                socket = nil
+                simConnected = false
+            }
             guard !Task.isCancelled else { return }
             failures = greeted ? 0 : failures + 1
             connection = .waiting(reason)
@@ -234,9 +237,18 @@ final class GameLink {
         socket.send(.string(String(decoding: data, as: UTF8.self))) { [weak self] error in
             guard let error else { return }
             let reason = error.localizedDescription
-            Task { @MainActor [weak self] in self?.lastError = reason }
+            Task { @MainActor [weak self] in self?.sendFailed(on: socket, reason: reason) }
         }
         return true
+    }
+
+    /// A send on `ws` failed: the socket is dead even if no read has failed yet (a half-open link would otherwise
+    /// look connected until the ping notices), so drop it; the loop dials again and the server's `hello` brings the
+    /// sim's current state. A failure on an older socket changes nothing (internal so tests can drive it).
+    func sendFailed(on ws: URLSessionWebSocketTask, reason: String) {
+        lastError = reason
+        guard socket === ws else { return }
+        ws.cancel(with: .goingAway, reason: nil) // receive() throws and the loop reconnects
     }
 
     func nav(_ key: GameProtocol.NavKey) { send(GameProtocol.Nav(key: key)) }

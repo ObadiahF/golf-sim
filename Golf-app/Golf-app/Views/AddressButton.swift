@@ -51,7 +51,8 @@ struct AddressButton: View {
     }
 }
 
-/// What to do next, e.g. "Ready. Swing away".
+/// What to do next, e.g. "Ready. Swing away". Always two lines tall, so a longer or shorter line (a wait reason
+/// between shots) doesn't resize the screen around it.
 struct InstructionText: View {
     let session: SwingSession
 
@@ -60,6 +61,8 @@ struct InstructionText: View {
             .font(.system(size: 17, weight: .semibold, design: .rounded))
             .foregroundStyle(Theme.chalk)
             .multilineTextAlignment(.center)
+            .lineLimit(2, reservesSpace: true)
+            .minimumScaleFactor(0.8)
             .animation(.default, value: session.instruction)
     }
 }
