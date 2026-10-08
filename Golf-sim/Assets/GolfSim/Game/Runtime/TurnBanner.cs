@@ -6,7 +6,7 @@ namespace GolfSim.Game
 {
     /// <summary>
     /// Wii-style announcements on the HUD: "ALICE'S TURN" big in the middle of the screen, which then shrinks
-    /// and slides into the current-player badge in the top-right corner; and the winner banner with confetti.
+    /// and slides into the current-player badge in the top-right corner; the winner banner with confetti, and the shouts of a celebration ("BIRDIE!").
     /// Each player has an accent colour (by turn order). Animations are USS transitions (RoundHud.uss).
     /// </summary>
     public class TurnBanner
@@ -84,10 +84,16 @@ namespace GolfSim.Game
         public void Celebrate(string headline, string info, Color color, Action onDone)
         {
             HideBadge();
+            Shout(headline, info, color, 3f, confetti: true, onDone);
+        }
+
+        /// <summary>A big centred headline ("BIRDIE!") for `seconds`, with confetti if asked; then onDone.</summary>
+        public void Shout(string headline, string info, Color color, float seconds, bool confetti, Action onDone = null)
+        {
             Show(headline, info, color);
-            Confetti();
+            if (confetti) Confetti();
             int id = sequence;
-            Schedule(3000, () =>
+            Schedule((int)(seconds * 1000f), () =>
             {
                 if (id != sequence) return;
                 banner.RemoveFromClassList(Center);

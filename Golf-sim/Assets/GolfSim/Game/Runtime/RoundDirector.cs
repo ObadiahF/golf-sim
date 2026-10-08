@@ -162,7 +162,7 @@ namespace GolfSim.Game
             PollMapKeys();
             TrackMiniMap();
             if (Time.realtimeSinceStartup - lastSentAt > StateRefresh) PublishState(force: true);
-            if (pending != null && !HomeMenu.IsOpen && Hold?.Invoke() != true && Time.realtimeSinceStartup >= pendingAt) RunPending();
+            if (pending != null && !HomeMenu.IsOpen && !Celebrating && Hold?.Invoke() != true && Time.realtimeSinceStartup >= pendingAt) RunPending();
         }
 
         /// <summary>Runs the scheduled step (next turn) now instead of after its delay; for tests and tools.</summary>
@@ -254,6 +254,7 @@ namespace GolfSim.Game
             loadingHole = holeIndex;
             pending = null;
             if (replay) replay.Forget(); // the hole is over: no replay on the way out, no "Replay" hint on the next screen
+            EndCelebration();
             phase = Phase.Loading;
             PublishState();
             hud?.HideScorecard();

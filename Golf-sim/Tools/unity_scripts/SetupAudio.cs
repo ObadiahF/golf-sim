@@ -35,9 +35,12 @@ public static class SetupAudio
 
     static readonly Spec[] Specs =
     {
-        S(SoundId.StrikeDriver, SoundBus.Sfx, true, 1f, 0.03f, 18f, @"^CC0/strike_driver_\d", @"^Synth/strike_driver_\d"),
-        S(SoundId.StrikeIron, SoundBus.Sfx, true, 0.95f, 0.04f, 16f, @"^CC0/strike_iron_\d", @"^Synth/strike_iron_\d"),
-        S(SoundId.StrikePutter, SoundBus.Sfx, true, 0.8f, 0.04f, 8f, @"^CC0/strike_putter_\d", @"^Synth/strike_putter_\d"),
+        // Strikes: per club family, every strike quality (strike_iron_pure_1, strike_iron_thin_2...: StrikeSound picks one).
+        S(SoundId.StrikeDriver, SoundBus.Sfx, true, 1f, 0.03f, 18f, @"^CC0/strike_driver_", @"^Synth/strike_driver_"),
+        S(SoundId.StrikeWood, SoundBus.Sfx, true, 1f, 0.03f, 18f, @"^CC0/strike_wood_", @"^Synth/strike_wood_"),
+        S(SoundId.StrikeIron, SoundBus.Sfx, true, 0.95f, 0.04f, 16f, @"^CC0/strike_iron_", @"^Synth/strike_iron_"),
+        S(SoundId.StrikeWedge, SoundBus.Sfx, true, 0.95f, 0.04f, 14f, @"^CC0/strike_wedge_", @"^Synth/strike_wedge_"),
+        S(SoundId.StrikePutter, SoundBus.Sfx, true, 0.8f, 0.04f, 8f, @"^CC0/strike_putter_", @"^Synth/strike_putter_"),
         S(SoundId.LandGrass, SoundBus.Sfx, true, 0.75f, 0.08f, 10f, @"^CC0/land_grass_\d", @"^Synth/land_grass_\d"),
         S(SoundId.LandSand, SoundBus.Sfx, true, 0.8f, 0.08f, 10f, @"^CC0/land_sand_\d", @"^Synth/land_sand_\d"),
         S(SoundId.LandGreen, SoundBus.Sfx, true, 0.75f, 0.06f, 10f, @"^CC0/land_green_\d", @"^Synth/land_green_\d"),
@@ -58,6 +61,12 @@ public static class SetupAudio
         S(SoundId.ReplaySting, SoundBus.Ui, false, 0.7f, 0f, 10f, @"^CC0/replay_sting_\d", @"^Synth/replay_sting_\d"),
         S(SoundId.AmbienceBirds, SoundBus.Ambience, false, 0.8f, 0f, 10f, @"^CC0/amb_birds_\d"),
         S(SoundId.AmbienceWind, SoundBus.Ambience, false, 0.6f, 0f, 10f, @"^CC0/amb_wind_\d"),
+        // Celebrations (HoleCelebration): jingles everywhere, fireworks over the green.
+        S(SoundId.JingleBirdie, SoundBus.Sfx, false, 0.8f, 0f, 10f, @"^Synth/jingle_birdie_\d"),
+        S(SoundId.JingleEagle, SoundBus.Sfx, false, 0.85f, 0f, 10f, @"^Synth/jingle_eagle_\d"),
+        S(SoundId.JingleAce, SoundBus.Sfx, false, 0.9f, 0f, 10f, @"^Synth/jingle_ace_\d"),
+        S(SoundId.FireworkLaunch, SoundBus.Sfx, false, 0.55f, 0.08f, 10f, @"^Synth/firework_launch_\d"),
+        S(SoundId.FireworkBurst, SoundBus.Sfx, false, 0.8f, 0.1f, 10f, @"^Synth/firework_burst_\d"),
     };
 
     public static string Run()
@@ -105,7 +114,7 @@ public static class SetupAudio
         var importer = AssetImporter.GetAtPath(path) as AudioImporter;
         if (!importer) return;
         string name = Path.GetFileName(path);
-        bool longClip = name.StartsWith("amb_") || name.StartsWith("crowd_");
+        bool longClip = name.StartsWith("amb_") || name.StartsWith("crowd_") || name.StartsWith("jingle_");
         var before = importer.defaultSampleSettings;
         var settings = before;
         settings.loadType = name.StartsWith("amb_") ? AudioClipLoadType.Streaming

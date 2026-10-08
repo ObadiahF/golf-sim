@@ -12,6 +12,9 @@ namespace GolfSim.Game
         CrowdApplause, CrowdCheer, CrowdRoar, CrowdOoh, CrowdGroan,
         UiSwoosh, UiMove, UiSelect, UiBack, ReplaySting,
         AmbienceBirds, AmbienceWind,
+        // Added later (the catalog asset stores ids by number, so new ones go at the end).
+        StrikeWood, StrikeWedge,
+        JingleBirdie, JingleEagle, JingleAce, FireworkLaunch, FireworkBurst,
     }
 
     /// <summary>Volume groups the player can set separately (with the master volume over all of them).</summary>

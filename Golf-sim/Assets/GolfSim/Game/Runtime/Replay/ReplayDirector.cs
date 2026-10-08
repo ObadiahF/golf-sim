@@ -169,7 +169,7 @@ namespace GolfSim.Game
             {
                 case Stage.Waiting:
                     if (!Current) Enter(Stage.Idle); // the shot was taken back or the hole restarted during the lead-in
-                    else if (stageTime >= 0f) Enter(Stage.DipIn);
+                    else if (stageTime >= 0f && !RoundDirector.Celebrating) Enter(Stage.DipIn); // after the celebration
                     break;
                 case Stage.DipIn:
                     overlay?.Show(0f, 0f, Mathf.Clamp01(stageTime / DipTime));

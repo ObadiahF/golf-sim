@@ -140,7 +140,8 @@ namespace GolfSim.Game
                 }
                 // Practice: the next hit starts from the tee after holing out or a penalty (GolfBall.Hit).
                 practiceLie = holed || penalty ? "tee" : r.restingSurface;
-                hud?.Toast(holed ? "In the hole!" : penalty ? penaltyText : $"{carry:0} yd carry");
+                if (!(holed && CelebrateHoled(finished, PracticePlayer, 0, 0, 0)))
+                    hud?.Toast(holed ? "In the hole!" : penalty ? penaltyText : $"{carry:0} yd carry");
                 PublishState();
                 return;
             }
@@ -148,7 +149,8 @@ namespace GolfSim.Game
             var end = holed ? ShotEnd.Holed : penalty ? ShotEnd.Penalty : ShotEnd.Stopped;
             var player = round.RecordShot(end, finished.transform.position, r.restingSurface);
             SendShotResult(player.player, carry, total, penalty ? penaltyLie : player.lie, player.holed, player.strokes);
-            hud?.Toast(ShotToast(player, end, penaltyText, carry));
+            if (!(player.holed && CelebrateHoled(finished, player.player, player.strokes, round.Par, round.Current)))
+                hud?.Toast(ShotToast(player, end, penaltyText, carry));
             if (player.Done) SendHoleScore(round.Current);
             phase = Phase.BetweenShots;
             PublishState();

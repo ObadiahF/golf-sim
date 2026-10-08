@@ -76,14 +76,16 @@ namespace GolfSim.Game
 
         /// <summary>
         /// Plays a sound: at `position` if the catalog says it is spatial (else everywhere), louder or softer by
-        /// `volume`, higher or lower by `pitch`. Missing sounds are silently skipped.
+        /// `volume`, higher or lower by `pitch`. A `variant` picks among the clips named with it ("pure" plays
+        /// strike_iron_pure_2 but not strike_iron_thin_1), or any clip if none is. Missing sounds are silently skipped.
         /// </summary>
-        public static void Play(SoundId id, Vector3? position = null, float volume = 1f, float pitch = 1f, bool flat = false)
+        public static void Play(SoundId id, Vector3? position = null, float volume = 1f, float pitch = 1f, bool flat = false,
+                                string variant = null)
         {
             if (!Instance) return;
             var sound = Instance.catalog.Find(id);
             if (sound == null || sound.clips.Length == 0 || volume <= 0f) return;
-            var clip = sound.clips[Random.Range(0, sound.clips.Length)];
+            var clip = Pick(sound.clips, variant);
             if (!clip) return;
             var source = Instance.NextVoice();
             bool spatial = sound.spatial && position.HasValue && !flat;
@@ -95,6 +97,20 @@ namespace GolfSim.Game
             source.clip = clip;
             source.ignoreListenerPause = sound.bus == SoundBus.Ui; // menu ticks still play in the pause menu
             source.Play();
+        }
+
+        /// <summary>A random clip named with the variant ("_pure_"), or any clip when none is (or no variant is asked).</summary>
+        static AudioClip Pick(AudioClip[] clips, string variant)
+        {
+            if (string.IsNullOrEmpty(variant)) return clips[Random.Range(0, clips.Length)];
+            string tag = "_" + variant + "_";
+            int matches = 0;
+            foreach (var c in clips) if (c && c.name.Contains(tag)) matches++;
+            if (matches == 0) return clips[Random.Range(0, clips.Length)];
+            int pick = Random.Range(0, matches);
+            foreach (var c in clips)
+                if (c && c.name.Contains(tag) && pick-- == 0) return c;
+            return null;
         }
 
         AudioSource NextVoice()

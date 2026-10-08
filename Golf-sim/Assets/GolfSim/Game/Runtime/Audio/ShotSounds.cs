@@ -4,7 +4,7 @@ using UnityEngine;
 namespace GolfSim.Game
 {
     /// <summary>
-    /// The ball's sounds: the strike (driver, iron or putter, louder and higher the faster the ball), landings and
+    /// The ball's sounds: the strike (by club family and how well it was struck: StrikeSound), landings and
     /// bounces by surface, trees, rocks, the splash and the cup. Live from the ball's events (bounces after the first
     /// landing are spotted from its motion), and again from the recording when the replay plays it.
     /// </summary>
@@ -53,7 +53,7 @@ namespace GolfSim.Game
         void OnShotStarted(GolfBall ball)
         {
             var director = RoundDirector.Instance;
-            Strike(director ? director.Club : "", ball.LastShot.ballSpeed, ball.LaunchPoint, flat: false);
+            StrikeSound.Play(ball.LastShot, director ? director.Club : ball.LastShot.club, ball.LaunchPoint, flat: false);
             last = ball.transform.position;
             lastVelocity = Vector3.zero;
             lastContact = -1f;
@@ -100,7 +100,7 @@ namespace GolfSim.Game
         {
             switch (e.kind)
             {
-                case ShotEventKind.Strike: Strike(rec.setup.club, e.speed, e.position, flat: true); break;
+                case ShotEventKind.Strike: StrikeSound.Play(rec.setup.shot, rec.setup.club, e.position, flat: true); break;
                 case ShotEventKind.Contact: Contact(e.surface, e.speed, e.position, flat: true); break;
                 case ShotEventKind.Obstacle: Obstacle(e.surface, e.speed, e.position, flat: true); break;
                 case ShotEventKind.Holed: Finish(BallStatus.Holed, e.position, rec.pin, flat: true); break;
@@ -109,18 +109,6 @@ namespace GolfSim.Game
         }
 
         // ---- what each sounds like (the same live and in the replay) ----
-
-        /// <summary>Driver thwack, crisp iron, putter tap: by the club, louder and a little higher with ball speed.</summary>
-        static void Strike(string club, float ballSpeed, Vector3 at, bool flat)
-        {
-            var c = Clubs.Find(club);
-            bool putt = c.IsPutter || ballSpeed < 12f;
-            bool wood = !putt && (c.name == "Driver" || c.name.Contains("Wood"));
-            var id = putt ? SoundId.StrikePutter : wood ? SoundId.StrikeDriver : SoundId.StrikeIron;
-            float full = putt ? 10f : wood ? 75f : 62f; // m/s of a full swing with this club
-            float k = Mathf.Clamp01(ballSpeed / full);
-            GameAudio.Play(id, at, Mathf.Lerp(putt ? 0.25f : 0.45f, 1f, k), Mathf.Lerp(0.94f, 1.04f, k), flat);
-        }
 
         static void Contact(string surface, float speed, Vector3 at, bool flat)
         {
