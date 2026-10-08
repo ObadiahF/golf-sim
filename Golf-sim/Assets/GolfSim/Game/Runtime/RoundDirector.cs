@@ -36,13 +36,13 @@ namespace GolfSim.Game
         public GameView ServerGame => serverGame;
         public string ScreenName => phase switch
         {
-            Phase.Menu => GameUpdater.Busy ? StateMessage.Loading : AudioSettingsPanel.AnyOpen ? StateMessage.Settings : StateMessage.Menu,
+            Phase.Menu => GameUpdater.Busy ? StateMessage.Loading : SettingsScreen.AnyOpen ? StateMessage.Settings : StateMessage.Menu,
             Phase.Loading => StateMessage.Loading,
             _ when HoleGoing => StateMessage.Loading,
             _ when replaying => StateMessage.Replay,
             Phase.HoleSummary => StateMessage.HoleComplete,
             Phase.Finished => StateMessage.Results,
-            _ => !HomeMenu.IsOpen ? StateMessage.Game : AudioSettingsPanel.AnyOpen ? StateMessage.Settings : StateMessage.Paused,
+            _ => !HomeMenu.IsOpen ? StateMessage.Game : SettingsScreen.AnyOpen ? StateMessage.Settings : StateMessage.Paused,
         };
 
         /// <summary>
@@ -80,19 +80,13 @@ namespace GolfSim.Game
 
         // ---- menu API ----
 
-        /// <summary>"Play a Round" on the main menu: resumes the server's game in progress, else a solo round of this many holes.</summary>
-        public static void PlayFromMenu(int holes)
-        {
-            if (Instance) Instance.PlayRound(holes);
-        }
-
         /// <summary>True when the server has a game in progress that "Play a Round" would resume.</summary>
         public static bool CanResume => Instance && Instance.serverGame != null && Instance.serverGame.IsInProgress;
 
-        /// <summary>The round card's description: what pressing Play will do (a solo round of `holes`, or the resume).</summary>
-        public static string MenuDescription(GameMode mode, int holes)
+        /// <summary>What resuming the server's game would play ("Resume game 12: Ann, Bob. Hole 4 of 9."), or null when there is none.</summary>
+        public static string ResumeDescription()
         {
-            if (!CanResume) return mode.description.Replace("{holes}", holes.ToString());
+            if (!CanResume) return null;
             var game = Instance.serverGame;
             var resume = Round.FromGame(game, Instance.course.turnOrder, Instance.course.maxOverPar).FirstUnfinishedHole();
             return $"Resume game {game.id}: {string.Join(", ", game.players.Select(p => p.name))}. " +
@@ -138,7 +132,8 @@ namespace GolfSim.Game
             Shots.Gate = BlockedReason;
             Shots.Accepted += OnShotAccepted;
             HomeMenu.OpenChanged += OnPauseChanged;
-            AudioSettingsPanel.OpenChanged += OnPauseChanged;
+            SettingsScreen.OpenChanged += OnPauseChanged;
+            GameSettings.Changed += OnSettingsChanged;
             HomeMenu.CanRestart = CanRestartHole;
             NavInput.Register(OnNav, NavInput.GamePriority);
             SceneManager.sceneLoaded += OnSceneLoaded;
@@ -152,7 +147,8 @@ namespace GolfSim.Game
             if (Shots.Gate == BlockedReason) Shots.Gate = null;
             Shots.Accepted -= OnShotAccepted;
             HomeMenu.OpenChanged -= OnPauseChanged;
-            AudioSettingsPanel.OpenChanged -= OnPauseChanged;
+            SettingsScreen.OpenChanged -= OnPauseChanged;
+            GameSettings.Changed -= OnSettingsChanged;
             if (HomeMenu.CanRestart == CanRestartHole) HomeMenu.CanRestart = null;
             SceneManager.sceneLoaded -= OnSceneLoaded;
             NavInput.Unregister(OnNav);
@@ -214,6 +210,7 @@ namespace GolfSim.Game
             if (IsFetching) StopFetching();
             if (round != null) EndRound();
             round = newRound;
+            PickCourse();
             SeedWind(newRound);
             starting = true;
             phase = Phase.Loading;

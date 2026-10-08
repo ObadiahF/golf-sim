@@ -8,7 +8,8 @@ namespace GolfSim.Game
 {
     // Which holes a round plays: Course Trainer holes (a random pick by default, or the top-rated ones; see
     // ServerConfig.holeSelection and TrainerHoles), downloaded and built at runtime into the hole scene, when
-    // available, else the hole scenes listed in CourseRound as built in the editor. While the holes download, an
+    // available, else the hole scenes listed in CourseRound as built in the editor. A random round draws from the course
+    // types of the round's course (RoundDirector.Courses.cs; topped up with other types when the trainer has too few). While the holes download, an
     // overlay shows the progress over everything and takes every key; Back cancels.
     public partial class RoundDirector
     {
@@ -34,10 +35,11 @@ namespace GolfSim.Game
             phase = Phase.Loading;
             PublishState();
             ShowFetchProgress(0, forRound.holeCount, config.holeSelection);
+            var presets = roundCourse?.presets ?? NoPresets;
             NavInput.Register(OnFetchNav, NavInput.ModalPriority);
             // A server game keeps its own list, so a resumed game replays the same holes even when the trainer is down.
             string roundKey = forRound.InServerGame ? $"{TrainerHoles.Safe(config.HttpUrl)}-game-{forRound.gameId}" : null;
-            StartCoroutine(TrainerHoles.Fetch(config, forRound.holeCount, roundKey,
+            StartCoroutine(TrainerHoles.Fetch(config, forRound.holeCount, presets, roundKey,
                 (i, n) => { if (fetching == forRound) ShowFetchProgress(i, n, config.holeSelection); },
                 () => fetching != forRound,
                 result =>
@@ -51,7 +53,8 @@ namespace GolfSim.Game
                         string from = result.offline ? " (offline, from the cache)" : result.fromCache ? " (cached list)" : "";
                         Debug.Log($"[RoundDirector] Playing {which}{from}: " +
                                   string.Join(", ", result.holes.ConvertAll(h => $"#{h.hole.rank} {h.hole.id} ({h.hole.ups}👍 {h.hole.downs}👎)")));
-                        if (result.offline)
+                        if (result.mixed) courseNote = MixedToast; // on the first hole, once it is up
+                        else if (result.offline)
                             hud?.Toast(result.random ? "Couldn't reach the trainer: playing holes from the cache"
                                                      : "Couldn't reach the trainer: playing the last top holes");
                     }
@@ -67,7 +70,7 @@ namespace GolfSim.Game
         void ShowFetchProgress(int index, int count, ServerConfig.HoleSelection selection) =>
             hud?.ShowLoading("Getting the course",
                              index > 0 ? $"Downloading hole {index + 1} of {count}…"
-                             : selection == ServerConfig.HoleSelection.Random ? "Picking the holes…" : "Getting the top-rated holes…",
+                             : selection == ServerConfig.HoleSelection.Random ? $"Picking the {HoleKind}…" : "Getting the top-rated holes…",
                              count > 0 ? (float)index / count : 0f);
 
         /// <summary>The download is modal: Back cancels it, every other key is swallowed.</summary>
@@ -103,7 +106,7 @@ namespace GolfSim.Game
             string folder = courseHoles[index % courseHoles.Count];
             try
             {
-                var built = RuntimeHoleBuilder.Build(folder, course.themes);
+                var built = RuntimeHoleBuilder.Build(LoadPackage(folder), course.themes);
                 Debug.Log($"[RoundDirector] Hole {index + 1}: built {built.name} from {folder}");
             }
             catch (Exception e)

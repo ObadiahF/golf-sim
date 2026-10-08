@@ -149,7 +149,7 @@ public static class SceneryCheck
     public static string PlayNight()
     {
         if (!Application.isPlaying) return "enter Play mode first";
-        RoundDirector.PlayFromMenu(1, SkyChoice.Night);
+        RoundDirector.PlayFromMenu(CourseCatalog.Find("night"), 1, SkyChoice.Night);
         return "night round starting: run PlayState once the hole is up";
     }
 

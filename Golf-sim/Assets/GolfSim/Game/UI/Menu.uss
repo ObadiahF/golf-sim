@@ -22,20 +22,38 @@ Label { color: var(--text); }
 
 .topbar { flex-direction: row; justify-content: space-between; align-items: flex-start; padding: 44px 72px 0 72px; }
 .logo { font-size: 30px; -unity-font-style: bold; letter-spacing: 6px; }
-.logo__dot { color: var(--accent); }
 .topbar__left { align-items: flex-start; }
 .topbar__right { flex-direction: row; align-items: center; }
 .clock { font-size: 30px; -unity-font-style: bold; margin: 0 0 0 28px; }
 .date { font-size: 24px; color: var(--muted); margin: 0 0 0 14px; }
 .version { font-size: 18px; color: var(--muted); margin: 0 14px 0 0; opacity: 0.8; }
 
+/* Small capitals over a title (every page and panel). */
+.eyebrow { font-size: 22px; color: var(--accent); -unity-font-style: bold; letter-spacing: 4px; margin: 0; }
+/* The key help under a page or panel. */
+.hint { font-size: 20px; color: var(--muted); margin: 18px 0 0 0; -unity-font-style: bold; }
+
+/* Pages: the main cards (home), "Choose a course" and Practice share the backdrop and the top bar. */
+.page { flex-grow: 1; }
+.page--hidden { display: none; }
+.page--sub { padding: 24px 72px 30px 72px; }
+.page__head { flex-direction: row; justify-content: space-between; align-items: flex-start; flex-shrink: 0; }
+.page__heading { flex-shrink: 1; flex-grow: 1; margin: 0 40px 0 0; }
+.page__foot { flex-direction: row; justify-content: space-between; align-items: center; margin: 14px 0 0 0; flex-shrink: 0; }
+.page__foot .hint { margin: 0; }
+.page__title { font-size: 60px; -unity-font-style: bold; margin: 2px 0 4px 0; text-shadow: 0 4px 18px rgba(0, 0, 0, 0.6); }
+.page__description { font-size: 24px; color: #c9d4de; white-space: normal; max-width: 1180px; min-height: 56px; margin: 0 0 8px 0; }
+.page__spacer { flex-grow: 1; }
+.page__back { margin: 0 0 0 28px; }
+
 .hero { flex-grow: 1; justify-content: flex-end; padding: 0 72px 36px 72px; }
-.hero__eyebrow { font-size: 22px; color: var(--accent); -unity-font-style: bold; letter-spacing: 4px; margin: 0; }
 .hero__title { font-size: 92px; -unity-font-style: bold; margin: 4px 0 8px 0; text-shadow: 0 4px 18px rgba(0, 0, 0, 0.6); }
-.hero__description { font-size: 28px; color: #c9d4de; white-space: normal; max-width: 980px; margin: 0 0 30px 0; }
+.hero__description { font-size: 28px; color: #c9d4de; white-space: normal; max-width: 1080px; margin: 0 0 30px 0; }
 .hero__actions { flex-direction: row; }
 
+/* ---- Cards (CardGrid.cs): the main row, the course grid and the practice row ---- */
 .cards { flex-direction: row; padding: 0 60px 60px 60px; }
+.cards--page { padding: 0 0 8px 0; margin: 0 -12px; }
 .card {
     width: 336px; height: 196px; flex-shrink: 1; min-width: 200px; /* six or more cards share the row's width */
     margin: 0 12px; padding: 0; border-radius: 18px; overflow: hidden;
@@ -45,12 +63,34 @@ Label { color: var(--text); }
 }
 .card:hover { scale: 1.04; border-color: rgba(255, 255, 255, 0.35); opacity: 1; background-color: #1c2430; }
 .card--selected, .card--selected:hover { scale: 1.08; border-color: var(--accent); opacity: 1; }
+.card--dimmed { opacity: 0.45; }
+.card--dimmed.card--selected { opacity: 0.85; }
 .card--update { background-color: #0f3d2e; border-color: rgba(52, 211, 153, 0.45); }
 .card--update:hover { background-color: #145039; }
-.card__title {
-    background-color: rgba(8, 12, 16, 0.72); font-size: 24px; -unity-font-style: bold;
-    padding: 10px 16px; margin: 0; -unity-text-align: middle-left;
+.card__badge {
+    position: absolute; top: 10px; right: 10px; margin: 0; padding: 4px 12px; border-radius: 12px; font-size: 17px;
+    -unity-font-style: bold; background-color: rgba(8, 12, 16, 0.72); color: var(--text);
 }
+.card--dimmed .card__badge { color: #f6a96b; }
+.card__caption { background-color: rgba(8, 12, 16, 0.72); padding: 8px 16px 10px 16px; }
+.card__title { font-size: 24px; -unity-font-style: bold; margin: 0; -unity-text-align: middle-left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card__subtitle { font-size: 18px; color: var(--muted); margin: 0; -unity-text-align: middle-left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* The course grid: five across, smaller cards. */
+.grid { flex-direction: row; flex-wrap: wrap; margin: 0 -9px; flex-shrink: 0; }
+.grid .card { width: 18%; flex-grow: 1; flex-shrink: 1; min-width: 0; height: 140px; margin: 8px 9px; border-radius: 14px; }
+.grid .card__title { font-size: 21px; }
+.grid .card__subtitle { font-size: 16px; }
+.grid .card--selected, .grid .card--selected:hover { scale: 1.05; }
+.grid--unfocused .card--selected { border-color: rgba(52, 211, 153, 0.55); scale: 1.02; }
+
+/* The course screen's options, top right (rows from MenuRows.cs, styled in Settings.uss). */
+.options { width: 900px; flex-shrink: 0; margin: 4px 0 0 0; }
+.options .pill { height: 42px; padding: 0 16px; margin: 2px 8px 2px 0; font-size: 20px; }
+.options .setting { margin: 0 0 6px 0; padding: 6px 14px; background-color: rgba(8, 12, 16, 0.6); }
+.options .setting--selected { background-color: rgba(8, 12, 16, 0.75); }
+.options .setting__name { width: 160px; font-size: 23px; }
+.options .setting__note { margin-left: 160px; }
 
 /* ---- Buttons ---- */
 .btn {
@@ -107,10 +147,7 @@ Label { color: var(--text); }
 .sc-cell--rank { width: 56px; color: var(--muted); }
 .sc-cell--stat { width: 128px; }
 
-/* ---- Segmented choice (9 / 18 holes) and tabs ---- */
-.segmented { flex-direction: row; align-items: center; margin: 0 0 0 8px; }
-.segmented--hidden { display: none; }
-.segmented__hint { font-size: 20px; color: var(--muted); margin: 0 0 0 16px; }
+/* ---- Tabs (the Scores screen) ---- */
 .tab {
     height: 52px; padding: 0 24px; margin: 0 10px 0 0; border-radius: 26px; font-size: 22px; -unity-font-style: bold;
     background-color: rgba(255, 255, 255, 0.08); color: var(--text); border-width: 1px; border-color: var(--border);
@@ -131,26 +168,7 @@ Label { color: var(--text); }
 .scores__header { flex-direction: row; justify-content: space-between; align-items: center; }
 .scores__tabs { flex-direction: row; margin: 6px 0 18px 0; }
 .scores__status { font-size: 22px; color: var(--muted); margin: 0 0 12px 0; white-space: normal; }
-.scores__hint { font-size: 20px; color: var(--accent); -unity-font-style: bold; margin: 22px 0 0 0; }
 .btn:disabled { opacity: 0.35; }
-
-/* ---- Sound settings (AudioSettingsPanel.cs): main menu and pause menu ---- */
-.sound {
-    position: absolute; left: 0; right: 0; top: 0; bottom: 0; justify-content: center; align-items: center;
-    background-color: rgba(5, 8, 12, 0.8); opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0.2s;
-}
-.sound--open { opacity: 1; visibility: visible; }
-.sound__panel { width: 760px; scale: 1; background-color: #151b23; } /* opaque: the pause menu sits underneath */
-.sound__row {
-    flex-direction: row; align-items: center; height: 64px; padding: 0 16px; margin: 0 0 8px 0; border-radius: 14px;
-    border-width: 1px; border-color: rgba(255, 255, 255, 0);
-}
-.sound__row--selected { background-color: rgba(255, 255, 255, 0.08); border-color: var(--accent); }
-.sound__name { width: 180px; font-size: 26px; -unity-font-style: bold; margin: 0; }
-.sound__bar { flex-grow: 1; height: 14px; border-radius: 7px; background-color: rgba(255, 255, 255, 0.12); overflow: hidden; }
-.sound__fill { height: 100%; background-color: var(--accent); }
-.sound__value { width: 90px; font-size: 24px; color: var(--muted); -unity-text-align: middle-right; margin: 0; }
-.sound__panel .sound__close { align-self: flex-start; margin: 18px 0 0 0; }
 
 /* ---- Room code (RoomBadge.cs): main menu top bar and pause menu ---- */
 .room { margin: 14px 0 0 0; max-width: 620px; }

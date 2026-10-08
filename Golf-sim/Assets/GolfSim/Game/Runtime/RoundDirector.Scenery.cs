@@ -1,13 +1,13 @@
 using System;
-using System.IO;
 using GolfSim.Ball;
 using GolfSim.Course;
 using UnityEngine;
 
 namespace GolfSim.Game
 {
-    // The time of day of a round's holes: a fixed one picked on the menu (the Night Golf card), or Auto, where the
-    // round is an afternoon that may drift into golden hour, dusk and night (SkySchedule). Each hole scene is
+    // The time of day of a round's holes: a fixed one picked on the menu (Night Golf, or the course screen's Time of day),
+    // Sunset (golden hour into dusk), or Auto, where the round is an afternoon that may drift into golden hour, dusk and
+    // night (SkySchedule). Each hole scene is
     // relit when it loads (Scenery), and after dark the ball glows (BallGlow). Practice stays in the day it was built.
     public partial class RoundDirector
     {
@@ -21,14 +21,6 @@ namespace GolfSim.Game
 
         /// <summary>The time of day on screen (Day in practice and on the menu).</summary>
         public TimeOfDay Sky { get; private set; }
-
-        /// <summary>"Play a Round" from a menu card with its time of day (GameMode.sky).</summary>
-        public static void PlayFromMenu(int holes, SkyChoice sky)
-        {
-            if (!Instance) return;
-            Instance.menuSky = sky;
-            Instance.PlayRound(holes);
-        }
 
         /// <summary>The time of day `index` of this round is played at (the same every time in this round).</summary>
         public TimeOfDay SkyFor(int index)
@@ -61,7 +53,9 @@ namespace GolfSim.Game
             var glow = ball.GetComponent<BallGlow>();
             if (preset.IsDark && !glow) glow = ball.gameObject.AddComponent<BallGlow>();
             if (glow) glow.Set(preset.darkness);
-            if (Sky != lastSky && Sky != TimeOfDay.Day) hud?.Toast(SkyToast(Sky, ThemeScenery.For(rig.theme)), 4f);
+            if (courseNote != null) hud?.Toast(courseNote, 5f); // what the player chose comes first
+            else if (Sky != lastSky && Sky != TimeOfDay.Day) hud?.Toast(SkyToast(Sky, ThemeScenery.For(rig.theme)), 4f);
+            courseNote = null;
             lastSky = Sky;
         }
 
@@ -80,7 +74,7 @@ namespace GolfSim.Game
             {
                 try
                 {
-                    return HolePackage.Load(Path.Combine(courseHoles[0], HolePackage.FileName)).theme;
+                    return LoadPackage(courseHoles[0]).theme;
                 }
                 catch (Exception e)
                 {

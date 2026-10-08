@@ -51,6 +51,8 @@ namespace GolfSim.Net
             public bool fromCache, offline;
             /// <summary>A random round (ServerConfig.HoleSelection.Random), not the top-rated holes.</summary>
             public bool random;
+            /// <summary>Too few holes of the chosen course types: other types fill the round (TrainerHoles.Presets.cs).</summary>
+            public bool mixed;
         }
 
         static bool busy;
@@ -66,10 +68,10 @@ namespace GolfSim.Net
         /// once. roundKey (e.g. a server game) replays the list saved for it without the network; otherwise the
         /// trainer is asked, and when it can't be reached a random round comes from the cached packages
         /// (TryRandomCached) and a top-rated one from the last saved top list. progress(i, n) reports each hole as it
-        /// is checked or downloaded; cancelled stops the fetch early (done is then not called).
-        /// Run with StartCoroutine.
+        /// is checked or downloaded; cancelled stops the fetch early (done is then not called). presets: the course types
+        /// a random round is drawn from (empty: any; see TrainerHoles.Presets.cs). Run with StartCoroutine.
         /// </summary>
-        public static IEnumerator Fetch(ServerConfig config, int count, string roundKey, Action<int, int> progress,
+        public static IEnumerator Fetch(ServerConfig config, int count, string[] presets, string roundKey, Action<int, int> progress,
                                         Func<bool> cancelled, Action<Result> done)
         {
             while (busy)
@@ -84,10 +86,10 @@ namespace GolfSim.Net
                 if (roundKey != null && TryCached(roundKey, out result.holes))
                     result.fromCache = true;
                 else
-                    yield return SafeCoroutine.Run(FetchOnline(config, count, result.random, progress, cancelled, result),
+                    yield return SafeCoroutine.Run(FetchOnline(config, count, presets ?? new string[0], progress, cancelled, result),
                                                    e => result.error = e.Message);
                 if (cancelled()) yield break;
-                if (result.holes == null && (result.random ? TryRandomCached(count, out result.holes) : TryCached(LastList, out result.holes)))
+                if (result.holes == null && (result.random ? TryRandomCached(count, presets ?? new string[0], out result.holes, out result.mixed) : TryCached(LastList, out result.holes)))
                 {
                     result.fromCache = result.offline = true;
                     Debug.LogWarning($"[TrainerHoles] {result.error}; playing {(result.random ? "random cached holes" : "the last top holes from the cache")}.");
@@ -103,29 +105,33 @@ namespace GolfSim.Net
             done(result);
         }
 
-        static IEnumerator FetchOnline(ServerConfig config, int count, bool random, Action<int, int> progress, Func<bool> cancelled, Result result)
+        static IEnumerator FetchOnline(ServerConfig config, int count, string[] presets, Action<int, int> progress, Func<bool> cancelled, Result result)
         {
             string key = config.TrainerKey;
             if (string.IsNullOrEmpty(key)) { result.error = "No trainer game key (Net/Resources/TrainerKey.txt or GOLF_TRAINER_KEY)"; yield break; }
             string baseUrl = config.trainerUrl.Trim().TrimEnd('/');
-            // Random: no repeats within the response; recently played holes only when the pool runs short.
-            string url = random ? $"{baseUrl}/api/game/random-holes?count={count}&exclude={Uri.EscapeDataString(string.Join(",", RecentIds()))}"
-                                : $"{baseUrl}/api/game/top-holes?limit={count}";
 
-            HoleList list;
-            using (var req = Get(url, key, ListTimeout))
+            TrainerHole[] round = null;
+            if (result.random)
             {
-                yield return Send(req, cancelled);
-                if (req.result != UnityWebRequest.Result.Success) { result.error = $"{(random ? "Random" : "Top")} holes: {req.error}"; yield break; }
-                list = JsonUtility.FromJson<HoleList>(req.downloadHandler.text);
+                // No repeats within the response; recently played holes only when the pool runs short.
+                yield return RandomRound(baseUrl, key, count, presets, cancelled, result, picked => round = picked.ToArray());
             }
-            if (list?.holes == null || list.holes.Length == 0) { result.error = $"The trainer has no {(random ? "playable" : "rated")} holes yet"; yield break; }
+            else
+            {
+                using var req = Get($"{baseUrl}/api/game/top-holes?limit={count}", key, ListTimeout);
+                yield return Send(req, cancelled);
+                if (req.result != UnityWebRequest.Result.Success) { result.error = $"Top holes: {req.error}"; yield break; }
+                round = JsonUtility.FromJson<HoleList>(req.downloadHandler.text)?.holes;
+                if (round == null || round.Length == 0) { result.error = "The trainer has no rated holes yet"; yield break; }
+            }
+            if (round == null || cancelled()) yield break;
 
             var holes = new List<(TrainerHole, string)>();
-            for (int i = 0; i < list.holes.Length; i++)
+            for (int i = 0; i < round.Length; i++)
             {
-                var hole = list.holes[i];
-                progress?.Invoke(i, list.holes.Length);
+                var hole = round[i];
+                progress?.Invoke(i, round.Length);
                 string folder = FolderFor(hole.id), failure = null;
                 yield return Download(baseUrl, key, hole.id, folder, cancelled, e => failure = e);
                 if (cancelled()) yield break;

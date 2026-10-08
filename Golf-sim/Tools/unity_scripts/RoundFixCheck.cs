@@ -218,7 +218,7 @@ public static class RoundFixCheck
         var root = home.GetComponent<UIDocument>().rootVisualElement;
         string selected = root.Query<Button>(className: "btn--selected").ToList().FirstOrDefault()?.name;
         NavInput.Push(NavKey.Back); // close
-        bool ok = !restart.enabledSelf && selected == "home-sound";
+        bool ok = !restart.enabledSelf && selected == "home-settings";
         return $"{(ok ? "PASS" : "FAIL")} R-3 restart enabled {restart.enabledSelf}, Down selects {selected}\n{Status()}";
     }
 
@@ -272,7 +272,7 @@ public static class RoundFixCheck
         for (int i = 0; i < 2; i++)
         {
             int n = i;
-            D.StartCoroutine(TrainerHoles.Fetch(ServerConfig.Load(), 9, null, null, () => false, r =>
+            D.StartCoroutine(TrainerHoles.Fetch(ServerConfig.Load(), 9, null, null, null, () => false, r =>
                 File.WriteAllText($"Temp/roundfix_th3_{n}.txt", r.holes != null ? $"{r.holes.Count} holes{(r.fromCache ? " (cache)" : "")}" : r.error)));
         }
         return "started 2 fetches; then run TH3Result";
@@ -307,7 +307,7 @@ public static class RoundFixCheck
     {
         var menu = MainMenuReady();
         if (!menu) return "WAIT not on the main menu, or it is loading";
-        if (!menu.modes.Any(m => m.kind == GameMode.ModeKind.Settings)) return "FAIL S-1 no Sound card";
+        if (!menu.modes.Any(m => m.kind == GameMode.ModeKind.Settings)) return "FAIL S-1 no Settings card";
         return SoundPanel(menu.GetComponent<UIDocument>().rootVisualElement, () =>
         {
             SelectCard(menu, GameMode.ModeKind.Settings);
@@ -321,7 +321,7 @@ public static class RoundFixCheck
         var menu = Object.FindAnyObjectByType<MainMenu>();
         if (!menu || ScreenFade.Loading || D && D.IsFetching) return null;
         var scores = (ScoresScreen)typeof(MainMenu).GetField("scores", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(menu);
-        for (int i = 0; i < 3 && (scores.IsOpen || AudioSettingsPanel.AnyOpen); i++) NavInput.Push(NavKey.Back);
+        for (int i = 0; i < 3 && (scores.IsOpen || SettingsScreen.AnyOpen); i++) NavInput.Push(NavKey.Back);
         return menu;
     }
 
@@ -342,7 +342,7 @@ public static class RoundFixCheck
         string result = SoundPanel(root, () =>
         {
             NavInput.Push(NavKey.Back); // pause
-            for (int i = 0; i < 4 && root.Query<Button>(className: "btn--selected").ToList().FirstOrDefault()?.name != "home-sound"; i++)
+            for (int i = 0; i < 4 && root.Query<Button>(className: "btn--selected").ToList().FirstOrDefault()?.name != "home-settings"; i++)
                 NavInput.Push(NavKey.Down);
             NavInput.Push(NavKey.Select);
         }, "S-1 pause menu");
@@ -354,12 +354,12 @@ public static class RoundFixCheck
     {
         float before = GameAudio.MasterVolume;
         open();
-        var overlay = root.Q(className: "sound");
-        bool shown = overlay != null && overlay.ClassListContains("sound--open");
+        var overlay = root.Q(className: "settings");
+        bool shown = overlay != null && overlay.ClassListContains("settings--open");
         NavInput.Push(before >= 0.95f ? NavKey.Left : NavKey.Right);
         float changed = GameAudio.MasterVolume;
         NavInput.Push(NavKey.Back);
-        bool closed = overlay != null && !overlay.ClassListContains("sound--open");
+        bool closed = overlay != null && !overlay.ClassListContains("settings--open");
         GameAudio.MasterVolume = before;
         bool ok = shown && Mathf.Abs(changed - before) > 0.05f && closed;
         return $"{(ok ? "PASS" : "FAIL")} {label}: shown {shown}, master {before:0.00} -> {changed:0.00}, closed {closed}";
@@ -376,20 +376,17 @@ public static class RoundFixCheck
         return $"{(paused && resumed ? "PASS" : "FAIL")} S-2 listener paused {paused}, resumed {resumed}";
     }
 
-    /// <summary>M-3: the Play a Round card's description follows the 9 / 18 choice.</summary>
+    /// <summary>M-3: the Play a Round card opens "Choose a course" (unless it resumes the server's game); Back comes back.</summary>
     public static string M3Description()
     {
         var menu = MainMenuReady();
         if (!menu) return "WAIT not on the main menu, or it is loading";
+        if (RoundDirector.CanResume) return "PASS M-3 (resume shown: Play resumes the server's game)";
         SelectCard(menu, GameMode.ModeKind.Round);
-        var description = menu.GetComponent<UIDocument>().rootVisualElement.Q<Label>("description");
-        menu.SendMessage("Update");
-        string first = description.text;
-        NavInput.Push(NavKey.Down);
-        menu.SendMessage("Update");
-        string second = description.text;
-        NavInput.Push(NavKey.Up);
-        bool ok = RoundDirector.CanResume || first.Contains("9 holes") && second.Contains("18 holes") || first.Contains("18 holes") && second.Contains("9 holes");
-        return $"{(ok ? "PASS" : "FAIL")} M-3 '{first.Split('.')[0]}' then '{second.Split('.')[0]}'{(RoundDirector.CanResume ? " (resume shown)" : "")}";
+        NavInput.Push(NavKey.Select);
+        string opened = menu.PageName;
+        NavInput.Push(NavKey.Back);
+        bool ok = opened == "courses" && menu.PageName == "home";
+        return $"{(ok ? "PASS" : "FAIL")} M-3 Play opened '{opened}', Back -> '{menu.PageName}'";
     }
 }

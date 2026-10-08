@@ -7,7 +7,7 @@ namespace GolfSim.Game
 {
     /// <summary>
     /// In-game pause menu (Back: Esc, gamepad B or the phone's Back): pauses the game (and its sounds) and offers
-    /// Resume / Restart / Sound / Main Menu, chosen with Up/Down and Select (or the mouse), with the room code for
+    /// Resume / Restart / Settings / Main Menu, chosen with Up/Down and Select (or the mouse), with the room code for
     /// phones joining mid-round (RoomBadge). Restart is skipped while CanRestart says no (e.g. on a round's scorecard).
     /// Behaviours listed in pauseWhileOpen (camera, shot controls...) are disabled while it is open.
     /// </summary>
@@ -30,7 +30,7 @@ namespace GolfSim.Game
         ScreenFade fade;
         Button[] buttons;
         Action[] actions;
-        AudioSettingsPanel sound;
+        SettingsScreen settings;
         int highlighted;
         bool open;
 
@@ -52,13 +52,13 @@ namespace GolfSim.Game
         {
             var root = GetComponent<UIDocument>().rootVisualElement;
             panel = root.Q("home");
-            buttons = new[] { root.Q<Button>("home-resume"), root.Q<Button>("home-restart"), root.Q<Button>("home-sound"), root.Q<Button>("home-menu") };
-            sound = new AudioSettingsPanel(root);
+            buttons = new[] { root.Q<Button>("home-resume"), root.Q<Button>("home-restart"), root.Q<Button>("home-settings"), root.Q<Button>("home-menu") };
+            settings = new SettingsScreen(root);
             actions = new Action[]
             {
                 () => SetOpen(false),
                 () => { if (RestartAllowed) fade.LoadScene(SceneManager.GetActiveScene().name); },
-                () => sound.Show(),
+                () => settings.Show(),
                 () => fade.LoadScene(menuScene),
             };
             for (int i = 0; i < buttons.Length; i++)
@@ -76,7 +76,7 @@ namespace GolfSim.Game
         void OnDisable()
         {
             NavInput.Unregister(OnNav);
-            sound?.Close();
+            settings?.Close();
             Time.timeScale = 1f;
             if (open) Publish(false);
         }
@@ -119,7 +119,7 @@ namespace GolfSim.Game
                 buttons[1].SetEnabled(RestartAllowed);
                 Highlight(0);
             }
-            else sound.Close();
+            else settings.Close();
             Publish(open);
         }
 

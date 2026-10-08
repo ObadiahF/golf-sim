@@ -1,0 +1,59 @@
+/* The Settings screen (SettingsScreen.cs) and the menu rows it shares with the course screen (MenuRows.cs).
+   Uses the colours of Menu.uss (main menu and pause menu load both). */
+
+/* ---- Rows: a name, a control (pills, a bar, a value) and a note under them ---- */
+.setting {
+    padding: 10px 18px; margin: 0 0 6px 0; border-radius: 14px;
+    border-width: 2px; border-color: rgba(255, 255, 255, 0); background-color: rgba(255, 255, 255, 0.03);
+}
+.setting--selected { background-color: rgba(255, 255, 255, 0.09); border-color: var(--accent); }
+.setting--info { background-color: rgba(0, 0, 0, 0); }
+.setting__line { flex-direction: row; align-items: center; min-height: 48px; }
+.setting__name { width: 250px; font-size: 25px; -unity-font-style: bold; margin: 0; }
+.setting__control { flex-grow: 1; flex-direction: row; align-items: center; }
+.setting__value { font-size: 24px; color: var(--text); margin: 0; }
+.setting__note { font-size: 19px; color: var(--muted); margin: 2px 0 0 250px; white-space: normal; }
+.setting__note--empty { display: none; }
+
+/* ---- Pills: one per value, the chosen one filled ---- */
+.pills { flex-wrap: wrap; }
+.pill {
+    height: 46px; padding: 0 22px; margin: 2px 10px 2px 0; border-radius: 23px; font-size: 21px; -unity-font-style: bold;
+    background-color: rgba(255, 255, 255, 0.08); color: var(--text); border-width: 1px; border-color: var(--border);
+}
+.pill:hover { background-color: rgba(255, 255, 255, 0.16); }
+.pill--active, .pill--active:hover { background-color: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.pill--action { border-color: var(--accent); }
+
+/* ---- Volume bars (SoundSettings.cs) ---- */
+.volume__bar { flex-grow: 1; height: 14px; border-radius: 7px; background-color: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.volume__fill { height: 100%; background-color: var(--accent); }
+.volume__value { width: 90px; -unity-text-align: middle-right; color: var(--muted); }
+
+/* ---- The overlay ---- */
+.settings {
+    position: absolute; left: 0; right: 0; top: 0; bottom: 0; justify-content: center; align-items: center;
+    background-color: rgba(5, 8, 12, 0.85); opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0.2s;
+}
+.settings--open { opacity: 1; visibility: visible; }
+.settings__panel {
+    width: 1320px; height: 900px; padding: 36px 44px; border-radius: 24px;
+    background-color: #151b23; border-width: 1px; border-color: var(--border); /* opaque: the pause menu sits underneath */
+}
+.settings__header { flex-direction: row; justify-content: space-between; align-items: flex-start; margin: 0 0 14px 0; }
+.settings__header .btn--small { margin: 6px 0 0 0; }
+.settings__body { flex-direction: row; flex-grow: 1; flex-shrink: 1; min-height: 0; }
+.settings__side { width: 230px; padding: 6px 0 0 0; }
+.settings__section {
+    font-size: 23px; color: var(--muted); -unity-font-style: bold; padding: 10px 16px; margin: 0 0 4px 0;
+    border-radius: 12px; border-left-width: 4px; border-color: rgba(0, 0, 0, 0);
+}
+.settings__section:hover { color: var(--text); background-color: rgba(255, 255, 255, 0.05); }
+.settings__section--current { color: var(--text); background-color: rgba(255, 255, 255, 0.07); border-color: var(--accent); }
+.settings__scroll { flex-grow: 1; flex-shrink: 1; margin: 0 0 0 24px; }
+.settings__heading {
+    font-size: 20px; color: var(--accent); -unity-font-style: bold; letter-spacing: 3px; margin: 18px 0 8px 4px;
+}
+
+/* The page title the panel shares with the menu pages (Menu.uss defines it for those; repeated for the pause menu). */
+.settings .page__title { font-size: 48px; -unity-font-style: bold; margin: 0; }

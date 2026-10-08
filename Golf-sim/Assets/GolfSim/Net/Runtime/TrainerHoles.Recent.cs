@@ -46,23 +46,17 @@ namespace GolfSim.Net
         }
 
         /// <summary>
-        /// Offline random round: up to `count` different holes from every complete package in the cache, in random
-        /// order, recently played ones last. False when nothing is cached.
+        /// Offline random round: up to `count` different holes from the complete packages in the cache, in random order,
+        /// recently played ones last: of these course types first (presets; empty: any), then of any (mixed). False
+        /// when nothing is cached.
         /// </summary>
-        static bool TryRandomCached(int count, out List<(TrainerHole hole, string folder)> holes)
+        static bool TryRandomCached(int count, string[] presets, out List<(TrainerHole hole, string folder)> holes, out bool mixed)
         {
-            holes = null;
-            if (!Directory.Exists(CacheFolder)) return false;
-            var recent = RecentIds();
-            var rng = new System.Random();
-            var folders = Directory.GetDirectories(CacheFolder)
-                .Where(f => !Path.GetFileName(f).Contains(".partial-") && IsComplete(f))
-                .OrderBy(f => recent.Contains(Path.GetFileName(f)))
-                .ThenBy(_ => rng.Next())
-                .Take(count)
-                .ToList();
-            if (folders.Count == 0) return false;
-            holes = folders.Select((f, i) => (new TrainerHole { rank = i + 1, id = Path.GetFileName(f) }, f)).ToList();
+            holes = CachedHoles(id => Matches(new TrainerHole { id = id }, presets), count, new HashSet<string>());
+            mixed = holes.Count < count && presets.Length > 0;
+            if (mixed) holes.AddRange(CachedHoles(_ => true, count - holes.Count, Ids(holes.Select(h => h.hole))));
+            if (holes.Count == 0) return false;
+            for (int i = 0; i < holes.Count; i++) holes[i].hole.rank = i + 1;
             return true;
         }
     }

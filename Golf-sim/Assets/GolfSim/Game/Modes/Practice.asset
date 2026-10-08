@@ -10,12 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 489c0398510a347f0a000e417f10b4b1, type: 3}
-  m_Name: NightGolf
+  m_Name: Practice
   m_EditorClassIdentifier: GolfSim.Game::GolfSim.Game.GameMode
-  kind: 1
-  title: Night Golf
-  description: '{holes} holes under the stars: a glow-in-the-dark ball, floodlit greens and lanterns along the fairways. Same players and phones as Play a Round.'
+  kind: 5
+  title: Practice
+  description: Work on any club at the driving range, or your putting on a big sloping green.
   sceneName: 
   practice: 0
-  banner: {fileID: 2800000, guid: 5478415ed3a1a48f899c7181fe578502, type: 3}
-  sky: 4
+  banner: {fileID: 2800000, guid: ea61829f938fc46d2978e5e545379daf, type: 3}

@@ -415,14 +415,14 @@ public static class E2EFixCheck
         if (root == null) return "WAIT not in a hole";
         if (!HomeMenu.IsOpen) NavInput.Push(NavKey.Back);
         string paused = D.BuildState().screen;
-        for (int i = 0; i < 4 && root.Query<Button>(className: "btn--selected").ToList().FirstOrDefault()?.name != "home-sound"; i++) NavInput.Push(NavKey.Down);
+        for (int i = 0; i < 4 && root.Query<Button>(className: "btn--selected").ToList().FirstOrDefault()?.name != "home-settings"; i++) NavInput.Push(NavKey.Down);
         NavInput.Push(NavKey.Select);
         var s = D.BuildState();
-        var card = root.Q(className: "sound__panel");
+        var card = root.Q(className: "settings__panel");
         bool opaque = card.resolvedStyle.backgroundColor.a >= 0.999f;
         bool hints = HudRoot.Q("hud-hint").ClassListContains("hud--hidden") && HudRoot.Q("hud-info").ClassListContains("hud--hidden");
         string sent = Get<string>(D, "lastState");
-        NavInput.Push(NavKey.Back); // closes Sound
+        NavInput.Push(NavKey.Back); // closes Settings
         string afterClose = D.BuildState().screen;
         NavInput.Push(NavKey.Back); // resumes
         string afterResume = D.BuildState().screen;
@@ -440,7 +440,7 @@ public static class E2EFixCheck
         float crowd = GameAudio.GetVolume(SoundBus.Crowd);
         GameAudio.SetVolume(SoundBus.Crowd, 0.75f);
         if (!HomeMenu.IsOpen) NavInput.Push(NavKey.Back);
-        for (int i = 0; i < 4 && root.Query<Button>(className: "btn--selected").ToList().FirstOrDefault()?.name != "home-sound"; i++) NavInput.Push(NavKey.Down);
+        for (int i = 0; i < 4 && root.Query<Button>(className: "btn--selected").ToList().FirstOrDefault()?.name != "home-settings"; i++) NavInput.Push(NavKey.Down);
         NavInput.Push(NavKey.Select);
         NavInput.Push(NavKey.Down);
         NavInput.Push(NavKey.Down); // Crowd

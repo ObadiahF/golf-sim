@@ -42,12 +42,12 @@ public static class RandomHolesCheck
         {
             config.holeSelection = ServerConfig.HoleSelection.Random;
             foreach (var key in new[] { Key, null, Key })
-                yield return TrainerHoles.Fetch(config, 9, key, null, () => false, runs.Add);
+                yield return TrainerHoles.Fetch(config, 9, null, key, null, () => false, runs.Add);
             config.trainerUrl = "http://127.0.0.1:1"; // nobody there
-            yield return TrainerHoles.Fetch(config, 9, null, null, () => false, runs.Add);
+            yield return TrainerHoles.Fetch(config, 9, null, null, null, () => false, runs.Add);
             config.trainerUrl = a[0];
             config.holeSelection = ServerConfig.HoleSelection.TopRated;
-            yield return TrainerHoles.Fetch(config, 9, null, null, () => false, runs.Add);
+            yield return TrainerHoles.Fetch(config, 9, null, null, null, () => false, runs.Add);
         }
 
         void Restore()

@@ -8,8 +8,11 @@ namespace GolfSim.Course
     /// </summary>
     public enum TimeOfDay { Day, GoldenHour, Dusk, Night }
 
-    /// <summary>A menu's pick: a fixed time of day, or Auto (the round's own afternoon, see SkySchedule).</summary>
-    public enum SkyChoice { Auto, Day, GoldenHour, Dusk, Night }
+    /// <summary>
+    /// A menu's pick: a fixed time of day, Auto (the round's own afternoon) or Sunset (golden hour running into dusk);
+    /// see SkySchedule.
+    /// </summary>
+    public enum SkyChoice { Auto, Day, GoldenHour, Dusk, Night, Sunset }
 
     public static class TimeOfDayNames
     {
@@ -22,7 +25,7 @@ namespace GolfSim.Course
             _ => time.ToString(),
         };
 
-        /// <summary>The fixed time a choice stands for, or null for Auto.</summary>
-        public static TimeOfDay? Fixed(this SkyChoice choice) => choice == SkyChoice.Auto ? null : (TimeOfDay)(choice - 1);
+        /// <summary>The fixed time a choice stands for, or null for the ones that change during a round (Auto, Sunset).</summary>
+        public static TimeOfDay? Fixed(this SkyChoice choice) => choice is SkyChoice.Auto or SkyChoice.Sunset ? null : (TimeOfDay)(choice - 1);
     }
 }

@@ -10,6 +10,9 @@ namespace GolfSim.Course
     {
         /// <summary>Chance, per hole played, that the light moves on to the next time of day.</summary>
         public const float AdvanceChance = 0.22f;
+        /// <summary>Sunset: chance per hole that golden hour gives way to dusk, and the hole by which it always has.</summary>
+        public const float SunsetChance = 0.3f;
+        public const int SunsetDuskBy = 5;
 
         public static TimeOfDay For(uint seed, int holeIndex, ThemeScenery firstHole)
         {
@@ -19,9 +22,18 @@ namespace GolfSim.Course
             return time;
         }
 
-        /// <summary>The choice's fixed time, or the round's schedule for Auto.</summary>
+        /// <summary>The choice's fixed time, else the round's schedule (Auto, or a Sunset round's).</summary>
         public static TimeOfDay For(SkyChoice choice, uint seed, int holeIndex, ThemeScenery firstHole) =>
-            choice.Fixed() ?? For(seed, holeIndex, firstHole);
+            choice.Fixed() ?? (choice == SkyChoice.Sunset ? Sunset(seed, holeIndex) : For(seed, holeIndex, firstHole));
+
+        /// <summary>A Sunset round: golden hour on the first tee, then dusk from a hole the seed picks (by SunsetDuskBy at the latest).</summary>
+        public static TimeOfDay Sunset(uint seed, int holeIndex)
+        {
+            var time = TimeOfDay.GoldenHour;
+            for (int hole = 1; hole <= holeIndex && time < TimeOfDay.Dusk; hole++)
+                if (hole >= SunsetDuskBy || Roll(seed, hole) < SunsetChance) time = TimeOfDay.Dusk;
+            return time;
+        }
 
         /// <summary>A stable 0..1 roll per (seed, hole): a few rounds of an integer hash (no System.Random state).</summary>
         static float Roll(uint seed, int hole)

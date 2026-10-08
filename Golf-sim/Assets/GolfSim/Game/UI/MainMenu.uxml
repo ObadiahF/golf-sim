@@ -1,5 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <Style src="Menu.uss" />
+    <Style src="Settings.uss" />
     <ui:VisualElement class="menu">
         <ui:VisualElement name="backdrop-a" class="backdrop" picking-mode="Ignore" />
         <ui:VisualElement name="backdrop-b" class="backdrop" picking-mode="Ignore" />
@@ -19,25 +20,56 @@
                 <ui:Button name="quit" text="Quit" class="btn btn--ghost btn--small" />
             </ui:VisualElement>
         </ui:VisualElement>
-        <ui:VisualElement class="hero">
-            <ui:Label text="GAME MODE" class="hero__eyebrow" />
-            <ui:Label name="title" class="hero__title" />
-            <ui:Label name="description" class="hero__description" />
-            <ui:VisualElement class="hero__actions">
-                <ui:Button name="play" text="Play" class="btn btn--primary" />
-                <ui:VisualElement name="holes" class="segmented segmented--hidden">
-                    <ui:Button name="holes-9" text="9 holes" class="tab" />
-                    <ui:Button name="holes-18" text="18 holes" class="tab" />
-                    <ui:Label text="Up/Down to change" class="segmented__hint" />
+
+        <ui:VisualElement name="page-home" class="page">
+            <ui:VisualElement class="hero">
+                <ui:Label name="eyebrow" class="eyebrow" />
+                <ui:Label name="title" class="hero__title" />
+                <ui:Label name="description" class="hero__description" />
+                <ui:VisualElement class="hero__actions">
+                    <ui:Button name="action" text="Play" class="btn btn--primary" />
                 </ui:VisualElement>
             </ui:VisualElement>
+            <ui:VisualElement name="cards" class="cards" />
         </ui:VisualElement>
-        <ui:VisualElement name="cards" class="cards" />
+
+        <ui:VisualElement name="page-courses" class="page page--sub page--hidden">
+            <ui:VisualElement class="page__head">
+                <ui:VisualElement class="page__heading">
+                    <ui:Label text="PLAY  ·  CHOOSE A COURSE" class="eyebrow" />
+                    <ui:Label name="course-title" class="page__title" />
+                    <ui:Label name="course-description" class="page__description" />
+                </ui:VisualElement>
+                <ui:VisualElement name="course-options" class="options" />
+            </ui:VisualElement>
+            <ui:VisualElement name="course-grid" class="grid" />
+            <ui:VisualElement class="page__foot">
+                <ui:Label text="Arrows: choose  ·  Down from the last row: holes and time of day  ·  Select: tee off  ·  Back: main menu" class="hint" />
+                <ui:Button text="Back" class="btn btn--ghost btn--small page__back" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="page-practice" class="page page--sub page--hidden">
+            <ui:VisualElement class="page__head">
+                <ui:VisualElement class="page__heading">
+                    <ui:Label text="PRACTICE" class="eyebrow" />
+                    <ui:Label name="practice-title" class="page__title" />
+                    <ui:Label name="practice-description" class="page__description" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="page__spacer" />
+            <ui:VisualElement name="practice-cards" class="cards cards--page" />
+            <ui:VisualElement class="page__foot">
+                <ui:Label text="Left/Right: choose  ·  Select: start  ·  Back: main menu" class="hint" />
+                <ui:Button text="Back" class="btn btn--ghost btn--small page__back" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
         <ui:VisualElement name="scores" class="scores">
             <ui:VisualElement class="scores__panel">
                 <ui:VisualElement class="scores__header">
                     <ui:VisualElement>
-                        <ui:Label text="SCORES" class="hero__eyebrow" />
+                        <ui:Label text="SCORES" class="eyebrow" />
                         <ui:Label text="Leaderboard" class="home__title" />
                     </ui:VisualElement>
                     <ui:Button name="scores-close" text="Close" class="btn btn--ghost btn--small" />
@@ -45,7 +77,7 @@
                 <ui:VisualElement name="scores-tabs" class="scores__tabs" />
                 <ui:Label name="scores-status" class="scores__status" />
                 <ui:VisualElement name="scores-table" />
-                <ui:Label text="Left/Right: rank by  ·  Back: close" class="scores__hint" />
+                <ui:Label text="Left/Right: rank by  ·  Back: close" class="hint" />
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
