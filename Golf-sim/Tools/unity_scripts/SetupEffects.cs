@@ -1,31 +1,39 @@
 // Dev helper (Edit mode), run with the Unity CLI (not compiled into the project):
-//   unity command run_script --file Tools/unity_scripts/SetupCelebration.cs --entry SetupCelebration.Run
-// Creates or refreshes the fireworks' spark materials (CupFireworks) in Assets/GolfSim/Game/Resources/Celebration:
-// Spark (additive, after dark) and SparkDay (alpha blended, so the sparks show against a bright sky), both URP
-// Particles/Unlit on the soft dot Spark.png. In Resources so builds keep them and their shader.
+//   unity command run_script --file Tools/unity_scripts/SetupEffects.cs --entry SetupEffects.Run
+// Creates or refreshes the particle effects' materials in Assets/GolfSim/Game/Resources/Effects, all URP Particles/Unlit:
+// Spark (additive, after dark) and SparkDay (alpha blended, so they show against a bright sky) on the soft dot
+// Spark.png, for the fireworks (CupFireworks) and the water's droplets and spray (WaterSplash); Ripple (alpha blended)
+// on the ring Ring.png for the splash's rings. In Resources so builds keep them and their shader.
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-public static class SetupCelebration
+public static class SetupEffects
 {
-    const string Folder = "Assets/GolfSim/Game/Resources/Celebration";
+    const string Folder = "Assets/GolfSim/Game/Resources/Effects";
 
     public static string Run()
     {
         AssetDatabase.Refresh();
-        var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(Folder + "/Spark.png");
-        var importer = (TextureImporter)AssetImporter.GetAtPath(Folder + "/Spark.png");
-        if (importer.alphaIsTransparency == false || importer.mipmapEnabled == false)
+        var spark = Texture("Spark.png");
+        var ring = Texture("Ring.png");
+        var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+        if (!shader) return "URP Particles/Unlit shader not found";
+        return Make("Spark", shader, spark, additive: true) + "\n" + Make("SparkDay", shader, spark, additive: false) + "\n" +
+               Make("Ripple", shader, ring, additive: false);
+    }
+
+    static Texture2D Texture(string file)
+    {
+        var importer = (TextureImporter)AssetImporter.GetAtPath($"{Folder}/{file}");
+        if (!importer.alphaIsTransparency || !importer.mipmapEnabled || importer.wrapMode != TextureWrapMode.Clamp)
         {
             importer.alphaIsTransparency = true;
             importer.mipmapEnabled = true;
             importer.wrapMode = TextureWrapMode.Clamp;
             importer.SaveAndReimport();
         }
-        var shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
-        if (!shader) return "URP Particles/Unlit shader not found";
-        return Make("Spark", shader, texture, additive: true) + "\n" + Make("SparkDay", shader, texture, additive: false);
+        return AssetDatabase.LoadAssetAtPath<Texture2D>($"{Folder}/{file}");
     }
 
     static string Make(string name, Shader shader, Texture2D texture, bool additive)

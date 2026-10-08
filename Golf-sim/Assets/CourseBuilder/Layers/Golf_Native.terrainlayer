@@ -7,17 +7,17 @@ TerrainLayer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Golf_Native
-  m_DiffuseTexture: {fileID: 2800000, guid: e318f31bebce62d48a648da3f8ba56c9, type: 3}
-  m_NormalMapTexture: {fileID: 2800000, guid: eb70932bab3d971408c011dbb45767a9, type: 3}
-  m_MaskMapTexture: {fileID: 2800000, guid: 0f48eac8617d0de4cbc056e1734e798b, type: 3}
-  m_TileSize: {x: 14, y: 14}
+  m_DiffuseTexture: {fileID: 2800000, guid: 69123d7c5fea5488a96185f9098b9fc4, type: 3}
+  m_NormalMapTexture: {fileID: 2800000, guid: e37cb7af43ac0427cb700d618af95dbc, type: 3}
+  m_MaskMapTexture: {fileID: 2800000, guid: 62803fea61df148f8bf3dc5d4841a366, type: 3}
+  m_TileSize: {x: 6, y: 6}
   m_TileOffset: {x: 0, y: 0}
   m_Specular: {r: 0, g: 0, b: 0, a: 0}
   m_Metallic: 0
   m_Smoothness: 0
-  m_NormalScale: 1
+  m_NormalScale: 0.6
   m_DiffuseRemapMin: {x: 0, y: 0, z: 0, w: 0}
-  m_DiffuseRemapMax: {x: 0.95, y: 0.95, z: 0.85, w: 1}
-  m_MaskMapRemapMin: {x: 0, y: 0, z: -0.19080001, w: 0}
-  m_MaskMapRemapMax: {x: 1, y: 0.74017644, z: 0.20920002, w: 0.5829992}
+  m_DiffuseRemapMax: {x: 0.9, y: 0.9, z: 0.78, w: 1}
+  m_MaskMapRemapMin: {x: 0, y: 0, z: 0, w: 0}
+  m_MaskMapRemapMax: {x: 1, y: 1, z: 1, w: 0.1}
   m_SmoothnessSource: 1

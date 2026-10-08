@@ -8,7 +8,7 @@ namespace GolfSim.Game
     // Wind: each hole of a round has its own (from the round's seed, so restarting a hole brings the same wind back and a
     // resumed server game plays the same weather), the practice hole a fresh one each time, and the facilities none (the
     // range shows each club's true distance; a putt never leaves the ground). Every shot is
-    // hit into it (the shot panel's wind), the flags fly with it, and the HUD and "state" show it against the aim. The
+    // hit into it (the shot panel's wind), the flags fly with it, the trees sway with it, and the HUD and "state" show it against the aim. The
     // Wind setting scales it (GameSettings.WindScale: off, light, normal, strong), on the hole in play too when it changes.
     public partial class RoundDirector
     {
@@ -35,6 +35,7 @@ namespace GolfSim.Game
                 ball.windSpeed = value.MetersPerSecond;
                 ball.windHeading = value.Heading;
             }
+            FoliageWind.Apply(value.Heading, value.mph); // the trees sway with it
             foreach (var flag in FindObjectsByType<FlagWave>())
             {
                 flag.windHeading = value.Heading;

@@ -10,6 +10,7 @@ namespace GolfSim.Course
         const float TargetCellMeters = 0.5f;
         const int ResolutionPerPatch = 32;
         const float PatchNoiseScale = 0.08f; // 1 / ~12 m patches
+        const float DrawDistance = 100f;      // m
 
         /// <returns>Number of detail layers painted.</returns>
         public static int Apply(Terrain terrain, HolePackage pkg, SurfaceLayerSet layers, ScatterSet scatter,
@@ -20,7 +21,8 @@ namespace GolfSim.Course
             data.SetDetailResolution(res, ResolutionPerPatch);
             data.SetDetailScatterMode(DetailScatterMode.CoverageMode);
 
-            var surfaces = new SurfaceSampler(alpha, layers, pkg.sizeMeters, scatter.keepClear, scatter.detailClearMargin);
+            float fade = scatter.detailRules.Count > 0 ? scatter.detailRules.Max(r => r.edgeFadeMeters) : 0f;
+            var surfaces = new SurfaceSampler(alpha, layers, pkg.sizeMeters, scatter.keepClear, scatter.detailClearMargin, fade);
             var rng = new System.Random(seed);
             var prototypes = new List<DetailPrototype>();
             var maps = new List<int[,]>();
@@ -35,14 +37,16 @@ namespace GolfSim.Course
                 foreach (var entry in entries)
                 {
                     prototypes.Add(Prototype(entry, rule.density));
-                    maps.Add(Paint(eligible, res, rule, entry.weight / totalWeight, rng));
+                    maps.Add(Paint(eligible, res, pkg.sizeMeters, rule, entry.weight / totalWeight, surfaces, rng));
                 }
             }
 
             data.detailPrototypes = prototypes.ToArray();
             for (int i = 0; i < maps.Count; i++) data.SetDetailLayer(0, 0, i, maps[i]);
-            terrain.detailObjectDistance = 150f;
-            terrain.detailObjectDensity = 1f;
+            // Past 100 m the ground's own texture carries the look; the quality level can thin the carpet
+            // (ProjectSettings: Performant draws half of it).
+            terrain.detailObjectDistance = DrawDistance;
+            terrain.detailObjectDensity = QualitySettings.terrainDetailDensityScale;
             return maps.Count;
         }
 
@@ -68,9 +72,12 @@ namespace GolfSim.Course
             return eligible;
         }
 
-        static int[,] Paint(bool[,] eligible, int res, ScatterSet.DetailRule rule, float share, System.Random rng)
+        static int[,] Paint(bool[,] eligible, int res, float size, ScatterSet.DetailRule rule, float share, SurfaceSampler surfaces,
+                            System.Random rng)
         {
             var map = new int[res, res];
+            float cell = size / res;
+            bool fades = rule.edgeFadeMeters > 0f;
             var offset = new Vector2(rng.Next(10000), rng.Next(10000)); // per-prototype noise so species mix
             float full = rule.coverage * share * 255f;
             for (int z = 0; z < res; z++)
@@ -80,6 +87,7 @@ namespace GolfSim.Course
                     float noise = Mathf.PerlinNoise(offset.x + x * PatchNoiseScale, offset.y + z * PatchNoiseScale);
                     // Patchiness pushes the noise through a steeper curve: more bare gaps, denser clumps.
                     float density = Mathf.Clamp01((noise - rule.patchiness * 0.5f) / (1f - rule.patchiness * 0.5f));
+                    if (fades) density *= surfaces.EdgeFade(new Vector2((x + 0.5f) * cell, (z + 0.5f) * cell));
                     map[z, x] = Mathf.RoundToInt(full * density);
                 }
             return map;

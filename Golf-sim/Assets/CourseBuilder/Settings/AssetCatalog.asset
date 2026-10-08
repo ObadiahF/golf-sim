@@ -452,6 +452,62 @@ MonoBehaviour:
     - autumn
     scale: {x: 0.8, y: 1.2}
     weight: 1
+  - name: RoughGrass_B
+    category: 3
+    asset: {fileID: 1357477639408554834, guid: 28be85c9b821847e8959cfa1d1919bd5, type: 3}
+    tags:
+    - grass
+    - rough
+    scale: {x: 0.24, y: 0.4}
+    weight: 1
+  - name: RoughGrass_C
+    category: 3
+    asset: {fileID: 4024274373468099503, guid: 18680833e1d9f439a9ce6d6cc544151f, type: 3}
+    tags:
+    - grass
+    - rough
+    scale: {x: 0.24, y: 0.4}
+    weight: 1
+  - name: RoughGrass_D
+    category: 3
+    asset: {fileID: 3558269415631068380, guid: 5a7b7bcdbc4884a89a65deb7f3db5c16, type: 3}
+    tags:
+    - grass
+    - rough
+    scale: {x: 0.24, y: 0.4}
+    weight: 1
+  - name: NativeGrassDry_A
+    category: 3
+    asset: {fileID: 8384831897527178357, guid: d0a13bfe4a58942e8b16484e0356e8e4, type: 3}
+    tags:
+    - grass
+    - native
+    scale: {x: 0.55, y: 0.95}
+    weight: 1
+  - name: NativeGrassDry_B
+    category: 3
+    asset: {fileID: 7445775298586177148, guid: 313afb0ee0f83472cbc20da2ef767929, type: 3}
+    tags:
+    - grass
+    - native
+    scale: {x: 0.55, y: 0.95}
+    weight: 1
+  - name: NativeGrassDry_C
+    category: 3
+    asset: {fileID: 1728817205755756331, guid: de251e29a6b524547aa9da30ca18b947, type: 3}
+    tags:
+    - grass
+    - native
+    scale: {x: 0.55, y: 0.95}
+    weight: 1
+  - name: NativeGrassDry_D
+    category: 3
+    asset: {fileID: 4567328789029973871, guid: cc8a4c436e8364a01ad87e6b7542a10a, type: 3}
+    tags:
+    - grass
+    - native
+    scale: {x: 0.55, y: 0.95}
+    weight: 1
   themes:
   - {fileID: 11400000, guid: b10de85801d3f433fa2d67073ffa0292, type: 2}
   - {fileID: 11400000, guid: e037abcf28dd044a082e5ca1a8eb6ba9, type: 2}

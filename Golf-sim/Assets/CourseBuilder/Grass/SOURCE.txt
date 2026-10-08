@@ -1,0 +1,8 @@
+Rough grass blades: the Terrain Demo Scene (URP) grass meshes Grass B, C and D with their base colour recoloured green
+to sit on the rough's ground (Textures/RoughGrass, ambientCG Grass001): each pixel keeps its brightness relative to the
+texture's median and takes the colour (0.27, 0.36, 0.15), blended 55/45 with the original. Source textures:
+Assets/TerrainDemoScene_URP/Prefabs/Details/Textures/Grass_A_BaseColor.tif and Grass_C_BaseColor.tif.
+Materials and prefabs are made by Tools/unity_scripts/SetupRough.cs.
+
+Native fescue: the demo's dry grass tufts (GrassDry A-D) with Grass_Dry_BaseColor.tif recoloured the same way toward the
+straw gold (0.60, 0.55, 0.30), blended 60/40 with the original, on a copy of the Grass_Dry material with sane shading.

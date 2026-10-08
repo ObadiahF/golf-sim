@@ -157,7 +157,7 @@ QualitySettings:
     customRenderPipeline: {fileID: 11400000, guid: e14097293922948fe87b0f4bbe9e4e6f, type: 2}
     terrainQualityOverrides: 0
     terrainPixelError: 1
-    terrainDetailDensityScale: 1
+    terrainDetailDensityScale: 0.5
     terrainBasemapDistance: 1000
     terrainDetailDistance: 80
     terrainTreeDistance: 5000

@@ -286,18 +286,19 @@ MonoBehaviour:
       name: Rough grass
       surfaces:
       - rough
-      coverage: 0.8
-      patchiness: 0.3
+      coverage: 0.95
+      patchiness: 0.12
       slopeDegrees: {x: 0, y: 45}
-      density: 5
+      density: 8
+      edgeFadeMeters: 3
       prototypes: []
     assets:
       category: 3
       allTags:
       - grass
+      - rough
       anyTags: []
-      noneTags:
-      - dry
+      noneTags: []
       preferTags: []
     scale: 1
     maxPrototypes: 4
@@ -306,16 +307,17 @@ MonoBehaviour:
       surfaces:
       - native
       - scrub
-      coverage: 0.6
-      patchiness: 0.6
+      coverage: 0.95
+      patchiness: 0.25
       slopeDegrees: {x: 0, y: 45}
-      density: 5
+      density: 9
+      edgeFadeMeters: 0
       prototypes: []
     assets:
       category: 3
       allTags:
       - grass
-      - dry
+      - native
       anyTags: []
       noneTags: []
       preferTags: []
@@ -330,6 +332,7 @@ MonoBehaviour:
       patchiness: 0.8
       slopeDegrees: {x: 0, y: 45}
       density: 5
+      edgeFadeMeters: 0
       prototypes: []
     assets:
       category: 3
@@ -352,6 +355,7 @@ MonoBehaviour:
       patchiness: 0.5
       slopeDegrees: {x: 0, y: 45}
       density: 5
+      edgeFadeMeters: 0
       prototypes: []
     assets:
       category: 3

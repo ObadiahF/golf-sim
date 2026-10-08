@@ -5,6 +5,8 @@ Tools/unity_scripts/SetupTurf.cs and SetupSceneryThemes.cs turn them into Terrai
 
 Folder        ambientCG id         Download   In the project   Used by
 Turf          Grass005             2K         ~27 MB           green, tee, fairway (all themes)
+RoughGrass    Grass001             2K-JPG     ~28 MB           rough (Golf_Rough and its winter/autumn copies)
+NativeGrass   Grass004             2K-JPG     ~29 MB           native and scrub (Golf_Native)
 BunkerSand    Ground093A           2K         ~14 MB           bunkers (all themes; tinted red for canyon)
 Snow          Snow010A             1K-JPG     4.1 MB           winter: native, scrub, woods
 AutumnLeaves  ScatteredLeaves008   1K-JPG     6.3 MB           autumn: native, woods

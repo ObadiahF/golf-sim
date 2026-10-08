@@ -131,7 +131,7 @@ MonoBehaviour:
     volume: {x: 0.67499995, y: 0.75}
     pitch: {x: 0.92, y: 1.08}
     spatial: 1
-    minDistance: 10
+    minDistance: 30
   - id: 4
     bus: 0
     clips:
@@ -141,7 +141,7 @@ MonoBehaviour:
     volume: {x: 0.71999997, y: 0.8}
     pitch: {x: 0.92, y: 1.08}
     spatial: 1
-    minDistance: 10
+    minDistance: 30
   - id: 5
     bus: 0
     clips:
@@ -151,7 +151,7 @@ MonoBehaviour:
     volume: {x: 0.67499995, y: 0.75}
     pitch: {x: 0.94, y: 1.06}
     spatial: 1
-    minDistance: 10
+    minDistance: 30
   - id: 6
     bus: 0
     clips:
@@ -188,7 +188,7 @@ MonoBehaviour:
     - {fileID: 8300000, guid: ffb7c345f39424f33b370b11fabbebe0, type: 3}
     volume: {x: 0.9, y: 1}
     pitch: {x: 0.94, y: 1.06}
-    spatial: 1
+    spatial: 0
     minDistance: 14
   - id: 10
     bus: 0
@@ -197,7 +197,7 @@ MonoBehaviour:
     - {fileID: 8300000, guid: 0dcdfe115ac184f46a015d6b9c7787ba, type: 3}
     volume: {x: 0.9, y: 1}
     pitch: {x: 0.95, y: 1.05}
-    spatial: 1
+    spatial: 0
     minDistance: 10
   - id: 11
     bus: 1

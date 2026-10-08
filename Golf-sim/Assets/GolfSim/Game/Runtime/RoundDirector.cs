@@ -112,6 +112,7 @@ namespace GolfSim.Game
             replay = gameObject.AddComponent<ReplayDirector>(); // presentation: sounds and replays follow the ball and round events
             replay.Playing += OnReplayPlaying;
             gameObject.AddComponent<GameAudio>();
+            gameObject.AddComponent<WaterSplash>();
             TurnStarted += turn => hud?.Banner.AnnounceTurn(turn.player, Array.IndexOf(round.players, turn.player),
                                                              RoundHud.TurnInfo(turn.hole, round.Par, turn.strokes));
             connection = SimConnection.Create(ServerConfig.Load());

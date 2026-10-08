@@ -48,6 +48,8 @@ namespace GolfSim.Course
             public Vector2 slopeDegrees = new Vector2(0f, 45f);
             [Min(0), Tooltip("Instances per covered spot; raise for a thicker carpet (costs performance).")]
             public float density = 5f;
+            [Min(0), Tooltip("Meters over which it thins out toward keep-clear surfaces (the fairway); 0 = stops at the margin.")]
+            public float edgeFadeMeters;
             [Tooltip("Each prototype becomes its own detail layer; weight sets its share of the coverage.")]
             public List<Prototype> prototypes = new List<Prototype>();
         }
