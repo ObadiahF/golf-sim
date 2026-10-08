@@ -43,6 +43,7 @@ class Settings:
     pool_refill_at: float = 0.5      # next batch starts once someone has rated this share of the newest one
     pool_max_unrated: int = 300      # no new batch while this many pool holes have no vote from anyone
     pool_min_unseen: int = 15        # ... and the next starts when the user asking has fewer unseen holes ready
+    pool_min_stock: int = 27         # playable game holes kept of every preset (stock batches; 0: off)
     pool_autorun: bool = True        # background thread + worker processes fill batches (tests: pool.run_pending())
     game_key: str = ""               # bearer key for the read-only /api/game routes (empty: disabled)
     api_docs: bool = False           # serve /docs, /redoc, /openapi.json (development only)
@@ -77,6 +78,7 @@ class Settings:
             "pool_refill_at": float(_env("TRAINER_POOL_REFILL_AT", "0.5")),
             "pool_max_unrated": int(_env("TRAINER_POOL_MAX_UNRATED", "300")),
             "pool_min_unseen": int(_env("TRAINER_POOL_MIN_UNSEEN", "15")),
+            "pool_min_stock": int(_env("TRAINER_POOL_MIN_STOCK", "27")),
             "game_key": _env("TRAINER_GAME_KEY"),
             "api_docs": _env("TRAINER_API_DOCS").lower() in TRUE,
             **{name: float(_env(f"TRAINER_{name.upper()}", str(getattr(cls, name)))) for name in CHECK_LIMITS},

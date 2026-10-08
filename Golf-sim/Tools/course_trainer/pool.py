@@ -17,6 +17,12 @@
   can't wedge the refill, nor spin a broken generator in a loop.
   Batch creation runs under an advisory lock and only ever compares against the newest batch, so it is
   idempotent and fires once per batch.
+- Stock (`start_stock`, TRAINER_POOL_MIN_STOCK): besides those preference batches (the model picks each hole's
+  preset), a stock batch makes holes of one preset that has fewer playable game holes than the stock
+  (random_holes.preset_counts), the most-short preset first, so the game can offer every course type. Also one batch
+  at a time, but not held back by the unrated cap: it is bounded by the stock itself. A stock batch that made no
+  playable hole holds that preset back for EMPTY_RETRY. The refill's "used up" share is judged on the newest
+  preference batch, so stock batches don't change when the next preference batch starts.
 """
 from __future__ import annotations
 
@@ -43,6 +49,7 @@ class Batch:
     size: int
     status: str
     trained_on_votes: int | None
+    preset: str | None = None  # a stock batch's preset; None: the model picks each hole's
 
 
 def hole_seed(batch_id: int, position: int, attempt: int = 0) -> int:
@@ -51,15 +58,19 @@ def hole_seed(batch_id: int, position: int, attempt: int = 0) -> int:
 
 
 def _batch(row) -> Batch | None:
-    return None if row is None else Batch(row["id"], row["size"], row["status"], row["trained_on_votes"])
+    return None if row is None else Batch(row["id"], row["size"], row["status"], row["trained_on_votes"],
+                                          row["preset"])
 
 
-def _newest(conn) -> Batch | None:
-    return _batch(conn.execute("SELECT * FROM batches ORDER BY id DESC LIMIT 1").fetchone())
+def _newest(conn, preference: bool = False) -> Batch | None:
+    """The newest batch (`preference`: the newest preference batch, leaving stock batches out)."""
+    where = "WHERE preset IS NULL" if preference else ""
+    return _batch(conn.execute(f"SELECT * FROM batches {where} ORDER BY id DESC LIMIT 1").fetchone())
 
 
-def _create(conn, size: int) -> Batch:
-    return _batch(conn.execute("INSERT INTO batches (size) VALUES (%s) RETURNING *", [size]).fetchone())
+def _create(conn, size: int, preset: str | None = None) -> Batch:
+    return _batch(conn.execute("INSERT INTO batches (size, preset) VALUES (%s, %s) RETURNING *",
+                               [size, preset]).fetchone())
 
 
 def ensure_batch(dsn: str, size: int) -> tuple[Batch, bool]:
@@ -105,7 +116,8 @@ def refill_due(conn, refill_at: float, max_unrated: int, min_unseen: int = 0, us
     if newest is None:
         return True
     low = user_id is not None and min_unseen > 0 and unseen_count(conn, user_id) < min_unseen
-    return (newest.status == "ready" and (low or _used_up(conn, newest, refill_at))
+    judged = _newest(conn, preference=True) or newest
+    return (newest.status == "ready" and (low or _used_up(conn, judged, refill_at))
             and unrated_count(conn) < max_unrated)
 
 
@@ -115,6 +127,36 @@ def maybe_refill(dsn: str, size: int, refill_at: float, max_unrated: int, min_un
     with connect(dsn) as conn:
         conn.execute("SELECT pg_advisory_xact_lock(%s)", [_LOCK])
         return _create(conn, size) if refill_due(conn, refill_at, max_unrated, min_unseen, user_id) else None
+
+
+def shortfalls(counts: dict[str, int], stock: int, presets) -> list[tuple[str, int]]:
+    """[(preset, holes missing)] for each of `presets` with fewer than `stock` holes in `counts`, most short first
+    (ties: in `presets` order)."""
+    short = [(name, stock - counts.get(name, 0)) for name in presets if counts.get(name, 0) < stock]
+    return sorted(short, key=lambda s: -s[1])
+
+
+def _stuck(conn, preset: str) -> bool:
+    """This preset's newest stock batch finished without a playable hole less than EMPTY_RETRY ago."""
+    row = conn.execute(f"""SELECT b.status = 'ready' AND b.created_at > now() - make_interval(mins => %s)
+                                    AND NOT EXISTS (SELECT 1 FROM pool_holes p WHERE p.batch_id = b.id AND {PLAYABLE})
+                                    AS stuck
+                             FROM batches b WHERE b.preset = %s ORDER BY b.id DESC LIMIT 1""",
+                       [EMPTY_RETRY_MINUTES, preset]).fetchone()
+    return bool(row and row["stuck"])
+
+
+def start_stock(dsn: str, short: list[tuple[str, int]], max_size: int) -> Batch | None:
+    """A stock batch for the first preset in `short` (`shortfalls`) that isn't `_stuck`, of as many holes as it is
+    missing (at most `max_size`). None while any batch is generating, or when every short preset is stuck."""
+    with connect(dsn) as conn:
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", [_LOCK])
+        if conn.execute("SELECT 1 FROM batches WHERE status = 'generating'").fetchone():
+            return None
+        for preset, missing in short:
+            if not _stuck(conn, preset):
+                return _create(conn, min(missing, max_size), preset)
+    return None
 
 
 def peek_next(dsn: str, user_id: int, exclude: list[str] = ()) -> str | None:
@@ -179,10 +221,10 @@ def set_trained(dsn: str, batch_id: int, votes: int) -> None:
         conn.execute("UPDATE batches SET trained_on_votes = %s WHERE id = %s", [votes, batch_id])
 
 
-def add_hole(dsn: str, batch_id: int, position: int, hole_id: str) -> None:
+def add_hole(dsn: str, batch_id: int, position: int, hole_id: str, preset: str) -> None:
     with connect(dsn) as conn:
-        conn.execute("INSERT INTO pool_holes (hole_id, batch_id, position) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
-                     [hole_id, batch_id, position])
+        conn.execute("""INSERT INTO pool_holes (hole_id, batch_id, position, preset) VALUES (%s, %s, %s, %s)
+                        ON CONFLICT DO NOTHING""", [hole_id, batch_id, position, preset])
 
 
 def mark_ready(dsn: str, batch_id: int) -> None:

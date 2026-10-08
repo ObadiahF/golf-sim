@@ -32,6 +32,7 @@ docker compose logs -f trainer             # "applied migration 002_pool.sql", "
 New settings since the first deploy (add to `.env`): `TRAINER_MAX_GENERATIONS=8`, `TRAINER_GAME_KEY=$(openssl
 rand -hex 24)`, optionally `TRAINER_POOL_BATCH_SIZE` / `TRAINER_POOL_REFILL_AT` / `TRAINER_POOL_MAX_UNRATED` /
 `TRAINER_API_DOCS`. Migration `003_sessions.sql` moves sessions server-side, so everyone logs in once after it.
+Course types (`006_presets.sql`): optionally `TRAINER_POOL_MIN_STOCK` (27); stock batches then fill every preset.
 
 The compose file builds from the repo root (the image needs `Tools/course_gen`, `Tools/course_prep`,
 `Tools/course_trainer` and `Docs/hole-format`; `Dockerfile.dockerignore` sends only those). Services:
@@ -116,6 +117,7 @@ Or snapshot the `course-trainer_db` volume with the stack stopped. `docker compo
 | `TRAINER_POOL_REFILL_AT` | `0.5` | the next batch starts once anyone has *rated* this share of the newest batch (see Hole pool) |
 | `TRAINER_POOL_MAX_UNRATED` | `300` | no new batch while this many pool holes have no vote from anyone |
 | `TRAINER_POOL_MIN_UNSEEN` | `15` | ... and the next batch also starts when the person asking has fewer unseen holes ready (`0`: off) |
+| `TRAINER_POOL_MIN_STOCK` | `27` | playable game holes kept of every preset (course type): a short preset gets a stock batch (see Hole pool; `0`: off) |
 | `TRAINER_API_DOCS` | `false` | serve `/docs`, `/redoc`, `/openapi.json` (`run.sh` turns it on for local dev) |
 | `TRAINER_GAME_KEY` | | bearer key for the Game API (`openssl rand -hex 24`); empty: Game API off |
 | `TRAINER_GEN_SPACING` | `0.75` | meters per heightmap sample (bigger: faster, coarser; tests use 3) |
@@ -133,7 +135,7 @@ Or snapshot the `course-trainer_db` volume with the stack stopped. `docker compo
 
 Everyone rates holes from one shared pool (`pool.py`, filled by `pool_worker.py`):
 
-1. **Batches.** A batch retrains the model on everyone's latest votes (if there are any; recorded as
+1. **Batches** (preference batches; for stock batches see 6). A batch retrains the model on everyone's latest votes (if there are any; recorded as
    `batches.trained_on_votes` and in `training_runs`), then generates `TRAINER_POOL_BATCH_SIZE` holes. Each hole
    has a fixed seed per (batch, position) and lets the model pick preset and style (`choose_style` across all
    presets, Thompson sampling), so each batch leans toward what people liked while still exploring (10% of holes
@@ -165,7 +167,13 @@ Everyone rates holes from one shared pool (`pool.py`, filled by `pool_worker.py`
    you already passed, so revisit it from the recent holes list to rate it).
    A finished batch with 0 holes (every generation failed) counts as used up after 10 minutes, so it can't wedge
    the refill. While a batch generates, unseen holes from older batches are served.
-6. Pool holes are **never pruned**. **Submit** and **Skip** (N) both go to the next pool hole. The old ad-hoc
+6. **Stock** (`TRAINER_POOL_MIN_STOCK`, 27): every preset keeps that many holes the game can draw (the `playable` of
+   `GET /api/game/presets`). When nothing generates (checked after each batch and every minute), the most-short
+   preset gets a **stock batch** of the holes it misses (at most a batch size; the model still picks the style).
+   Stock holes are served and rated like any other, but don't count toward the refill (judged on the newest
+   *preference* batch) nor wait for the unrated cap (the stock bounds them). A stock batch with no playable hole
+   holds its preset back 10 minutes. `batches.preset` / `pool_holes.preset`: migration `006_presets.sql`.
+7. Pool holes are **never pruned**. **Submit** and **Skip** (N) both go to the next pool hole. The old ad-hoc
    Generate (preset / par) is under "Advanced" on the hole card.
 
 ### Playability (`hole_checks.py`)
@@ -247,8 +255,16 @@ holes nobody rated are not). Weight = `1 + likes - dislikes` (at least 1): an un
 3 net 👍 weigh 4, so liked holes come up more often but every playable hole gets played. The draw is weighted
 without replacement (each hole keyed `u^(1/weight)`, highest first). `exclude` (comma-separated, up to 200: the
 game sends its last ~30 played holes): those holes are drawn only after every other hole, so they fill a round only when the
-pool is too small. Same response as `top-holes` plus `"weighting": "1+likes-dislikes"`; `rank` is the draw order,
-`score` the hole's Wilson score. Shorter than `count` only when the whole pool is.
+pool is too small. `&preset=links,heathland` (optional; ids as `/api/game/presets` lists them, case-insensitive):
+only holes of those course types, same weighting, eligibility and `exclude` rules; nothing else fills in. Unknown
+id: 400 `{"detail": "Unknown preset 'moon'. Available: parkland, forest, ..."}`. Same response as `top-holes` plus
+`"weighting": "1+likes-dislikes"`, `"presets": ["links", "heathland"]` (the filter; `[]`: any) and `"matched": 31`
+(holes in that pool, recently played included; an unchecked one that fails its check when drawn is counted, not
+returned). `rank` is the draw order, `score` the hole's Wilson score. Shorter than `count` only when that pool is.
+
+`GET /api/game/presets`: each course type (`style.PRESETS` order) with how many holes `random-holes` can draw of it,
+and the stock the pool keeps (so the game can grey out one still generating): `{"stock": 27, "presets": [{"id":
+"canyon", "name": "Red Rock Canyon", "theme": "canyon", "playable": 0}, ...]}`. `top-holes` and `random-holes`:
 
 ```json
 {
@@ -397,11 +413,11 @@ course_trainer/
   server.py         CLI: serve (migrate + seed first), seed, adduser, passwd, export, top, check-holes
   api.py            FastAPI app (create_app): thin layer over course_gen; generation semaphore, pruning, /next, /top
   pool.py           shared pool in Postgres: batches, serving unseen holes, refill trigger (advisory lock)
-  pool_worker.py    background batch filler: retrain, then generate in worker processes
+  pool_worker.py    background batch filler: retrain, then generate in worker processes; stock batches per preset
   ranking.py        leaderboard: Wilson lower bound over latest_votes, liked + playable holes only
-  random_holes.py   the game's random round: weighted draw from the playable, not net-disliked pool
+  random_holes.py   the game's random round: weighted draw from the playable, not net-disliked pool (per preset)
   hole_checks.py    tee-shot playability per hole (course_gen's scan_launch), startup backfill
-  game.py           read-only Game API behind TRAINER_GAME_KEY (top holes, random holes, package files)
+  game.py           read-only Game API behind TRAINER_GAME_KEY (top holes, random holes, presets, package files)
   auth.py           signed session cookie, login / logout / me, login throttle, client IP behind a proxy
   users.py          scrypt password hashes, accounts, server-side sessions, seed (users + legacy ratings.jsonl)
   inputs.py         input hygiene: text without NUL / lone surrogates, ASCII-safe JSON errors (4xx, never 500)
@@ -409,9 +425,11 @@ course_trainer/
   config.py         Settings from TRAINER_* environment variables
   holes.py          hole packages on disk: safe lookup, per-hole summary
   migrations/       001_init.sql (users, votes + latest_votes view, hole_views, training_runs),
-                    002_pool.sql (batches, pool_holes), 003_sessions.sql (sessions), 004_hole_checks.sql
+                    002_pool.sql (batches, pool_holes), 003_sessions.sql (sessions), 004_hole_checks.sql,
+                    005_hole_check_version.sql, 006_presets.sql (batches.preset, pool_holes.preset)
   Dockerfile, Dockerfile.dockerignore, docker-compose.yml, .env.example, requirements.txt
-  tests/            test_api, test_auth, test_votes, test_pool, test_ranking, test_hole_checks (+ conftest)
+  tests/            test_api, test_auth, test_votes, test_pool, test_ranking, test_hole_checks, test_random_holes,
+                    test_presets (+ conftest)
   web/              Vite + React + TypeScript + three.js (@react-three/fiber, drei)
     src/App.tsx             login gate -> TrainerView (3D scene + HUD)
     src/Login.tsx, src/useSession.ts   login card; session state (any 401 shows the login again)

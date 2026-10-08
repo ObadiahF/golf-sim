@@ -47,7 +47,8 @@ def clean_db(dsn, tmp_path, monkeypatch):
 def make_client(clean_db, tmp_path):
     """make_client(**settings) -> (TestClient, Settings); users obi and sam exist. Generation is coarse (fast) and
     the pool has no background worker: tests fill it with `client.app.state.pool.run_pending()`. Batches start on the
-    rated / seen share only (no unseen buffer, pool_min_unseen=0) unless a test sets it."""
+    rated / seen share only (no unseen buffer, pool_min_unseen=0, and no stock batches, pool_min_stock=0) unless a
+    test sets it."""
     from fastapi.testclient import TestClient
 
     import users
@@ -63,7 +64,7 @@ def make_client(clean_db, tmp_path):
     def make(**overrides):
         settings = Settings(**{"database_url": clean_db, "session_secret": "test-secret",
                                "holes_dir": tmp_path / "holes", "gen_spacing": 3.0, "pool_batch_size": 4,
-                               "pool_min_unseen": 0,
+                               "pool_min_unseen": 0, "pool_min_stock": 0,
                                "pool_autorun": False, **overrides})
         return TestClient(create_app(settings, dist)), settings
     return make

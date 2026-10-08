@@ -36,6 +36,13 @@ class HoleStore:
             raise HoleNotFound(hole_id)
         return folder
 
+    def exists(self, hole_id: str) -> bool:
+        try:
+            self.folder(hole_id)
+        except HoleNotFound:
+            return False
+        return True
+
     def file(self, hole_id: str, name: str) -> Path:
         path = self.folder(hole_id) / name
         if name not in PACKAGE_FILES or not path.is_file():
